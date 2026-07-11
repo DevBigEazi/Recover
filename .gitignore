@@ -8,6 +8,8 @@ frontend/.next/
 # Foundry build output
 smart-contract/out/
 smart-contract/cache/
+smart-contract/broadcast/
+broadcast/
 
 # Environment variables
 .env
