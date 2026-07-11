@@ -1,0 +1,37 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Item {
+  registrationId String         @id
+  ownerAddress   String
+  name           String
+  brand          String?
+  serial         String?
+  reward         String?
+  contactInfo    String?
+  instructions   String?
+  itemHash       String
+  status         String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  reports        FinderReport[]
+
+  @@index([ownerAddress])
+}
+
+model FinderReport {
+  reportId       String   @id @default(uuid())
+  registrationId String
+  item           Item     @relation(fields: [registrationId], references: [registrationId], onDelete: Cascade)
+  message        String
+  contactInfo    String?
+  location       String?
+  photo          String?  // Base64 compressed image data URL
+  createdAt      DateTime @default(now())
+}

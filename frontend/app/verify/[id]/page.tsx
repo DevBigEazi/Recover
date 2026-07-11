@@ -154,35 +154,23 @@ export default function VerifyPage({ params }: PageProps) {
     setReportError(null);
 
     try {
-      // 1. Client-side Rate-limiting Check (anti-spam)
-      const lastSubmitStr = localStorage.getItem(`rate_limit_verify_${itemId}`);
-      if (lastSubmitStr) {
-        const lastSubmitTime = Number(lastSubmitStr);
-        const elapsed = (Date.now() - lastSubmitTime) / 1000;
-        if (elapsed < 60) {
-          throw new Error(`You are submitting reports too quickly. Please wait ${Math.ceil(60 - elapsed)} seconds.`);
-        }
+      // 1. Submit report to database API (includes backend rate-limit checks)
+      const res = await fetch("/api/reports/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registrationId: itemId,
+          message: finderMessage.trim(),
+          contactInfo: finderContact.trim(),
+          location: locationCoords,
+          photo: photoBase64,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to submit report to backend database.");
       }
-
-      // 2. Build finder report object
-      const newReport = {
-        reportId: Math.random().toString(36).substr(2, 9),
-        itemId: itemId,
-        message: finderMessage.trim(),
-        contactInfo: finderContact.trim(),
-        location: locationCoords,
-        photo: photoBase64,
-        timestamp: Date.now(),
-      };
-
-      // 3. Save to localStorage database mock
-      const storedReportsStr = localStorage.getItem("recover_finder_reports") || "[]";
-      const storedReports = JSON.parse(storedReportsStr);
-      storedReports.push(newReport);
-      localStorage.setItem("recover_finder_reports", JSON.stringify(storedReports));
-
-      // 4. Update rate-limit timestamp
-      localStorage.setItem(`rate_limit_verify_${itemId}`, Date.now().toString());
 
       setReportSuccess(true);
       setFinderMessage("");
@@ -203,10 +191,30 @@ export default function VerifyPage({ params }: PageProps) {
     setError(null);
 
     try {
-      // 1. Read local cached metadata if available
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      let localItem = storedItems[itemId] as SyncedItem | undefined;
+      // 1. Read metadata from database API
+      let localItem: SyncedItem | null = null;
+      try {
+        const res = await fetch(`/api/items/${itemId}`);
+        if (res.ok) {
+          const dbItem = await res.json();
+          localItem = {
+            registrationId: dbItem.registrationId,
+            name: dbItem.name,
+            brand: dbItem.brand || "",
+            serial: dbItem.serial || "",
+            reward: dbItem.reward || "",
+            contact: dbItem.contactInfo || "",
+            instructions: dbItem.instructions || "",
+            owner: dbItem.ownerAddress,
+            status: dbItem.status,
+            itemHash: dbItem.itemHash,
+            registeredAt: new Date(dbItem.createdAt).getTime(),
+            lastUpdated: new Date(dbItem.updatedAt).getTime(),
+          };
+        }
+      } catch (err) {
+        console.error("Failed to fetch metadata from DB API:", err);
+      }
 
       // 2. Read live status on-chain (wallet-free read using RPC)
       const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
@@ -229,7 +237,7 @@ export default function VerifyPage({ params }: PageProps) {
         onChainHash = data.itemHash;
       } catch (err) {
         console.error("On-chain query failed:", err);
-        // If contract query fails and no local metadata is found, the item doesn't exist
+        // If both query and DB metadata fail, the item is invalid
         if (!localItem) {
           setItem(null);
           setIsLoading(false);
@@ -239,7 +247,6 @@ export default function VerifyPage({ params }: PageProps) {
 
       // 3. Assemble synced item
       if (!localItem) {
-        // Fallback if metadata is missing locally, but exists on-chain
         localItem = {
           registrationId: itemId,
           name: `Recover Item #${itemId}`,
@@ -255,11 +262,27 @@ export default function VerifyPage({ params }: PageProps) {
           lastUpdated: lastUpdatedTime,
         };
       } else {
-        // Sync cached metadata with live on-chain status
-        localItem.status = onChainStatus;
-        localItem.lastUpdated = lastUpdatedTime;
-        storedItems[itemId] = localItem;
-        localStorage.setItem("recover_items", JSON.stringify(storedItems));
+        // Sync database if on-chain status differs
+        if (localItem.status !== onChainStatus) {
+          localItem.status = onChainStatus;
+          localItem.lastUpdated = lastUpdatedTime;
+          await fetch("/api/items/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              registrationId: localItem.registrationId,
+              ownerAddress: localItem.owner,
+              name: localItem.name,
+              brand: localItem.brand,
+              serial: localItem.serial,
+              reward: localItem.reward,
+              contactInfo: localItem.contact,
+              instructions: localItem.instructions,
+              itemHash: localItem.itemHash,
+              status: onChainStatus,
+            }),
+          });
+        }
       }
 
       setItem(localItem);

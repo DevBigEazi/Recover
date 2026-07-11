@@ -65,18 +65,41 @@ export default function ItemDetailPage({ params }: PageProps) {
     setError(null);
 
     try {
-      // 1. Fetch item from local storage
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      const localItem = storedItems[itemId] as LocalItem | undefined;
-
-      if (!localItem) {
-        setItem(null);
-        setIsLoading(false);
-        return;
+      // 1. Fetch item details from SQLite Database API
+      const headers: Record<string, string> = {};
+      if (account) {
+        headers["x-owner-address"] = account.address;
       }
+      
+      const response = await fetch(`/api/items/${itemId}`, { headers });
+      if (!response.ok) {
+        if (response.status === 404) {
+          setItem(null);
+          setIsLoading(false);
+          return;
+        }
+        throw new Error("Failed to load item details from database.");
+      }
+      
+      const dbItem = await response.json();
+      
+      // Map database schema to frontend local interface
+      const localItem: LocalItem = {
+        registrationId: dbItem.registrationId,
+        name: dbItem.name,
+        brand: dbItem.brand || "",
+        serial: dbItem.serial || "",
+        reward: dbItem.reward || "",
+        contact: dbItem.contactInfo || "",
+        instructions: dbItem.instructions || "",
+        owner: dbItem.ownerAddress,
+        status: dbItem.status,
+        itemHash: dbItem.itemHash,
+        registeredAt: new Date(dbItem.createdAt).getTime(),
+        lastUpdated: new Date(dbItem.updatedAt).getTime(),
+      };
 
-      // 2. Fetch live on-chain status
+      // 2. Fetch live on-chain status & sync if changed
       const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
       try {
         const data = await readContract({
@@ -87,28 +110,44 @@ export default function ItemDetailPage({ params }: PageProps) {
         });
 
         const onChainStatus = statusMap[data.status];
-        const lastUpdatedTime = Number(data.lastUpdated) * 1000;
 
-        if (localItem.status !== onChainStatus || localItem.lastUpdated !== lastUpdatedTime) {
+        if (localItem.status !== onChainStatus) {
           localItem.status = onChainStatus;
-          localItem.lastUpdated = lastUpdatedTime;
-          storedItems[itemId] = localItem;
-          localStorage.setItem("recover_items", JSON.stringify(storedItems));
+          await fetch("/api/items/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...dbItem,
+              status: onChainStatus,
+            }),
+          });
         }
       } catch (err) {
-        console.error("Failed to query on-chain status, falling back to cached state:", err);
+        console.error("Failed to query on-chain status, falling back to cached DB state:", err);
       }
 
       setItem(localItem);
 
-      // 3. Fetch finder reports
-      const storedReportsStr = localStorage.getItem("recover_finder_reports") || "[]";
-      const storedReports: FinderReport[] = JSON.parse(storedReportsStr);
-      const itemReports = storedReports
-        .filter((r) => r.itemId === itemId)
-        .sort((a, b) => b.timestamp - a.timestamp);
-
-      setReports(itemReports);
+      // 3. Fetch finder reports (if requester is the verified owner)
+      if (account && account.address.toLowerCase() === localItem.owner.toLowerCase()) {
+        const repResponse = await fetch(`/api/reports/item/${itemId}`, {
+          headers: { "x-owner-address": account.address },
+        });
+        if (repResponse.ok) {
+          const dbReports = await repResponse.json();
+          
+          // Map DB finder report schema to frontend interface
+          const mappedReports: FinderReport[] = dbReports.map((r: any) => ({
+            reportId: r.reportId,
+            itemId: r.registrationId,
+            message: r.message,
+            contactInfo: r.contactInfo || "",
+            location: r.location || "",
+            timestamp: new Date(r.createdAt).getTime(),
+          }));
+          setReports(mappedReports);
+        }
+      }
     } catch (err) {
       console.error(err);
       setError("An error occurred while loading the item details.");
@@ -140,14 +179,23 @@ export default function ItemDetailPage({ params }: PageProps) {
         transactionHash: txResult.transactionHash,
       });
 
-      // Update local storage status
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      if (storedItems[itemId]) {
-        storedItems[itemId].status = "Lost";
-        storedItems[itemId].lastUpdated = Date.now();
-        localStorage.setItem("recover_items", JSON.stringify(storedItems));
-      }
+      // Update SQLite Database
+      await fetch("/api/items/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registrationId: item.registrationId,
+          ownerAddress: item.owner,
+          name: item.name,
+          brand: item.brand,
+          serial: item.serial,
+          reward: item.reward,
+          contactInfo: item.contact,
+          instructions: item.instructions,
+          itemHash: item.itemHash,
+          status: "Lost",
+        }),
+      });
 
       await fetchItemAndReports();
     } catch (err: any) {
@@ -177,14 +225,23 @@ export default function ItemDetailPage({ params }: PageProps) {
         transactionHash: txResult.transactionHash,
       });
 
-      // Update local storage status
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      if (storedItems[itemId]) {
-        storedItems[itemId].status = "Recovered";
-        storedItems[itemId].lastUpdated = Date.now();
-        localStorage.setItem("recover_items", JSON.stringify(storedItems));
-      }
+      // Update SQLite Database
+      await fetch("/api/items/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registrationId: item.registrationId,
+          ownerAddress: item.owner,
+          name: item.name,
+          brand: item.brand,
+          serial: item.serial,
+          reward: item.reward,
+          contactInfo: item.contact,
+          instructions: item.instructions,
+          itemHash: item.itemHash,
+          status: "Recovered",
+        }),
+      });
 
       await fetchItemAndReports();
     } catch (err: any) {
@@ -218,28 +275,35 @@ export default function ItemDetailPage({ params }: PageProps) {
   };
 
   // Mock Finder Report Submission (Dev Helper)
-  const handleSubmitMockReport = (e: React.FormEvent) => {
+  const handleSubmitMockReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mockMessage.trim()) return;
 
-    const newReport: FinderReport = {
-      reportId: Math.random().toString(36).substr(2, 9),
-      itemId: itemId,
-      message: mockMessage.trim(),
-      contactInfo: mockContact.trim(),
-      location: mockLocation.trim(),
-      timestamp: Date.now(),
-    };
+    try {
+      const res = await fetch("/api/reports/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registrationId: itemId,
+          message: mockMessage.trim(),
+          contactInfo: mockContact.trim(),
+          location: mockLocation.trim(),
+        }),
+      });
 
-    const storedReportsStr = localStorage.getItem("recover_finder_reports") || "[]";
-    const storedReports = JSON.parse(storedReportsStr);
-    storedReports.push(newReport);
-    localStorage.setItem("recover_finder_reports", JSON.stringify(storedReports));
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to submit mock report.");
+      }
 
-    setMockMessage("");
-    setMockContact("");
-    setMockLocation("");
-    fetchItemAndReports();
+      setMockMessage("");
+      setMockContact("");
+      setMockLocation("");
+      await fetchItemAndReports();
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Failed to submit mock report.");
+    }
   };
 
   if (isLoading) {

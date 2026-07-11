@@ -98,17 +98,22 @@ export default function RegisterPage() {
 
       const registrationId = logs[0].args.registrationId.toString();
 
-      // 6. Save metadata to localStorage (mock backend)
-      const existingItemsStr = localStorage.getItem("recover_items") || "{}";
-      const existingItems = JSON.parse(existingItemsStr);
-      existingItems[registrationId] = {
-        ...metadata,
-        registrationId,
-        status: "Active",
-        itemHash,
-        lastUpdated: Date.now(),
-      };
-      localStorage.setItem("recover_items", JSON.stringify(existingItems));
+      // 6. Save metadata to SQLite Database
+      const apiResponse = await fetch("/api/items/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...metadata,
+          registrationId,
+          status: "Active",
+          itemHash,
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to persist metadata in database.");
+      }
 
       // 7. Set success states & generate QR URL
       const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(

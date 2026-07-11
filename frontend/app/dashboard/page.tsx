@@ -47,19 +47,17 @@ export default function DashboardPage() {
     setActionError(null);
 
     try {
-      // 1. Read from localStorage
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
+      // 1. Read from SQLite Database API
+      const response = await fetch(`/api/items?ownerAddress=${account.address}`);
+      if (!response.ok) {
+        throw new Error("Failed to load registered items from backend.");
+      }
+      const dbItems: LocalItem[] = await response.json();
 
-      // 2. Filter items owned by current user
-      const userItems: LocalItem[] = Object.values(storedItems).filter(
-        (item: any) => item.owner.toLowerCase() === account.address.toLowerCase()
-      ) as LocalItem[];
-
-      // 3. Query on-chain status for each item in parallel
+      // 2. Query on-chain status for each item in parallel to ensure synchronization
       const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
       const syncedItems = await Promise.all(
-        userItems.map(async (item) => {
+        dbItems.map(async (item) => {
           try {
             // Read status and lastUpdated from contract
             const data = await readContract({
@@ -71,29 +69,32 @@ export default function DashboardPage() {
 
             // Map on-chain enum status
             const onChainStatus = statusMap[data.status];
-            const lastUpdatedTime = Number(data.lastUpdated) * 1000;
-
-            // Sync localStorage if needed
-            if (item.status !== onChainStatus || item.lastUpdated !== lastUpdatedTime) {
+            
+            // Sync database if on-chain status differs
+            if (item.status !== onChainStatus) {
               item.status = onChainStatus;
-              item.lastUpdated = lastUpdatedTime;
-              storedItems[item.registrationId] = item;
+              await fetch("/api/items/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  ...item,
+                  status: onChainStatus,
+                }),
+              });
             }
 
             return item;
           } catch (err) {
             console.error(`Failed to fetch on-chain status for ID ${item.registrationId}:`, err);
-            return item; // Fallback to local data
+            return item; // Fallback to DB data
           }
         })
       );
 
-      // Save synced items back to localStorage
-      localStorage.setItem("recover_items", JSON.stringify(storedItems));
       setItems(syncedItems.sort((a, b) => b.registeredAt - a.registeredAt));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching items:", err);
-      setActionError("Failed to sync item list with Electroneum chain.");
+      setActionError(err?.message || "Failed to sync item list with Electroneum chain.");
     } finally {
       setIsLoading(false);
     }
@@ -122,13 +123,17 @@ export default function DashboardPage() {
         transactionHash: txResult.transactionHash,
       });
 
-      // Update localStorage local copy
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      if (storedItems[registrationId]) {
-        storedItems[registrationId].status = "Lost";
-        storedItems[registrationId].lastUpdated = Date.now();
-        localStorage.setItem("recover_items", JSON.stringify(storedItems));
+      // Update Database
+      const targetItem = items.find((i) => i.registrationId === registrationId);
+      if (targetItem) {
+        await fetch("/api/items/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...targetItem,
+            status: "Lost",
+          }),
+        });
       }
 
       await fetchItems();
@@ -159,13 +164,17 @@ export default function DashboardPage() {
         transactionHash: txResult.transactionHash,
       });
 
-      // Update localStorage local copy
-      const storedItemsStr = localStorage.getItem("recover_items") || "{}";
-      const storedItems = JSON.parse(storedItemsStr);
-      if (storedItems[registrationId]) {
-        storedItems[registrationId].status = "Recovered";
-        storedItems[registrationId].lastUpdated = Date.now();
-        localStorage.setItem("recover_items", JSON.stringify(storedItems));
+      // Update Database
+      const targetItem = items.find((i) => i.registrationId === registrationId);
+      if (targetItem) {
+        await fetch("/api/items/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...targetItem,
+            status: "Recovered",
+          }),
+        });
       }
 
       await fetchItems();
