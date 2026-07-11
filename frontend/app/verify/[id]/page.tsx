@@ -39,6 +39,165 @@ export default function VerifyPage({ params }: PageProps) {
   // Toggle state to reveal finder report form
   const [showReportForm, setShowReportForm] = useState(false);
 
+  // Finder Report form states
+  const [finderMessage, setFinderMessage] = useState("");
+  const [finderContact, setFinderContact] = useState("");
+  const [shareLocation, setShareLocation] = useState(false);
+  const [locationCoords, setLocationCoords] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
+  
+  const [photoBase64, setPhotoBase64] = useState("");
+  const [isCompressing, setIsCompressing] = useState(false);
+  
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  // Client-side image compression downscale (zero-dependency canvas)
+  const compressPhoto = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.6); // 60% quality JPEG
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsCompressing(true);
+    setReportError(null);
+    try {
+      const compressed = await compressPhoto(file);
+      setPhotoBase64(compressed);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      setReportError("Failed to compress and upload photo. Try a smaller file.");
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const handleLocationToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setShareLocation(checked);
+    if (!checked) {
+      setLocationCoords("");
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setReportError("Geolocation is not supported by your browser.");
+      setShareLocation(false);
+      return;
+    }
+
+    setIsLocating(true);
+    setReportError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude.toFixed(6);
+        const lng = position.coords.longitude.toFixed(6);
+        setLocationCoords(`lat: ${lat}, lng: ${lng}`);
+        setIsLocating(false);
+      },
+      (err) => {
+        console.error("Geolocation error:", err);
+        setReportError("Location access denied or unavailable.");
+        setShareLocation(false);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (finderMessage.trim().length < 10) {
+      setReportError("Message must be at least 10 characters long.");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    setReportError(null);
+
+    try {
+      // 1. Client-side Rate-limiting Check (anti-spam)
+      const lastSubmitStr = localStorage.getItem(`rate_limit_verify_${itemId}`);
+      if (lastSubmitStr) {
+        const lastSubmitTime = Number(lastSubmitStr);
+        const elapsed = (Date.now() - lastSubmitTime) / 1000;
+        if (elapsed < 60) {
+          throw new Error(`You are submitting reports too quickly. Please wait ${Math.ceil(60 - elapsed)} seconds.`);
+        }
+      }
+
+      // 2. Build finder report object
+      const newReport = {
+        reportId: Math.random().toString(36).substr(2, 9),
+        itemId: itemId,
+        message: finderMessage.trim(),
+        contactInfo: finderContact.trim(),
+        location: locationCoords,
+        photo: photoBase64,
+        timestamp: Date.now(),
+      };
+
+      // 3. Save to localStorage database mock
+      const storedReportsStr = localStorage.getItem("recover_finder_reports") || "[]";
+      const storedReports = JSON.parse(storedReportsStr);
+      storedReports.push(newReport);
+      localStorage.setItem("recover_finder_reports", JSON.stringify(storedReports));
+
+      // 4. Update rate-limit timestamp
+      localStorage.setItem(`rate_limit_verify_${itemId}`, Date.now().toString());
+
+      setReportSuccess(true);
+      setFinderMessage("");
+      setFinderContact("");
+      setShareLocation(false);
+      setLocationCoords("");
+      setPhotoBase64("");
+    } catch (err: any) {
+      console.error(err);
+      setReportError(err?.message || "An unexpected error occurred while submitting.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const syncOnChainStatus = async () => {
     setIsLoading(true);
     setError(null);
@@ -315,23 +474,184 @@ export default function VerifyPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* Placeholder / Form Container for found reports (to be completed in Step 15) */}
+            {/* Submit Found Report Form */}
             {showReportForm && (
               <div id="report-form-container" className="bg-neutral-white border border-neutral-mist rounded-2xl p-8 shadow-xs space-y-4 animate-slide-up">
                 <div className="flex items-center justify-between border-b border-neutral-mist pb-4">
                   <h3 className="text-lg font-bold text-primary font-display">Submit Found Report</h3>
                   <button
-                    onClick={() => setShowReportForm(false)}
+                    onClick={() => {
+                      setShowReportForm(false);
+                      setReportSuccess(false);
+                      setReportError(null);
+                    }}
                     className="text-neutral-slate hover:text-primary text-sm font-semibold cursor-pointer"
                   >
-                    Cancel
+                    Close
                   </button>
                 </div>
-                
-                {/* Form fields placeholder (to be fully integrated with validation/actions in next step) */}
-                <div className="p-6 border border-dashed border-neutral-mist rounded-xl text-center text-xs text-neutral-slate">
-                  Found report details form will be fully active in the next step.
-                </div>
+
+                {reportSuccess ? (
+                  <div className="bg-green-50 border border-green-200 text-accent p-6 rounded-xl text-center space-y-3">
+                    <svg className="w-10 h-10 text-accent mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h4 className="font-bold text-sm">Report Submitted Successfully!</h4>
+                    <p className="text-xs text-neutral-slate max-w-xs mx-auto">
+                      Your message has been delivered to the owner's secure inbox. Thank you for your support in recovering this item!
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleReportSubmit} className="space-y-4">
+                    {reportError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-xs flex items-start gap-2">
+                        <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{reportError}</span>
+                      </div>
+                    )}
+
+                    {/* Message */}
+                    <div>
+                      <label htmlFor="msg" className="block text-xs font-semibold text-primary">
+                        Message to Owner <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        id="msg"
+                        rows={4}
+                        value={finderMessage}
+                        onChange={(e) => setFinderMessage(e.target.value)}
+                        placeholder="Provide details about where or how you found the item. (Min 10 characters, max 1000)"
+                        minLength={10}
+                        maxLength={1000}
+                        required
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 text-xs focus:border-accent focus:outline-hidden bg-neutral-mist/30"
+                        disabled={isSubmittingReport}
+                      />
+                      <div className="text-[10px] text-neutral-slate mt-1 text-right">
+                        {finderMessage.length} / 1000 characters
+                      </div>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div>
+                      <label htmlFor="finder_contact" className="block text-xs font-semibold text-primary">
+                        Your Contact Information (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        id="finder_contact"
+                        value={finderContact}
+                        onChange={(e) => setFinderContact(e.target.value)}
+                        placeholder="e.g. email@address.com or phone number"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-mist/30"
+                        disabled={isSubmittingReport}
+                      />
+                    </div>
+
+                    {/* Geolocation Capture */}
+                    <div className="flex items-center justify-between p-3 bg-neutral-mist/40 border border-neutral-mist rounded-xl">
+                      <div className="space-y-0.5">
+                        <label htmlFor="geo_toggle" className="block text-xs font-semibold text-primary cursor-pointer">
+                          Share Current Location
+                        </label>
+                        <p className="text-[10px] text-neutral-slate">
+                          Helps the owner pinpoint where the item was found. Requires browser prompt consent.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isLocating && (
+                          <svg className="animate-spin h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                        )}
+                        <input
+                          type="checkbox"
+                          id="geo_toggle"
+                          checked={shareLocation}
+                          onChange={handleLocationToggle}
+                          disabled={isSubmittingReport || isLocating}
+                          className="h-4.5 w-4.5 rounded-sm border-gray-300 text-accent focus:ring-accent cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {locationCoords && (
+                      <div className="text-[10px] text-accent font-medium bg-green-50/50 border border-green-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Location Captured: {locationCoords}</span>
+                      </div>
+                    )}
+
+                    {/* Photo Upload */}
+                    <div>
+                      <label htmlFor="photo_upload" className="block text-xs font-semibold text-primary mb-1">
+                        Upload Photo of Item (Optional)
+                      </label>
+                      <input
+                        type="file"
+                        id="photo_upload"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        disabled={isSubmittingReport || isCompressing}
+                        className="block w-full text-xs text-neutral-slate file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-neutral-mist file:text-primary hover:file:bg-neutral-mist/80 cursor-pointer"
+                      />
+                      {isCompressing && (
+                        <div className="text-[10px] text-neutral-slate mt-1 flex items-center gap-1">
+                          <svg className="animate-spin h-3 w-3 text-neutral-slate" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Compressing image on client...</span>
+                        </div>
+                      )}
+                      {photoBase64 && !isCompressing && (
+                        <div className="mt-3 flex items-center gap-2 border border-neutral-mist p-2 rounded-xl bg-neutral-mist/20 w-max">
+                          <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-neutral-mist">
+                            <Image
+                              src={photoBase64}
+                              alt="Thumbnail of item"
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPhotoBase64("")}
+                            className="text-red-500 hover:text-red-700 text-xs font-semibold px-2 cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isSubmittingReport || isCompressing || isLocating}
+                      className="w-full bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isSubmittingReport ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Submitting Found Report...</span>
+                        </>
+                      ) : (
+                        <span>Submit Found Report</span>
+                      )}
+                    </button>
+                  </form>
+                )}
               </div>
             )}
           </div>
