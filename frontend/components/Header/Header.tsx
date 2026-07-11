@@ -3,54 +3,80 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ConnectButton } from "thirdweb/react";
+import { usePathname } from "next/navigation";
+import { ConnectButton, lightTheme } from "thirdweb/react";
 import { client } from "@/lib/client";
-import { defineChain } from "thirdweb";
-import NetworkSwitcher from "./NetworkSwitcher";
+import { electroneum } from "@/lib/chain";
 
-const electroneum = defineChain(52014);
-const electroneumTestnet = defineChain(5201420);
+const customTheme = lightTheme({
+  colors: {
+    accentText: "#0EA394", // Teal accent
+    primaryButtonBg: "#1E2A4A", // Deep Indigo primary button
+    primaryButtonText: "#FFFFFF", // White text
+    connectedButtonBg: "#FFFFFF", // White background
+    connectedButtonBgHover: "#F5F6F8", // Mist hover background
+    modalBg: "#FFFFFF",
+  },
+});
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  const navLinks = [
+    { name: "Home", href: "/" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Register Item", href: "/register" },
+  ];
+
+  const isActive = (href: string) => pathname === href;
 
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-sm">
+    <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
+          
+          {/* Logo / Wordmark lockup */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <Image src={"/ETN.png"} alt="etn logo" width={32} height={32}/>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
-                Electroneum Dapp Starter (etn-forge)
-              </span>
+              <Image 
+                src="/logo-full.svg" 
+                alt="Recover Logo" 
+                width={137} 
+                height={40} 
+                className="h-10 w-auto" 
+                priority
+              />
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:space-x-6">
-            <div className="flex items-baseline space-x-4">
-              <Link
-                href="/"
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Home
-              </Link>
-              <Link
-                href="/about"
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                About
-              </Link>
+          <div className="hidden md:flex md:items-center md:space-x-8">
+            <div className="flex items-baseline space-x-6">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 rounded-md ${
+                    isActive(link.href)
+                      ? "text-primary font-semibold"
+                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
             </div>
             
-            {/* Wallet Connection Component */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <NetworkSwitcher />
+            {/* Desktop Connect Wallet Button */}
+            <div className="flex items-center">
               <ConnectButton 
                 client={client} 
-                chains={[electroneum, electroneumTestnet]} 
+                chain={electroneum}
+                theme={customTheme}
+                connectButton={{
+                  className: "connect-btn-override",
+                }}
               />
             </div>
           </div>
@@ -59,9 +85,9 @@ export default function Header() {
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-white"
+              className="inline-flex items-center justify-center rounded-md p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors focus:outline-hidden"
+              aria-label="Toggle navigation menu"
             >
-              <span className="sr-only">Open main menu</span>
               {!isMenuOpen ? (
                 <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -75,39 +101,47 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation Panel */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="space-y-1 px-2 pb-3 pt-2 sm:px-3">
-              <Link
-                href="/"
-                className="block rounded-md px-3 py-2 text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link
-                href="/about"
-                className="block rounded-md px-3 py-2 text-base font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About
-              </Link>
+          <div className="md:hidden animate-fade-in pb-4">
+            <div className="space-y-1 pt-2 pb-3 border-t border-neutral-mist">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`block rounded-md px-3 py-2.5 text-base font-medium transition-colors ${
+                    isActive(link.href)
+                      ? "text-primary bg-neutral-mist font-semibold"
+                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              ))}
               
-              {/* Mobile Wallet Connection */}
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-                  <NetworkSwitcher />
-                  <ConnectButton 
-                    client={client} 
-                    chains={[electroneum, electroneumTestnet]} 
-                  />
-                </div>
+              {/* Mobile Connect Wallet */}
+              <div className="pt-4 border-t border-neutral-mist mt-3">
+                <ConnectButton 
+                  client={client} 
+                  chain={electroneum}
+                  theme={customTheme}
+                />
               </div>
             </div>
           </div>
         )}
       </nav>
+      
+      <style>{`
+        .connect-btn-override {
+          font-family: var(--font-sans) !important;
+          font-weight: 500 !important;
+          border-radius: 8px !important;
+          padding: 8px 16px !important;
+          transition: background-color 0.2s ease-in-out !important;
+        }
+      `}</style>
     </header>
   );
 }
