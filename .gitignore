@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+
+# Next.js build output
+.next/
+frontend/.next/
+
+# Foundry build output
+smart-contract/out/
+smart-contract/cache/
+
+# Environment variables
+.env
+.env.*

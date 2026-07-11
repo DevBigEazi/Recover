@@ -1,0 +1,24 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E2A4A"/>
+      <stop offset="100%" stop-color="#2F3E68"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield -->
+  <path d="M128 20 L208 52 V116 C208 172 174 208 128 236 C82 208 48 172 48 116 V52 Z"
+        fill="url(#shieldGrad)" stroke="#0EA394" stroke-width="4"/>
+
+  <!-- QR corner-finder brackets (top-left, top-right, bottom-left) inside shield -->
+  <g stroke="#0EA394" stroke-width="6" fill="none" stroke-linecap="round">
+    <path d="M84 78 V64 H98"/>
+    <path d="M172 78 V64 H158"/>
+    <path d="M84 158 V172 H98"/>
+  </g>
+
+  <!-- Location pin -->
+  <path d="M128 92 C112 92 100 104 100 120 C100 140 128 172 128 172 C128 172 156 140 156 120 C156 104 144 92 128 92 Z"
+        fill="#F5F6F8"/>
+  <circle cx="128" cy="120" r="12" fill="#0EA394"/>
+</svg>
