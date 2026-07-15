@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useConnect } from "thirdweb/react";
 import { inAppWallet, preAuthenticate } from "thirdweb/wallets";
 import { client } from "@/lib/client";
@@ -23,6 +24,7 @@ type AuthStep = "select" | "email-otp";
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { connect } = useConnect();
+  const router = useRouter();
 
   const [step, setStep] = useState<AuthStep>("select");
   const [email, setEmail] = useState("");
@@ -60,6 +62,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         return wallet;
       });
       handleClose();
+      router.push("/dashboard");
     } catch (err: unknown) {
       console.error(err);
       const message =
@@ -113,6 +116,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         return wallet;
       });
       handleClose();
+      router.push("/dashboard");
     } catch (err: unknown) {
       console.error(err);
       const message =

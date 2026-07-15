@@ -10,6 +10,7 @@ import { electroneum } from "@/lib/chain";
 import { recoverContract } from "@/lib/contract";
 import { prepareContractCall, waitForReceipt } from "thirdweb";
 import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/context/ProfileContext";
 
 interface LocalItem {
   registrationId: string;
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const account = useActiveAccount();
   const { mutateAsync: sendTx } = useSendTransaction();
   const { openLogin } = useAuth();
+  const { username } = useProfile();
 
   const [items, setItems] = useState<LocalItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -187,7 +189,9 @@ export default function DashboardPage() {
         {/* Upper Title Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-primary font-display">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-primary font-display">
+              {username ? `Welcome back, ${username}!` : "Dashboard"}
+            </h1>
             <p className="text-sm text-neutral-slate mt-1">
               Manage your registered items, track their status, and generate stickers.
             </p>

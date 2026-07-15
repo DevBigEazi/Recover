@@ -29,6 +29,7 @@ export default function VerifyPage({ params }: PageProps) {
   const itemId = resolvedParams.id;
 
   const [item, setItem] = useState<SyncedItem | null>(null);
+  const [ownerName, setOwnerName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -209,6 +210,19 @@ export default function VerifyPage({ params }: PageProps) {
         lastUpdated: new Date(dbItem.updatedAt).getTime(),
       };
       setItem(localItem);
+
+      // Fetch owner display name
+      if (localItem.owner) {
+        try {
+          const profileRes = await fetch(`/api/profile?walletAddress=${localItem.owner}`);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            setOwnerName(profileData.fullName);
+          }
+        } catch (err) {
+          console.error("Failed to fetch owner display name:", err);
+        }
+      }
     } catch (err: unknown) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Failed to load item status.");
@@ -317,9 +331,9 @@ export default function VerifyPage({ params }: PageProps) {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-neutral-slate">Owner Wallet:</span>
-                <span className="font-mono font-medium text-primary bg-neutral-mist px-2 py-0.5 rounded-sm">
-                  {maskAddress(item.owner)}
+                <span className="text-neutral-slate">Owner:</span>
+                <span className="font-semibold text-primary">
+                  {ownerName || maskAddress(item.owner)}
                 </span>
               </div>
             </div>

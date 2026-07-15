@@ -7,6 +7,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useActiveAccount, useActiveWallet, useDisconnect } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/context/ProfileContext";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,6 +19,7 @@ export default function Header() {
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
   const { openLogin } = useAuth();
+  const { fullName, username } = useProfile();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -98,8 +100,8 @@ export default function Header() {
                     <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200">
                       👤
                     </div>
-                    <span className="font-mono text-xs">
-                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                    <span className={`${fullName || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
+                      {fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
                     </span>
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -192,8 +194,8 @@ export default function Header() {
               ) : (
                 <div className="pt-4 border-t border-neutral-mist mt-3 space-y-2">
                   <div className="flex items-center justify-between px-3 py-2 bg-neutral-mist rounded-lg">
-                    <span className="text-xs font-mono text-neutral-slate">
-                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                    <span className={`${fullName || username ? 'font-sans' : 'font-mono'} text-xs font-semibold text-primary`}>
+                      {fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
                     </span>
                     <button
                       onClick={handleCopyAddress}

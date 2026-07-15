@@ -35,3 +35,11 @@ model FinderReport {
   photo          String?  // Base64 compressed image data URL
   createdAt      DateTime @default(now())
 }
+
+model User {
+  walletAddress String   @id
+  fullName      String
+  username      String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
