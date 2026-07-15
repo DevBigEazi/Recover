@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header/Header";
-import { ConnectButton, useActiveAccount, useSendTransaction } from "thirdweb/react";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import { client } from "@/lib/client";
 import { electroneum } from "@/lib/chain";
 import { recoverContract } from "@/lib/contract";
 import { prepareContractCall, parseEventLogs, prepareEvent, waitForReceipt } from "thirdweb";
+import { useAuth } from "@/context/AuthContext";
 
 // Client-side SHA-256 utility using browser native Web Crypto API
 async function computeSHA256(message: string): Promise<string> {
@@ -22,6 +23,7 @@ async function computeSHA256(message: string): Promise<string> {
 export default function RegisterPage() {
   const account = useActiveAccount();
   const { mutateAsync: sendTx } = useSendTransaction();
+  const { openLogin } = useAuth();
 
   // Form states
   const [name, setName] = useState("");
@@ -125,9 +127,10 @@ export default function RegisterPage() {
         qrUrl: qrDataUrl,
         itemHash,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "An unexpected error occurred during registration.");
+      const message = err instanceof Error ? err.message : "An unexpected error occurred during registration.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -178,12 +181,17 @@ export default function RegisterPage() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-xl font-bold text-primary font-display mb-2">Connect Your Wallet</h2>
+            <h2 className="text-xl font-bold text-primary font-display mb-2">Sign In to Continue</h2>
             <p className="text-sm text-neutral-slate mb-6">
-              You must connect your Electroneum wallet to register and manage items on-chain.
+              Sign in to register and manage your items.
             </p>
             <div className="flex justify-center">
-              <ConnectButton client={client} chain={electroneum} />
+              <button
+                onClick={openLogin}
+                className="bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors shadow-xs cursor-pointer"
+              >
+                Sign In
+              </button>
             </div>
           </div>
         ) : !successData ? (
@@ -320,7 +328,7 @@ export default function RegisterPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <span>Registering on Electroneum...</span>
+                    <span>Saving your item...</span>
                   </>
                 ) : (
                   <span>Register & Generate QR</span>

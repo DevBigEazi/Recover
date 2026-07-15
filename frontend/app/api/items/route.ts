@@ -19,11 +19,9 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(items, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Failed to list items for owner:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

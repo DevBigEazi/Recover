@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header/Header";
-import { ConnectButton, useActiveAccount, useSendTransaction } from "thirdweb/react";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import { client } from "@/lib/client";
 import { electroneum } from "@/lib/chain";
 import { recoverContract } from "@/lib/contract";
-import { readContract, prepareContractCall, waitForReceipt } from "thirdweb";
+import { prepareContractCall, waitForReceipt } from "thirdweb";
+import { useAuth } from "@/context/AuthContext";
 
 interface LocalItem {
   registrationId: string;
@@ -28,6 +29,7 @@ interface LocalItem {
 export default function DashboardPage() {
   const account = useActiveAccount();
   const { mutateAsync: sendTx } = useSendTransaction();
+  const { openLogin } = useAuth();
 
   const [items, setItems] = useState<LocalItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,54 +49,17 @@ export default function DashboardPage() {
     setActionError(null);
 
     try {
-      // 1. Read from SQLite Database API
+      // Read item list from local DB — the backend keeps this in sync with the chain
       const response = await fetch(`/api/items?ownerAddress=${account.address}`);
       if (!response.ok) {
-        throw new Error("Failed to load registered items from backend.");
+        throw new Error("Failed to load your items. Please try again.");
       }
       const dbItems: LocalItem[] = await response.json();
-
-      // 2. Query on-chain status for each item in parallel to ensure synchronization
-      const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
-      const syncedItems = await Promise.all(
-        dbItems.map(async (item) => {
-          try {
-            // Read status and lastUpdated from contract
-            const data = await readContract({
-              contract: recoverContract,
-              method:
-                "function getItem(uint256 registrationId) view returns ((uint256 registrationId, address owner, uint8 status, uint40 registeredAt, uint40 lastUpdated, bytes32 itemHash) item)",
-              params: [BigInt(item.registrationId)],
-            });
-
-            // Map on-chain enum status
-            const onChainStatus = statusMap[data.status];
-            
-            // Sync database if on-chain status differs
-            if (item.status !== onChainStatus) {
-              item.status = onChainStatus;
-              await fetch("/api/items/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  ...item,
-                  status: onChainStatus,
-                }),
-              });
-            }
-
-            return item;
-          } catch (err) {
-            console.error(`Failed to fetch on-chain status for ID ${item.registrationId}:`, err);
-            return item; // Fallback to DB data
-          }
-        })
-      );
-
-      setItems(syncedItems.sort((a, b) => b.registeredAt - a.registeredAt));
-    } catch (err: any) {
+      setItems(dbItems.sort((a, b) => b.registeredAt - a.registeredAt));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load items.";
       console.error("Error fetching items:", err);
-      setActionError(err?.message || "Failed to sync item list with Electroneum chain.");
+      setActionError(message);
     } finally {
       setIsLoading(false);
     }
@@ -137,9 +102,10 @@ export default function DashboardPage() {
       }
 
       await fetchItems();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark lost:", err);
-      setActionError(err?.message || "Failed to execute markLost on-chain.");
+      setActionError(message);
     } finally {
       setActionLoadingId(null);
     }
@@ -178,9 +144,10 @@ export default function DashboardPage() {
       }
 
       await fetchItems();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark recovered:", err);
-      setActionError(err?.message || "Failed to execute markRecovered on-chain.");
+      setActionError(message);
     } finally {
       setActionLoadingId(null);
     }
@@ -255,12 +222,17 @@ export default function DashboardPage() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-xl font-bold text-primary font-display mb-2">Connect Your Wallet</h2>
+            <h2 className="text-xl font-bold text-primary font-display mb-2">Sign In to Continue</h2>
             <p className="text-sm text-neutral-slate mb-6">
-              Please connect your Electroneum wallet to access your dashboard and manage your items.
+              Sign in to access your dashboard and manage your registered items.
             </p>
             <div className="flex justify-center">
-              <ConnectButton client={client} chain={electroneum} />
+              <button
+                onClick={openLogin}
+                className="bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors shadow-xs cursor-pointer"
+              >
+                Sign In
+              </button>
             </div>
           </div>
         ) : (
@@ -302,7 +274,7 @@ export default function DashboardPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span className="text-sm text-neutral-slate font-medium">Syncing with Electroneum chain...</span>
+                <span className="text-sm text-neutral-slate font-medium">Loading your items...</span>
               </div>
             ) : filteredItems.length === 0 ? (
               /* Empty State */

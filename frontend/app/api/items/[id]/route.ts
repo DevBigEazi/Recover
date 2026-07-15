@@ -39,11 +39,9 @@ export async function GET(request: Request, { params }: Props) {
     };
 
     return NextResponse.json(publicItem, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Failed to fetch item details:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -8,7 +8,7 @@ import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import { client } from "@/lib/client";
 import { electroneum } from "@/lib/chain";
 import { recoverContract } from "@/lib/contract";
-import { readContract, prepareContractCall, waitForReceipt } from "thirdweb";
+import { prepareContractCall, waitForReceipt } from "thirdweb";
 
 interface LocalItem {
   registrationId: string;
@@ -103,33 +103,6 @@ export default function ItemDetailPage({ params }: PageProps) {
         lastUpdated: new Date(dbItem.updatedAt).getTime(),
       };
 
-      // 2. Fetch live on-chain status & sync if changed
-      const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
-      try {
-        const data = await readContract({
-          contract: recoverContract,
-          method:
-            "function getItem(uint256 registrationId) view returns ((uint256 registrationId, address owner, uint8 status, uint40 registeredAt, uint40 lastUpdated, bytes32 itemHash) item)",
-          params: [BigInt(itemId)],
-        });
-
-        const onChainStatus = statusMap[data.status];
-
-        if (localItem.status !== onChainStatus) {
-          localItem.status = onChainStatus;
-          await fetch("/api/items/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...dbItem,
-              status: onChainStatus,
-            }),
-          });
-        }
-      } catch (err) {
-        console.error("Failed to query on-chain status, falling back to cached DB state:", err);
-      }
-
       setItem(localItem);
 
       // 3. Fetch finder reports (if requester is the verified owner)
@@ -140,8 +113,17 @@ export default function ItemDetailPage({ params }: PageProps) {
         if (repResponse.ok) {
           const dbReports = await repResponse.json();
           
+          interface DBReport {
+            reportId: string;
+            registrationId: string;
+            message: string;
+            contactInfo?: string | null;
+            location?: string | null;
+            createdAt: string;
+          }
+
           // Map DB finder report schema to frontend interface
-          const mappedReports: FinderReport[] = dbReports.map((r: any) => ({
+          const mappedReports: FinderReport[] = dbReports.map((r: DBReport) => ({
             reportId: r.reportId,
             itemId: r.registrationId,
             message: r.message,
@@ -202,9 +184,10 @@ export default function ItemDetailPage({ params }: PageProps) {
       });
 
       await fetchItemAndReports();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Failed to update item status on Electroneum chain.");
+      const msg = err instanceof Error ? err.message : "Failed to update item status.";
+      setError(msg);
     } finally {
       setIsActionLoading(false);
     }
@@ -248,9 +231,10 @@ export default function ItemDetailPage({ params }: PageProps) {
       });
 
       await fetchItemAndReports();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Failed to update item status on Electroneum chain.");
+      const msg = err instanceof Error ? err.message : "Failed to update item status.";
+      setError(msg);
     } finally {
       setIsActionLoading(false);
     }
@@ -503,9 +487,9 @@ export default function ItemDetailPage({ params }: PageProps) {
       setMockContact("");
       setMockLocation("");
       await fetchItemAndReports();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Failed to submit mock report.");
+      setError(err instanceof Error ? err.message : "Failed to submit mock report.");
     }
   };
 

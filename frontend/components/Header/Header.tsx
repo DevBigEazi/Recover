@@ -2,26 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Menu, X, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ConnectButton, lightTheme } from "thirdweb/react";
-import { client } from "@/lib/client";
-import { electroneum } from "@/lib/chain";
-
-const customTheme = lightTheme({
-  colors: {
-    accentText: "#0EA394", // Teal accent
-    primaryButtonBg: "#1E2A4A", // Deep Indigo primary button
-    primaryButtonText: "#FFFFFF", // White text
-    connectedButtonBg: "#FFFFFF", // White background
-    connectedButtonBgHover: "#F5F6F8", // Mist hover background
-    modalBg: "#FFFFFF",
-  },
-});
+import { useActiveAccount, useActiveWallet, useDisconnect } from "thirdweb/react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const pathname = usePathname();
+
+  const account = useActiveAccount();
+  const activeWallet = useActiveWallet();
+  const { disconnect } = useDisconnect();
+  const { openLogin } = useAuth();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -31,6 +27,21 @@ export default function Header() {
   ];
 
   const isActive = (href: string) => pathname === href;
+
+  const handleCopyAddress = () => {
+    if (account) {
+      navigator.clipboard.writeText(account.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDisconnect = () => {
+    if (activeWallet) {
+      disconnect(activeWallet);
+    }
+    setIsUserMenuOpen(false);
+  };
 
   return (
     <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs">
@@ -71,14 +82,62 @@ export default function Header() {
             
             {/* Desktop Connect Wallet Button */}
             <div className="flex items-center">
-              <ConnectButton 
-                client={client} 
-                chain={electroneum}
-                theme={customTheme}
-                connectButton={{
-                  className: "connect-btn-override",
-                }}
-              />
+              {!account ? (
+                <button
+                  onClick={openLogin}
+                  className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-5 py-2 text-sm transition-colors shadow-xs cursor-pointer"
+                >
+                  Sign In
+                </button>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200">
+                      👤
+                    </div>
+                    <span className="font-mono text-xs">
+                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                      <button
+                        onClick={handleCopyAddress}
+                        className="w-full text-left px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <span>Copy Address</span>
+                        <span className="text-[10px] text-accent font-semibold">{copied ? "Copied!" : ""}</span>
+                      </button>
+                      <Link
+                        href="/dashboard"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/register"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Register Item
+                      </Link>
+                      <div className="border-t border-neutral-mist my-1.5" />
+                      <button
+                        onClick={handleDisconnect}
+                        className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -90,13 +149,9 @@ export default function Header() {
               aria-label="Toggle navigation menu"
             >
               {!isMenuOpen ? (
-                <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <Menu className="h-6 w-6" />
               ) : (
-                <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-6 w-6" />
               )}
             </button>
           </div>
@@ -122,27 +177,46 @@ export default function Header() {
               ))}
               
               {/* Mobile Connect Wallet */}
-              <div className="pt-4 border-t border-neutral-mist mt-3">
-                <ConnectButton 
-                  client={client} 
-                  chain={electroneum}
-                  theme={customTheme}
-                />
-              </div>
+              {!account ? (
+                <div className="pt-4 border-t border-neutral-mist mt-3">
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      openLogin();
+                    }}
+                    className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors text-center cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-4 border-t border-neutral-mist mt-3 space-y-2">
+                  <div className="flex items-center justify-between px-3 py-2 bg-neutral-mist rounded-lg">
+                    <span className="text-xs font-mono text-neutral-slate">
+                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                    </span>
+                    <button
+                      onClick={handleCopyAddress}
+                      className="text-xs font-semibold text-accent cursor-pointer"
+                    >
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleDisconnect();
+                    }}
+                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors text-center cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
       </nav>
-      
-      <style>{`
-        .connect-btn-override {
-          font-family: var(--font-sans) !important;
-          font-weight: 500 !important;
-          border-radius: 8px !important;
-          padding: 8px 16px !important;
-          transition: background-color 0.2s ease-in-out !important;
-        }
-      `}</style>
     </header>
   );
 }

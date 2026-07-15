@@ -2,7 +2,6 @@ import { useActiveWalletChain, useReadContract } from "thirdweb/react";
 import { defineChain, getContract } from "thirdweb";
 import { client } from "@/lib/client";
 import { CONTRACTS } from "@/constants/helpers";
-import countAbi from "@/constants/ABIs/counter.json";
 import { useMemo } from "react";
 
 export const useGetCounter = () => {
@@ -32,7 +31,6 @@ export const useGetCounter = () => {
       client,
       chain,
       address: contractAddress,
-      abi: countAbi as any,
     }),
     [chain, contractAddress]
   );
@@ -40,12 +38,12 @@ export const useGetCounter = () => {
   // Read count
   const { data: rawCount, isLoading, error, refetch } = useReadContract({
     contract,
-    method: "getCount",
+    method: "function getCount() view returns (uint256)",
     params: [],
   });
 
   const count = useMemo<bigint | undefined>(() => 
-    typeof rawCount === "bigint" ? (rawCount as any) : undefined,
+    typeof rawCount === "bigint" ? rawCount : undefined,
     [rawCount]
   );
 

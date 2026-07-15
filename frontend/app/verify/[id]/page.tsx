@@ -4,10 +4,6 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header/Header";
-import { client } from "@/lib/client";
-import { electroneum } from "@/lib/chain";
-import { recoverContract } from "@/lib/contract";
-import { readContract } from "thirdweb";
 
 interface SyncedItem {
   registrationId: string;
@@ -178,9 +174,9 @@ export default function VerifyPage({ params }: PageProps) {
       setShareLocation(false);
       setLocationCoords("");
       setPhotoBase64("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setReportError(err?.message || "An unexpected error occurred while submitting.");
+      setReportError(err instanceof Error ? err.message : "An unexpected error occurred while submitting.");
     } finally {
       setIsSubmittingReport(false);
     }
@@ -192,103 +188,30 @@ export default function VerifyPage({ params }: PageProps) {
 
     try {
       // 1. Read metadata from database API
-      let localItem: SyncedItem | null = null;
-      try {
-        const res = await fetch(`/api/items/${itemId}`);
-        if (res.ok) {
-          const dbItem = await res.json();
-          localItem = {
-            registrationId: dbItem.registrationId,
-            name: dbItem.name,
-            brand: dbItem.brand || "",
-            serial: dbItem.serial || "",
-            reward: dbItem.reward || "",
-            contact: dbItem.contactInfo || "",
-            instructions: dbItem.instructions || "",
-            owner: dbItem.ownerAddress,
-            status: dbItem.status,
-            itemHash: dbItem.itemHash,
-            registeredAt: new Date(dbItem.createdAt).getTime(),
-            lastUpdated: new Date(dbItem.updatedAt).getTime(),
-          };
-        }
-      } catch (err) {
-        console.error("Failed to fetch metadata from DB API:", err);
+      const res = await fetch(`/api/items/${itemId}`);
+      if (!res.ok) {
+        setItem(null);
+        return;
       }
-
-      // 2. Read live status on-chain (wallet-free read using RPC)
-      const statusMap: ("Active" | "Lost" | "Recovered")[] = ["Active", "Lost", "Recovered"];
-      let onChainStatus: "Active" | "Lost" | "Recovered" = "Active";
-      let lastUpdatedTime = Date.now();
-      let onChainOwner = "";
-      let onChainHash = "";
-
-      try {
-        const data = await readContract({
-          contract: recoverContract,
-          method:
-            "function getItem(uint256 registrationId) view returns ((uint256 registrationId, address owner, uint8 status, uint40 registeredAt, uint40 lastUpdated, bytes32 itemHash) item)",
-          params: [BigInt(itemId)],
-        });
-
-        onChainStatus = statusMap[data.status];
-        lastUpdatedTime = Number(data.lastUpdated) * 1000;
-        onChainOwner = data.owner;
-        onChainHash = data.itemHash;
-      } catch (err) {
-        console.error("On-chain query failed:", err);
-        // If both query and DB metadata fail, the item is invalid
-        if (!localItem) {
-          setItem(null);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // 3. Assemble synced item
-      if (!localItem) {
-        localItem = {
-          registrationId: itemId,
-          name: `Recover Item #${itemId}`,
-          brand: "",
-          serial: "",
-          reward: "",
-          contact: "",
-          instructions: "",
-          owner: onChainOwner,
-          status: onChainStatus,
-          itemHash: onChainHash,
-          registeredAt: lastUpdatedTime,
-          lastUpdated: lastUpdatedTime,
-        };
-      } else {
-        // Sync database if on-chain status differs
-        if (localItem.status !== onChainStatus) {
-          localItem.status = onChainStatus;
-          localItem.lastUpdated = lastUpdatedTime;
-          await fetch("/api/items/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              registrationId: localItem.registrationId,
-              ownerAddress: localItem.owner,
-              name: localItem.name,
-              brand: localItem.brand,
-              serial: localItem.serial,
-              reward: localItem.reward,
-              contactInfo: localItem.contact,
-              instructions: localItem.instructions,
-              itemHash: localItem.itemHash,
-              status: onChainStatus,
-            }),
-          });
-        }
-      }
-
+      const dbItem = await res.json();
+      const localItem: SyncedItem = {
+        registrationId: dbItem.registrationId,
+        name: dbItem.name,
+        brand: dbItem.brand || "",
+        serial: dbItem.serial || "",
+        reward: dbItem.reward || "",
+        contact: dbItem.contactInfo || "",
+        instructions: dbItem.instructions || "",
+        owner: dbItem.ownerAddress,
+        status: dbItem.status,
+        itemHash: dbItem.itemHash,
+        registeredAt: new Date(dbItem.createdAt).getTime(),
+        lastUpdated: new Date(dbItem.updatedAt).getTime(),
+      };
       setItem(localItem);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      setError("Failed to verify item status on the Electroneum network.");
+      setError(err instanceof Error ? err.message : "Failed to load item status.");
     } finally {
       setIsLoading(false);
     }
@@ -307,7 +230,7 @@ export default function VerifyPage({ params }: PageProps) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-sm text-neutral-slate font-medium">Verifying item on-chain...</span>
+          <span className="text-sm text-neutral-slate font-medium">Verifying item details...</span>
         </div>
       </main>
     );
