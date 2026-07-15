@@ -333,7 +333,7 @@ export default function VerifyPage({ params }: PageProps) {
               <div className="flex justify-between">
                 <span className="text-neutral-slate">Owner:</span>
                 <span className="font-semibold text-primary">
-                  {ownerName || maskAddress(item.owner)}
+                  {ownerName || "Secured Owner"}
                 </span>
               </div>
             </div>

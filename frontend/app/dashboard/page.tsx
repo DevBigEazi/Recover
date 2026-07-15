@@ -2,34 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import Header from "@/components/Header/Header";
-import { useActiveAccount, useSendTransaction } from "thirdweb/react";
-import { client } from "@/lib/client";
-import { electroneum } from "@/lib/chain";
-import { recoverContract } from "@/lib/contract";
-import { prepareContractCall, waitForReceipt } from "thirdweb";
+import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 
 interface LocalItem {
   registrationId: string;
+  ownerAddress: string;
   name: string;
-  brand: string;
-  serial: string;
-  reward: string;
-  contact: string;
-  instructions: string;
-  owner: string;
-  status: "Active" | "Lost" | "Recovered";
+  brand: string | null;
+  serial: string | null;
+  reward: string | null;
+  contactInfo: string | null;
+  instructions: string | null;
   itemHash: string;
-  registeredAt: number;
-  lastUpdated: number;
+  status: "Active" | "Lost" | "Recovered";
+  category: string;
+  alternateContact: string | null;
+  receiptData: string | null;
+  secrets: string | null;
+  passphrase: string | null;
+  image: string | null;
+  rewardType: string;
+  isActiveQr: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function DashboardPage() {
   const account = useActiveAccount();
-  const { mutateAsync: sendTx } = useSendTransaction();
   const { openLogin } = useAuth();
   const { username } = useProfile();
 
@@ -40,6 +42,14 @@ export default function DashboardPage() {
   // Loading state per item ID during quick-actions
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Confirm state
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    id: string;
+    type: "Lost" | "Recovered";
+    name: string;
+  } | null>(null);
 
   const fetchItems = async () => {
     if (!account) {
@@ -57,7 +67,7 @@ export default function DashboardPage() {
         throw new Error("Failed to load your items. Please try again.");
       }
       const dbItems: LocalItem[] = await response.json();
-      setItems(dbItems.sort((a, b) => b.registeredAt - a.registeredAt));
+      setItems(dbItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load items.";
       console.error("Error fetching items:", err);
@@ -77,30 +87,21 @@ export default function DashboardPage() {
     setActionError(null);
 
     try {
-      const transaction = prepareContractCall({
-        contract: recoverContract,
-        method: "function markLost(uint256 registrationId)",
-        params: [BigInt(registrationId)],
+      const response = await fetch("/api/items/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
+        body: JSON.stringify({
+          registrationId,
+          status: "Lost",
+        }),
       });
 
-      const txResult = await sendTx(transaction);
-      await waitForReceipt({
-        client,
-        chain: electroneum,
-        transactionHash: txResult.transactionHash,
-      });
-
-      // Update Database
-      const targetItem = items.find((i) => i.registrationId === registrationId);
-      if (targetItem) {
-        await fetch("/api/items/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...targetItem,
-            status: "Lost",
-          }),
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update item status.");
       }
 
       await fetchItems();
@@ -119,30 +120,21 @@ export default function DashboardPage() {
     setActionError(null);
 
     try {
-      const transaction = prepareContractCall({
-        contract: recoverContract,
-        method: "function markRecovered(uint256 registrationId)",
-        params: [BigInt(registrationId)],
+      const response = await fetch("/api/items/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
+        body: JSON.stringify({
+          registrationId,
+          status: "Recovered",
+        }),
       });
 
-      const txResult = await sendTx(transaction);
-      await waitForReceipt({
-        client,
-        chain: electroneum,
-        transactionHash: txResult.transactionHash,
-      });
-
-      // Update Database
-      const targetItem = items.find((i) => i.registrationId === registrationId);
-      if (targetItem) {
-        await fetch("/api/items/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...targetItem,
-            status: "Recovered",
-          }),
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update item status.");
       }
 
       await fetchItems();
@@ -293,7 +285,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-bold text-primary font-display mb-1">No items found</h3>
                 <p className="text-sm text-neutral-slate max-w-sm mx-auto mb-6">
                   {activeTab === "All"
-                    ? "You haven't registered any items yet. Register your first item to secure it on-chain."
+                    ? "You haven't registered any items yet. Register your first item to secure it in our registry."
                     : `You have no items currently in "${activeTab}" status.`}
                 </p>
                 {activeTab === "All" && (
@@ -321,14 +313,14 @@ export default function DashboardPage() {
                         </span>
                         
                         {/* Status tag */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <span
                             className={`w-2 h-2 rounded-full ${
                               item.status === "Lost" ? "bg-warning animate-pulse" : "bg-accent"
                             }`}
                           />
                           <span
-                            className={`text-xs font-semibold uppercase tracking-wider ${
+                            className={`text-xs font-bold uppercase tracking-wider ${
                               item.status === "Lost" ? "text-warning" : "text-accent"
                             }`}
                           >
@@ -338,8 +330,13 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Item Info */}
-                      <h3 className="text-lg font-bold text-primary font-display line-clamp-1">{item.name}</h3>
-                      <p className="text-xs text-neutral-slate font-medium mt-0.5">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-primary font-display line-clamp-1">{item.name}</h3>
+                        <span className="text-[9px] px-2 py-0.5 rounded-md bg-neutral-mist text-primary border border-neutral-mist/50 shrink-0 font-medium">
+                          {item.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-slate font-medium">
                         {item.brand || "Unknown Brand"} {item.serial && `• Serial: ${item.serial}`}
                       </p>
                       
@@ -353,13 +350,13 @@ export default function DashboardPage() {
                         <div className="flex justify-between">
                           <span>Registered:</span>
                           <span className="font-medium text-primary">
-                            {new Date(item.registeredAt).toLocaleDateString()}
+                            {new Date(item.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Last Update:</span>
                           <span className="font-medium text-primary">
-                            {new Date(item.lastUpdated).toLocaleDateString()}
+                            {new Date(item.updatedAt).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -370,7 +367,14 @@ export default function DashboardPage() {
                       {/* Quick Status Action Button */}
                       {item.status === "Lost" ? (
                         <button
-                          onClick={() => handleMarkRecovered(item.registrationId)}
+                          onClick={() => {
+                            setConfirmAction({
+                              id: item.registrationId,
+                              type: "Recovered",
+                              name: item.name,
+                            });
+                            setShowConfirmModal(true);
+                          }}
                           disabled={actionLoadingId !== null}
                           className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-2 px-3 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 col-span-2"
                         >
@@ -385,7 +389,14 @@ export default function DashboardPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleMarkLost(item.registrationId)}
+                          onClick={() => {
+                            setConfirmAction({
+                              id: item.registrationId,
+                              type: "Lost",
+                              name: item.name,
+                            });
+                            setShowConfirmModal(true);
+                          }}
                           disabled={actionLoadingId !== null}
                           className="bg-warning hover:bg-warning/90 disabled:opacity-50 text-neutral-white font-semibold py-2 px-3 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 col-span-2"
                         >
@@ -427,6 +438,75 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Status Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827b3] backdrop-blur-xs animate-fade-in">
+          <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-6 animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-full shrink-0 ${
+                confirmAction.type === "Lost" 
+                  ? "bg-amber-500/10 text-warning" 
+                  : "bg-accent/10 text-accent"
+              }`}>
+                {confirmAction.type === "Lost" ? (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-primary font-display">
+                  Confirm Status Change
+                </h3>
+                <p className="text-xs text-neutral-slate leading-relaxed">
+                  Are you sure you want to change the state of <strong className="text-primary">"{confirmAction.name}"</strong> to <strong className={confirmAction.type === "Lost" ? "text-warning font-semibold" : "text-accent font-semibold"}>{confirmAction.type}</strong>?
+                </p>
+                <p className="text-[10px] text-neutral-slate leading-normal pt-1">
+                  This will update the status of your item in our secure registry.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmAction(null);
+                }}
+                className="bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-gray-300 font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { id, type } = confirmAction;
+                  setShowConfirmModal(false);
+                  setConfirmAction(null);
+                  if (type === "Lost") {
+                    await handleMarkLost(id);
+                  } else {
+                    await handleMarkRecovered(id);
+                  }
+                }}
+                className={`text-neutral-white font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                  confirmAction.type === "Lost" 
+                    ? "bg-warning hover:bg-warning/90" 
+                    : "bg-accent hover:bg-accent/90"
+                }`}
+              >
+                Confirm Change
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

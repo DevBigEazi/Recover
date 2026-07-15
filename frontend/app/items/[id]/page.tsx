@@ -4,11 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header/Header";
-import { useActiveAccount, useSendTransaction } from "thirdweb/react";
-import { client } from "@/lib/client";
-import { electroneum } from "@/lib/chain";
-import { recoverContract } from "@/lib/contract";
-import { prepareContractCall, waitForReceipt } from "thirdweb";
+import { useActiveAccount } from "thirdweb/react";
 
 interface LocalItem {
   registrationId: string;
@@ -19,6 +15,7 @@ interface LocalItem {
   contact: string;
   instructions: string;
   owner: string;
+  ownerName?: string;
   status: "Active" | "Lost" | "Recovered";
   itemHash: string;
   registeredAt: number;
@@ -50,7 +47,6 @@ export default function ItemDetailPage({ params }: PageProps) {
   const itemId = resolvedParams.id;
 
   const account = useActiveAccount();
-  const { mutateAsync: sendTx } = useSendTransaction();
 
   // Item & Reports states
   const [item, setItem] = useState<LocalItem | null>(null);
@@ -60,6 +56,10 @@ export default function ItemDetailPage({ params }: PageProps) {
 
   // Quick Action States
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  // Confirm state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmType, setConfirmType] = useState<"Lost" | "Recovered" | null>(null);
   
   // Sticker creator modal states (Step 16)
   const [showStickerModal, setShowStickerModal] = useState(false);
@@ -104,6 +104,7 @@ export default function ItemDetailPage({ params }: PageProps) {
         contact: dbItem.contactInfo || "",
         instructions: dbItem.instructions || "",
         owner: dbItem.ownerAddress,
+        ownerName: dbItem.ownerName,
         status: dbItem.status,
         itemHash: dbItem.itemHash,
         registeredAt: new Date(dbItem.createdAt).getTime(),
@@ -166,36 +167,22 @@ export default function ItemDetailPage({ params }: PageProps) {
     setError(null);
 
     try {
-      const transaction = prepareContractCall({
-        contract: recoverContract,
-        method: "function markLost(uint256 registrationId)",
-        params: [BigInt(item.registrationId)],
-      });
-
-      const txResult = await sendTx(transaction);
-      await waitForReceipt({
-        client,
-        chain: electroneum,
-        transactionHash: txResult.transactionHash,
-      });
-
-      // Update SQLite Database
-      await fetch("/api/items/register", {
+      const response = await fetch("/api/items/status", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
         body: JSON.stringify({
           registrationId: item.registrationId,
-          ownerAddress: item.owner,
-          name: item.name,
-          brand: item.brand,
-          serial: item.serial,
-          reward: item.reward,
-          contactInfo: item.contact,
-          instructions: item.instructions,
-          itemHash: item.itemHash,
           status: "Lost",
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update item status.");
+      }
 
       await fetchItemAndReports();
     } catch (err: unknown) {
@@ -213,36 +200,22 @@ export default function ItemDetailPage({ params }: PageProps) {
     setError(null);
 
     try {
-      const transaction = prepareContractCall({
-        contract: recoverContract,
-        method: "function markRecovered(uint256 registrationId)",
-        params: [BigInt(item.registrationId)],
-      });
-
-      const txResult = await sendTx(transaction);
-      await waitForReceipt({
-        client,
-        chain: electroneum,
-        transactionHash: txResult.transactionHash,
-      });
-
-      // Update SQLite Database
-      await fetch("/api/items/register", {
+      const response = await fetch("/api/items/status", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
         body: JSON.stringify({
           registrationId: item.registrationId,
-          ownerAddress: item.owner,
-          name: item.name,
-          brand: item.brand,
-          serial: item.serial,
-          reward: item.reward,
-          contactInfo: item.contact,
-          instructions: item.instructions,
-          itemHash: item.itemHash,
           status: "Recovered",
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update item status.");
+      }
 
       await fetchItemAndReports();
     } catch (err: unknown) {
@@ -337,7 +310,7 @@ export default function ItemDetailPage({ params }: PageProps) {
       } else {
         ctx.fillStyle = "#1E2A4A";
         ctx.font = "14px sans-serif";
-        ctx.fillText("Owner Identity Secured On-Chain", canvas.width / 2, 470);
+        ctx.fillText("Owner Identity Secured in Registry", canvas.width / 2, 470);
       }
 
       // Footer
@@ -453,10 +426,10 @@ export default function ItemDetailPage({ params }: PageProps) {
               <div class="title">SCAN IF FOUND</div>
               <img class="qr" src="${qrUrl}" />
               <div class="meta">ID: #${item.registrationId}</div>
-              \${
+              ${
                 item.reward
-                  ? \`<div class="reward-tag">🎁 REWARD: \${item.reward.toUpperCase()}</div>\`
-                  : \`<div class="info-sec">Identity Secured On-Chain</div>\`
+                  ? `<div class="reward-tag">🎁 REWARD: ${item.reward.toUpperCase()}</div>`
+                  : `<div class="info-sec">Identity Secured in Registry</div>`
               }
               <div class="footer">RECOVER PROTOCOL • ELECTRONEUM</div>
             </div>
@@ -604,7 +577,7 @@ export default function ItemDetailPage({ params }: PageProps) {
               <div className="mt-6 border-t border-neutral-mist pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-neutral-slate">
                 <div>
                   <span className="block text-neutral-slate font-medium">On-chain Owner:</span>
-                  <span className="block text-primary font-mono mt-0.5 break-all">{item.owner}</span>
+                  <span className="block text-primary font-medium mt-0.5">{item.ownerName || "Secured Owner"}</span>
                 </div>
                 <div>
                   <span className="block text-neutral-slate font-medium">On-chain Hash (Metadata):</span>
@@ -722,7 +695,10 @@ export default function ItemDetailPage({ params }: PageProps) {
                 <div className="flex flex-col sm:flex-row gap-4">
                   {item.status === "Lost" ? (
                     <button
-                      onClick={handleMarkRecovered}
+                      onClick={() => {
+                        setConfirmType("Recovered");
+                        setShowConfirmModal(true);
+                      }}
                       disabled={isActionLoading}
                       className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
@@ -737,7 +713,10 @@ export default function ItemDetailPage({ params }: PageProps) {
                     </button>
                   ) : (
                     <button
-                      onClick={handleMarkLost}
+                      onClick={() => {
+                        setConfirmType("Lost");
+                        setShowConfirmModal(true);
+                      }}
                       disabled={isActionLoading}
                       className="flex-1 bg-warning hover:bg-warning/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
@@ -957,7 +936,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                     </div>
                   ) : (
                     <div className="text-[9px] text-primary leading-none font-medium">
-                      Identity Secured On-Chain
+                      Identity Secured in Registry
                     </div>
                   )}
                 </div>
@@ -1000,6 +979,74 @@ export default function ItemDetailPage({ params }: PageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
                 <span>Print Sticker</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Confirmation Modal */}
+      {showConfirmModal && confirmType && item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827b3] backdrop-blur-xs animate-fade-in">
+          <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-6 animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-full shrink-0 ${
+                confirmType === "Lost" 
+                  ? "bg-amber-500/10 text-warning" 
+                  : "bg-accent/10 text-accent"
+              }`}>
+                {confirmType === "Lost" ? (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-primary font-display">
+                  Confirm Status Change
+                </h3>
+                <p className="text-xs text-neutral-slate leading-relaxed">
+                  Are you sure you want to change the state of <strong className="text-primary">"{item.name}"</strong> to <strong className={confirmType === "Lost" ? "text-warning font-semibold" : "text-accent font-semibold"}>{confirmType}</strong>?
+                </p>
+                <p className="text-[10px] text-neutral-slate leading-normal pt-1">
+                  This will update the status of your item in our secure registry.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmType(null);
+                }}
+                className="bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-gray-300 font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowConfirmModal(false);
+                  setConfirmType(null);
+                  if (confirmType === "Lost") {
+                    await handleMarkLost();
+                  } else {
+                    await handleMarkRecovered();
+                  }
+                }}
+                className={`text-neutral-white font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                  confirmType === "Lost" 
+                    ? "bg-warning hover:bg-warning/90" 
+                    : "bg-accent hover:bg-accent/90"
+                }`}
+              >
+                Confirm Change
               </button>
             </div>
           </div>

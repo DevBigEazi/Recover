@@ -18,9 +18,14 @@ export async function GET(request: Request, { params }: Props) {
     const requestOwner = request.headers.get("x-owner-address")?.toLowerCase();
     const isOwner = requestOwner === item.ownerAddress.toLowerCase();
 
+    const ownerUser = await db.user.findUnique({
+      where: { walletAddress: item.ownerAddress },
+    });
+    const ownerName = ownerUser?.fullName || ownerUser?.username || "Secured Owner";
+
     // If verified owner, return full record with secrets and passphrase
     if (isOwner) {
-      return NextResponse.json(item, { status: 200 });
+      return NextResponse.json({ ...item, ownerName }, { status: 200 });
     }
 
     // Masked public copy for finders/scanners (strictly excludes secrets, passphrase, and receipt)
@@ -30,6 +35,7 @@ export async function GET(request: Request, { params }: Props) {
       brand: item.brand,
       serial: item.serial ? `${item.serial.substring(0, 3)}***` : null,
       ownerAddress: item.ownerAddress,
+      ownerName,
       status: item.status,
       category: item.category,
       image: item.image, // Item photo is allowed publicly

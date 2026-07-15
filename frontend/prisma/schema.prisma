@@ -25,6 +25,7 @@ model Item {
   passphrase     String?        // Owner's custom passphrase or PIN (private off-chain)
   image          String?        // Base64 encoded item image (optional)
   rewardType     String         @default("custom") // custom, none, undisclosed
+  isActiveQr     Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   reports        FinderReport[]
@@ -47,6 +48,7 @@ model User {
   walletAddress String   @id
   fullName      String
   username      String   @unique
+  subscriptionActive Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
