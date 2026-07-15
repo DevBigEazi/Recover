@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.20;
+
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title Recover
- * @notice A decentralized Lost & Found platform item registry.
+ * @notice A decentralized UUPS-upgradeable Lost & Found platform item registry.
  * @dev Manages registration and status transitions of items with gas-optimized storage packing.
- * Follows OpenZeppelin smart contract best practices:
- * - Checks-Effects-Interactions (CEI) pattern implemented on state-changing functions
- * - Gas-optimized storage slot layout using tight packing (address, enum, uint40 timestamps)
- * - Use of custom errors instead of require strings for gas efficiency
- * - Comprehensive NatSpec documentation
- * - Explicit access control checks
+ * Authenticates state changes using cryptographic witness signatures from a configured backend signer.
  */
-contract Recover {
+contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // --- Enums ---
     enum Status {
         Active,
@@ -35,49 +36,89 @@ contract Recover {
     }
 
     // --- State Variables ---
-    uint256 private _nextRegistrationId = 1;
+    address public backendSigner;
+    uint256 private _nextRegistrationId;
     mapping(uint256 => Item) private _items;
+    mapping(address => uint256) public userNonces;
 
     // --- Events ---
     event ItemRegistered(uint256 indexed registrationId, address indexed owner, bytes32 itemHash, uint256 timestamp);
     event ItemMarkedLost(uint256 indexed registrationId, uint256 timestamp);
     event ItemRecovered(uint256 indexed registrationId, uint256 timestamp);
+    event BackendSignerChanged(address indexed oldSigner, address indexed newSigner);
 
     // --- Custom Errors ---
     error ItemNotFound(uint256 registrationId);
     error NotItemOwner(uint256 registrationId, address caller);
     error InvalidStatusTransition(uint256 registrationId, Status currentStatus, Status targetStatus);
     error InvalidItemHash();
+    error InvalidOwnerAddress();
+    error InvalidBackendSigner();
+    error SignatureExpired();
+    error InvalidSignature();
 
-    // --- Modifiers ---
-    modifier onlyOwner(uint256 registrationId) {
-        if (registrationId == 0 || registrationId >= _nextRegistrationId) {
-            revert ItemNotFound(registrationId);
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the UUPS upgradeable contract.
+     * @param _backendSigner The address of the off-chain witness signing key.
+     */
+    function initialize(address _backendSigner) public initializer {
+        __Ownable_init(msg.sender);
+        if (_backendSigner == address(0)) {
+            revert InvalidBackendSigner();
         }
-        if (_items[registrationId].owner != msg.sender) {
-            revert NotItemOwner(registrationId, msg.sender);
-        }
-        _;
+        backendSigner = _backendSigner;
+        _nextRegistrationId = 1;
     }
 
     // --- External Functions ---
 
     /**
-     * @notice Registers a new item with an off-chain metadata hash.
+     * @notice Registers a new item with backend witness signature validation.
+     * @param owner The target owner address of the item.
      * @param itemHash The hash of the off-chain item metadata.
+     * @param deadline The signature expiration timestamp.
+     * @param signature The cryptographic signature from the backend signer.
      * @return registrationId The newly generated item ID.
      */
-    function registerItem(bytes32 itemHash) external returns (uint256) {
-        if (itemHash == bytes32(0)) {
-            revert InvalidItemHash();
+    function registerItem(
+        address owner,
+        bytes32 itemHash,
+        uint256 deadline,
+        bytes calldata signature
+    ) external returns (uint256) {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (itemHash == bytes32(0)) revert InvalidItemHash();
+        if (owner == address(0)) revert InvalidOwnerAddress();
+
+        uint256 nonce = userNonces[owner];
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                owner,
+                itemHash,
+                nonce,
+                deadline,
+                block.chainid,
+                address(this)
+            )
+        );
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
+            revert InvalidSignature();
         }
+
+        userNonces[owner] = nonce + 1;
 
         uint256 registrationId = _nextRegistrationId;
         uint40 timestamp = uint40(block.timestamp);
 
         _items[registrationId] = Item({
             registrationId: registrationId,
-            owner: msg.sender,
+            owner: owner,
             status: Status.Active,
             registeredAt: timestamp,
             lastUpdated: timestamp,
@@ -86,21 +127,50 @@ contract Recover {
 
         _nextRegistrationId = registrationId + 1;
 
-        emit ItemRegistered(registrationId, msg.sender, itemHash, timestamp);
+        emit ItemRegistered(registrationId, owner, itemHash, timestamp);
 
         return registrationId;
     }
 
     /**
-     * @notice Marks an item as Lost. Can only be called by the item owner.
+     * @notice Marks an item as Lost with backend witness signature validation.
      * @param registrationId The ID of the item.
+     * @param deadline The signature expiration timestamp.
+     * @param signature The cryptographic signature from the backend signer.
      */
-    function markLost(uint256 registrationId) external onlyOwner(registrationId) {
-        Item storage item = _items[registrationId];
+    function markLost(
+        uint256 registrationId,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (registrationId == 0 || registrationId >= _nextRegistrationId) {
+            revert ItemNotFound(registrationId);
+        }
 
+        Item storage item = _items[registrationId];
         if (item.status == Status.Lost) {
             revert InvalidStatusTransition(registrationId, item.status, Status.Lost);
         }
+
+        address owner = item.owner;
+        uint256 nonce = userNonces[owner];
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                registrationId,
+                uint8(Status.Lost),
+                nonce,
+                deadline,
+                block.chainid,
+                address(this)
+            )
+        );
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
+            revert InvalidSignature();
+        }
+
+        userNonces[owner] = nonce + 1;
 
         item.status = Status.Lost;
         uint40 timestamp = uint40(block.timestamp);
@@ -110,21 +180,63 @@ contract Recover {
     }
 
     /**
-     * @notice Marks an item as Recovered. Can only be called by the item owner.
+     * @notice Marks an item as Recovered with backend witness signature validation.
      * @param registrationId The ID of the item.
+     * @param deadline The signature expiration timestamp.
+     * @param signature The cryptographic signature from the backend signer.
      */
-    function markRecovered(uint256 registrationId) external onlyOwner(registrationId) {
-        Item storage item = _items[registrationId];
+    function markRecovered(
+        uint256 registrationId,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (registrationId == 0 || registrationId >= _nextRegistrationId) {
+            revert ItemNotFound(registrationId);
+        }
 
+        Item storage item = _items[registrationId];
         if (item.status != Status.Lost) {
             revert InvalidStatusTransition(registrationId, item.status, Status.Recovered);
         }
+
+        address owner = item.owner;
+        uint256 nonce = userNonces[owner];
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                registrationId,
+                uint8(Status.Recovered),
+                nonce,
+                deadline,
+                block.chainid,
+                address(this)
+            )
+        );
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
+            revert InvalidSignature();
+        }
+
+        userNonces[owner] = nonce + 1;
 
         item.status = Status.Recovered;
         uint40 timestamp = uint40(block.timestamp);
         item.lastUpdated = timestamp;
 
         emit ItemRecovered(registrationId, timestamp);
+    }
+
+    /**
+     * @notice Configures a new backend signer key. Can only be called by the owner.
+     * @param _newBackendSigner The new backend signer address.
+     */
+    function setBackendSigner(address _newBackendSigner) external onlyOwner {
+        if (_newBackendSigner == address(0)) {
+            revert InvalidBackendSigner();
+        }
+        address oldSigner = backendSigner;
+        backendSigner = _newBackendSigner;
+        emit BackendSignerChanged(oldSigner, _newBackendSigner);
     }
 
     /**
@@ -150,4 +262,10 @@ contract Recover {
         }
         return _items[registrationId];
     }
+
+    // --- UUPS Upgrade Authorization ---
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    // --- Storage Gap for Future Upgrades ---
+    uint256[50] private __gap;
 }

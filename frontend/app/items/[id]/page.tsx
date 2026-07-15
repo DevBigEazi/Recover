@@ -54,6 +54,10 @@ export default function ItemDetailPage({ params }: PageProps) {
   // Quick Action States
   const [isActionLoading, setIsActionLoading] = useState(false);
   
+  // Sticker creator modal states (Step 16)
+  const [showStickerModal, setShowStickerModal] = useState(false);
+  const [isDownloadingLabel, setIsDownloadingLabel] = useState(false);
+
   // Mock report builder states (Dev Helper)
   const [mockMessage, setMockMessage] = useState("");
   const [mockContact, setMockContact] = useState("");
@@ -274,6 +278,205 @@ export default function ItemDetailPage({ params }: PageProps) {
     }
   };
 
+  // Step 16: Canvas-based composite PNG Sticker Generator download
+  const handleDownloadStickerLabel = async () => {
+    if (!item) return;
+    setIsDownloadingLabel(true);
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
+        window.location.origin + "/verify/" + item.registrationId
+      )}`;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 550;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to resolve canvas 2d context.");
+
+      // Background
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Outer border (Indigo)
+      ctx.strokeStyle = "#1E2A4A";
+      ctx.lineWidth = 12;
+      ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+
+      // Inner border (Teal)
+      ctx.strokeStyle = "#0EA394";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+
+      // Header text "SCAN IF FOUND"
+      ctx.fillStyle = "#1E2A4A";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("SCAN IF FOUND", canvas.width / 2, 70);
+
+      // Load QR Code Image
+      const qrImg = new window.Image();
+      qrImg.crossOrigin = "anonymous";
+      qrImg.src = qrUrl;
+      await new Promise((resolve, reject) => {
+        qrImg.onload = resolve;
+        qrImg.onerror = reject;
+      });
+      ctx.drawImage(qrImg, 50, 100, 300, 300);
+
+      // Item ID
+      ctx.fillStyle = "#6B7280";
+      ctx.font = "bold 15px monospace";
+      ctx.fillText(`ID: #${item.registrationId}`, canvas.width / 2, 430);
+
+      // Reward Banner vs Default SECURED text
+      if (item.reward) {
+        ctx.fillStyle = "#F5A623";
+        ctx.fillRect(40, 455, 320, 40);
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(`🎁 REWARD: ${item.reward.toUpperCase()}`, canvas.width / 2, 480);
+      } else {
+        ctx.fillStyle = "#1E2A4A";
+        ctx.font = "14px sans-serif";
+        ctx.fillText("Owner Identity Secured On-Chain", canvas.width / 2, 470);
+      }
+
+      // Footer
+      ctx.fillStyle = "#9CA3AF";
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillText("RECOVER PROTOCOL • ELECTRONEUM", canvas.width / 2, 515);
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `recover-qr-sticker-${item.registrationId}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Sticker generation failed, falling back to QR code:", err);
+      await handleDownloadQR();
+    } finally {
+      setIsDownloadingLabel(false);
+    }
+  };
+
+  // Step 16: Silent iframe-based Sticker Printing Dialog
+  const handlePrintSticker = () => {
+    if (!item) return;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
+      window.location.origin + "/verify/" + item.registrationId
+    )}`;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <title>Print QR Sticker</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                font-family: system-ui, sans-serif;
+              }
+              .sticker {
+                width: 320px;
+                height: 480px;
+                border: 10px solid #1E2A4A;
+                outline: 3px solid #0EA394;
+                outline-offset: -12px;
+                padding: 24px;
+                box-sizing: border-box;
+                text-align: center;
+                background: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+              }
+              .title {
+                font-size: 24px;
+                font-weight: bold;
+                color: #1E2A4A;
+                margin: 0 0 10px 0;
+              }
+              .qr {
+                width: 240px;
+                height: 240px;
+              }
+              .meta {
+                font-size: 13px;
+                font-family: monospace;
+                color: #6B7280;
+                font-weight: bold;
+                margin: 5px 0;
+              }
+              .reward-tag {
+                background: #F5A623;
+                color: white;
+                padding: 8px 12px;
+                font-weight: bold;
+                font-size: 14px;
+                width: 100%;
+                box-sizing: border-box;
+                border-radius: 4px;
+                margin: 8px 0;
+              }
+              .info-sec {
+                font-size: 12px;
+                color: #1E2A4A;
+                margin: 8px 0;
+              }
+              .footer {
+                font-size: 10px;
+                font-weight: bold;
+                color: #9CA3AF;
+                letter-spacing: 0.5px;
+                margin-top: auto;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="sticker">
+              <div class="title">SCAN IF FOUND</div>
+              <img class="qr" src="${qrUrl}" />
+              <div class="meta">ID: #${item.registrationId}</div>
+              \${
+                item.reward
+                  ? \`<div class="reward-tag">🎁 REWARD: \${item.reward.toUpperCase()}</div>\`
+                  : \`<div class="info-sec">Identity Secured On-Chain</div>\`
+              }
+              <div class="footer">RECOVER PROTOCOL • ELECTRONEUM</div>
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() {
+                  window.parent.document.body.removeChild(window.frameElement);
+                }, 500);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      doc.close();
+    }
+  };
+
   // Mock Finder Report Submission (Dev Helper)
   const handleSubmitMockReport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,13 +671,13 @@ export default function ItemDetailPage({ params }: PageProps) {
                   )}
                   
                   <button
-                    onClick={handleDownloadQR}
-                    className="flex-1 bg-neutral-white border border-gray-300 hover:bg-neutral-mist text-primary font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    onClick={() => setShowStickerModal(true)}
+                    className="flex-1 bg-accent hover:bg-accent/90 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                     </svg>
-                    <span>Download QR Sticker</span>
+                    <span>Sticker Studio</span>
                   </button>
                 </div>
               </div>
@@ -575,6 +778,7 @@ export default function ItemDetailPage({ params }: PageProps) {
               <span>{showMockForm ? "▲ Collapse" : "▼ Expand"}</span>
             </button>
 
+            {/* Dev Helper Form */}
             {showMockForm && (
               <form onSubmit={handleSubmitMockReport} className="mt-4 space-y-4 border-t border-neutral-mist pt-4">
                 <p className="text-[10px] text-neutral-slate">
@@ -625,6 +829,100 @@ export default function ItemDetailPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* QR Sticker Generator Modal */}
+      {showStickerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-ink/50 backdrop-blur-xs animate-fade-in">
+          <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-lg relative space-y-6 animate-scale-up max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-neutral-mist pb-4">
+              <h3 className="text-lg font-bold text-primary font-display">Sticker Label Studio</h3>
+              <button
+                onClick={() => setShowStickerModal(false)}
+                className="text-neutral-slate hover:text-primary text-sm font-semibold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Sticker Preview Wrapper */}
+            <div className="flex justify-center py-2">
+              <div
+                id="sticker-print-area"
+                className="w-[240px] h-[360px] border-8 border-primary outline-2 outline-accent outline-offset-[-9px] p-4 text-center bg-neutral-white flex flex-col justify-between items-center shadow-md select-none"
+              >
+                <div className="text-lg font-extrabold text-primary font-display tracking-wide uppercase mt-1">
+                  SCAN IF FOUND
+                </div>
+                <div className="p-1 rounded-sm border border-neutral-mist bg-neutral-white">
+                  <Image
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(
+                      window.location.origin + "/verify/" + item.registrationId
+                    )}`}
+                    alt="QR Sticker Code"
+                    width={140}
+                    height={140}
+                    unoptimized
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-mono font-bold text-neutral-slate leading-none">
+                    ID: #{item.registrationId}
+                  </div>
+                  {item.reward ? (
+                    <div className="bg-warning text-neutral-white px-2 py-1 rounded-xs font-bold text-[10px] uppercase leading-none">
+                      🎁 REWARD OFFERED
+                    </div>
+                  ) : (
+                    <div className="text-[9px] text-primary leading-none font-medium">
+                      Identity Secured On-Chain
+                    </div>
+                  )}
+                </div>
+                <div className="text-[7px] font-extrabold text-gray-400 tracking-wider mb-1 uppercase">
+                  RECOVER PROTOCOL • ELECTRONEUM
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={handleDownloadStickerLabel}
+                disabled={isDownloadingLabel}
+                className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {isDownloadingLabel ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Composing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download PNG</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handlePrintSticker}
+                className="bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>Print Sticker</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
