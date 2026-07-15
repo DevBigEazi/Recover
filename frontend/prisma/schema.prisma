@@ -18,6 +18,13 @@ model Item {
   instructions   String?
   itemHash       String
   status         String
+  category       String         @default("Other")
+  alternateContact String?
+  receiptData    String?        // Base64 encoded item receipt (stored off-chain)
+  secrets        String?        // Serial number, IMEI, or distinguishing marks (private off-chain)
+  passphrase     String?        // Owner's custom passphrase or PIN (private off-chain)
+  image          String?        // Base64 encoded item image (optional)
+  rewardType     String         @default("custom") // custom, none, undisclosed
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   reports        FinderReport[]

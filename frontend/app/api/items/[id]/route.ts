@@ -18,12 +18,12 @@ export async function GET(request: Request, { params }: Props) {
     const requestOwner = request.headers.get("x-owner-address")?.toLowerCase();
     const isOwner = requestOwner === item.ownerAddress.toLowerCase();
 
-    // If owner or item is reported lost, expose details. Otherwise, mask.
-    if (isOwner || item.status === "Lost") {
+    // If verified owner, return full record with secrets and passphrase
+    if (isOwner) {
       return NextResponse.json(item, { status: 200 });
     }
 
-    // Masked public copy
+    // Masked public copy for finders/scanners (strictly excludes secrets, passphrase, and receipt)
     const publicItem = {
       registrationId: item.registrationId,
       name: item.name,
@@ -31,9 +31,12 @@ export async function GET(request: Request, { params }: Props) {
       serial: item.serial ? `${item.serial.substring(0, 3)}***` : null,
       ownerAddress: item.ownerAddress,
       status: item.status,
-      reward: null,
-      contactInfo: null,
-      instructions: null,
+      category: item.category,
+      image: item.image, // Item photo is allowed publicly
+      reward: item.status === "Lost" ? item.reward : null,
+      contactInfo: item.status === "Lost" ? item.contactInfo : null,
+      instructions: item.status === "Lost" ? item.instructions : null,
+      alternateContact: item.status === "Lost" ? item.alternateContact : null,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
