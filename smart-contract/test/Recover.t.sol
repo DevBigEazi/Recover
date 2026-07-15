@@ -40,48 +40,26 @@ contract RecoverTest is Test {
 
     // --- Helper Functions to Generate Signatures ---
 
-    function getRegisterSignature(
-        address ownerAddr,
-        bytes32 itemHash,
-        uint256 nonce,
-        uint256 deadline
-    ) internal view returns (bytes memory) {
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                ownerAddr,
-                itemHash,
-                nonce,
-                deadline,
-                block.chainid,
-                address(recover)
-            )
-        );
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
-        );
+    function getRegisterSignature(address ownerAddr, bytes32 itemHash, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(ownerAddr, itemHash, nonce, deadline, block.chainid, address(recover)));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(backendPrivateKey, ethSignedMessageHash);
         return abi.encodePacked(r, s, v);
     }
 
-    function getStatusSignature(
-        uint256 registrationId,
-        Recover.Status status,
-        uint256 nonce,
-        uint256 deadline
-    ) internal view returns (bytes memory) {
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                registrationId,
-                uint8(status),
-                nonce,
-                deadline,
-                block.chainid,
-                address(recover)
-            )
-        );
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
-        );
+    function getStatusSignature(uint256 registrationId, Recover.Status status, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(registrationId, uint8(status), nonce, deadline, block.chainid, address(recover)));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(backendPrivateKey, ethSignedMessageHash);
         return abi.encodePacked(r, s, v);
     }
@@ -124,12 +102,9 @@ contract RecoverTest is Test {
         uint256 deadline = block.timestamp + 1 hours;
 
         // Generate signature with another private key
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(user, TEST_HASH, nonce, deadline, block.chainid, address(recover))
-        );
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
-        );
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(user, TEST_HASH, nonce, deadline, block.chainid, address(recover)));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xFA15, ethSignedMessageHash);
         bytes memory badSignature = abi.encodePacked(r, s, v);
 

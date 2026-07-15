@@ -85,27 +85,17 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param signature The cryptographic signature from the backend signer.
      * @return registrationId The newly generated item ID.
      */
-    function registerItem(
-        address owner,
-        bytes32 itemHash,
-        uint256 deadline,
-        bytes calldata signature
-    ) external returns (uint256) {
+    function registerItem(address owner, bytes32 itemHash, uint256 deadline, bytes calldata signature)
+        external
+        returns (uint256)
+    {
         if (block.timestamp > deadline) revert SignatureExpired();
         if (itemHash == bytes32(0)) revert InvalidItemHash();
         if (owner == address(0)) revert InvalidOwnerAddress();
 
         uint256 nonce = userNonces[owner];
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                owner,
-                itemHash,
-                nonce,
-                deadline,
-                block.chainid,
-                address(this)
-            )
-        );
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(owner, itemHash, nonce, deadline, block.chainid, address(this)));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
             revert InvalidSignature();
@@ -138,11 +128,7 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param deadline The signature expiration timestamp.
      * @param signature The cryptographic signature from the backend signer.
      */
-    function markLost(
-        uint256 registrationId,
-        uint256 deadline,
-        bytes calldata signature
-    ) external {
+    function markLost(uint256 registrationId, uint256 deadline, bytes calldata signature) external {
         if (block.timestamp > deadline) revert SignatureExpired();
         if (registrationId == 0 || registrationId >= _nextRegistrationId) {
             revert ItemNotFound(registrationId);
@@ -156,14 +142,7 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address owner = item.owner;
         uint256 nonce = userNonces[owner];
         bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                registrationId,
-                uint8(Status.Lost),
-                nonce,
-                deadline,
-                block.chainid,
-                address(this)
-            )
+            abi.encodePacked(registrationId, uint8(Status.Lost), nonce, deadline, block.chainid, address(this))
         );
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
@@ -185,11 +164,7 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param deadline The signature expiration timestamp.
      * @param signature The cryptographic signature from the backend signer.
      */
-    function markRecovered(
-        uint256 registrationId,
-        uint256 deadline,
-        bytes calldata signature
-    ) external {
+    function markRecovered(uint256 registrationId, uint256 deadline, bytes calldata signature) external {
         if (block.timestamp > deadline) revert SignatureExpired();
         if (registrationId == 0 || registrationId >= _nextRegistrationId) {
             revert ItemNotFound(registrationId);
@@ -203,14 +178,7 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address owner = item.owner;
         uint256 nonce = userNonces[owner];
         bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                registrationId,
-                uint8(Status.Recovered),
-                nonce,
-                deadline,
-                block.chainid,
-                address(this)
-            )
+            abi.encodePacked(registrationId, uint8(Status.Recovered), nonce, deadline, block.chainid, address(this))
         );
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
