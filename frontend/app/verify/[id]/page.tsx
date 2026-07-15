@@ -274,10 +274,7 @@ export default function VerifyPage({ params }: PageProps) {
     );
   }
 
-  const maskAddress = (addr: string) => {
-    if (!addr || addr.length < 10) return "";
-    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
-  };
+
 
   return (
     <main className="min-h-screen bg-neutral-mist pb-16">
