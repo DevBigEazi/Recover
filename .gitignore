@@ -17,3 +17,8 @@ broadcast/
 
 # TS build info
 *.tsbuildinfo
+
+# Documentation specifications
+PRD.md
+AGENTS.md
+BUILD_GUIDE.md
