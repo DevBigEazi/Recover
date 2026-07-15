@@ -1,12 +1,17 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { ThirdwebProvider } from "thirdweb/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
-    <ThirdwebProvider>
-      {children}
-    </ThirdwebProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThirdwebProvider>
+        {children}
+      </ThirdwebProvider>
+    </QueryClientProvider>
   );
 }
