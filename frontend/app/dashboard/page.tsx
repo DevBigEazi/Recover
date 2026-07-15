@@ -6,6 +6,7 @@ import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
+import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
 
 interface LocalItem {
   registrationId: string;
@@ -50,6 +51,10 @@ export default function DashboardPage() {
     type: "Lost" | "Recovered";
     name: string;
   } | null>(null);
+
+  // Sticker studio states
+  const [showStickerModal, setShowStickerModal] = useState<boolean>(false);
+  const [stickerItem, setStickerItem] = useState<LocalItem | null>(null);
 
   const fetchItems = async () => {
     if (!account) {
@@ -144,27 +149,6 @@ export default function DashboardPage() {
       setActionError(message);
     } finally {
       setActionLoadingId(null);
-    }
-  };
-
-  const handleDownloadQR = async (registrationId: string) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
-      window.location.origin + "/verify/" + registrationId
-    )}`;
-    try {
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recover-qr-item-${registrationId}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to download QR code:", err);
-      window.open(qrUrl, "_blank");
     }
   };
 
@@ -411,16 +395,19 @@ export default function DashboardPage() {
                         </button>
                       )}
 
-                      {/* Download QR Button */}
+                      {/* Printable Sticker Button */}
                       <button
-                        onClick={() => handleDownloadQR(item.registrationId)}
+                        onClick={() => {
+                          setStickerItem(item);
+                          setShowStickerModal(true);
+                        }}
                         disabled={actionLoadingId !== null}
                         className="bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-gray-300 font-semibold py-2 px-3 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
-                        <span>QR Code</span>
+                        <span>Print Sticker</span>
                       </button>
 
                       {/* Details Page Link */}
@@ -507,6 +494,16 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Reusable Sticker Studio Modal */}
+      <StickerStudioModal
+        isOpen={showStickerModal}
+        onClose={() => {
+          setShowStickerModal(false);
+          setStickerItem(null);
+        }}
+        item={stickerItem}
+      />
     </main>
   );
 }
