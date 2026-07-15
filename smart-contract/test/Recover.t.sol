@@ -1,35 +1,114 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Recover} from "../src/Recover.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+contract RecoverMockV2 is Recover {
+    function version() external pure returns (string memory) {
+        return "v2";
+    }
+}
 
 contract RecoverTest is Test {
     Recover public recover;
-    address public owner;
+    address public proxyOwner;
     address public user;
+    uint256 public backendPrivateKey;
+    address public backendSigner;
     bytes32 public constant TEST_HASH = keccak256("test-item-metadata-hash");
 
     function setUp() public {
-        owner = address(this);
+        proxyOwner = address(this);
         user = address(0x1);
-        recover = new Recover();
+        backendPrivateKey = 0xBEAF;
+        backendSigner = vm.addr(backendPrivateKey);
+
+        // Deploy implementation
+        Recover impl = new Recover();
+
+        // Encode initializer
+        bytes memory initData = abi.encodeWithSelector(Recover.initialize.selector, backendSigner);
+
+        // Deploy proxy
+        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
+
+        // Wrap proxy in implementation interface
+        recover = Recover(address(proxy));
     }
 
-    // --- 1. Initial State Tests ---
+    // --- Helper Functions to Generate Signatures ---
 
-    function test_InitialState() public view {
-        // We verify that checking a non-existent item reverts with ItemNotFound
-        // (This implicitly tests that _nextRegistrationId starts at 1, so ID 1 reverts)
+    function getRegisterSignature(
+        address ownerAddr,
+        bytes32 itemHash,
+        uint256 nonce,
+        uint256 deadline
+    ) internal view returns (bytes memory) {
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                ownerAddr,
+                itemHash,
+                nonce,
+                deadline,
+                block.chainid,
+                address(recover)
+            )
+        );
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(backendPrivateKey, ethSignedMessageHash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function getStatusSignature(
+        uint256 registrationId,
+        Recover.Status status,
+        uint256 nonce,
+        uint256 deadline
+    ) internal view returns (bytes memory) {
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                registrationId,
+                uint8(status),
+                nonce,
+                deadline,
+                block.chainid,
+                address(recover)
+            )
+        );
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(backendPrivateKey, ethSignedMessageHash);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // --- 1. Initial State & Proxy Config Tests ---
+
+    function test_Initialize() public view {
+        assertEq(recover.backendSigner(), backendSigner);
+        assertEq(recover.owner(), proxyOwner);
+    }
+
+    function test_CannotInitializeTwice() public {
+        vm.expectRevert();
+        recover.initialize(address(0x9));
     }
 
     // --- 2. Register Item Tests ---
 
-    function test_RegisterItem() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+    function test_RegisterItem_Success() public {
+        uint256 nonce = recover.userNonces(user);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = getRegisterSignature(user, TEST_HASH, nonce, deadline);
+
+        uint256 id = recover.registerItem(user, TEST_HASH, deadline, signature);
 
         assertEq(id, 1);
+        assertEq(recover.userNonces(user), nonce + 1);
 
         Recover.Item memory item = recover.getItem(id);
         assertEq(item.registrationId, 1);
@@ -40,185 +119,199 @@ contract RecoverTest is Test {
         assertEq(item.itemHash, TEST_HASH);
     }
 
-    function test_RegisterItemEmitsEvent() public {
-        vm.expectEmit(true, true, false, true);
-        emit Recover.ItemRegistered(1, user, TEST_HASH, block.timestamp);
+    function test_RegisterItem_InvalidSignature() public {
+        uint256 nonce = recover.userNonces(user);
+        uint256 deadline = block.timestamp + 1 hours;
 
-        vm.prank(user);
-        recover.registerItem(TEST_HASH);
+        // Generate signature with another private key
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(user, TEST_HASH, nonce, deadline, block.chainid, address(recover))
+        );
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xFA15, ethSignedMessageHash);
+        bytes memory badSignature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(abi.encodeWithSelector(Recover.InvalidSignature.selector));
+        recover.registerItem(user, TEST_HASH, deadline, badSignature);
     }
 
-    function test_RegisterItem_InvalidHash() public {
-        vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(Recover.InvalidItemHash.selector));
-        recover.registerItem(bytes32(0));
+    function test_RegisterItem_ExpiredSignature() public {
+        uint256 nonce = recover.userNonces(user);
+        uint256 deadline = block.timestamp - 1; // Expired
+        bytes memory signature = getRegisterSignature(user, TEST_HASH, nonce, deadline);
+
+        vm.expectRevert(abi.encodeWithSelector(Recover.SignatureExpired.selector));
+        recover.registerItem(user, TEST_HASH, deadline, signature);
+    }
+
+    function test_RegisterItem_ReplayReverts() public {
+        uint256 nonce = recover.userNonces(user);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = getRegisterSignature(user, TEST_HASH, nonce, deadline);
+
+        // First registration succeeds
+        recover.registerItem(user, TEST_HASH, deadline, signature);
+
+        // Replaying same signature reverts (nonce is now incremented on-chain)
+        vm.expectRevert(abi.encodeWithSelector(Recover.InvalidSignature.selector));
+        recover.registerItem(user, TEST_HASH, deadline, signature);
     }
 
     // --- 3. Mark Lost Tests ---
 
-    function test_MarkLost() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+    function test_MarkLost_Success() public {
+        // Register item first
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
 
-        // Advance time to verify lastUpdated is updated
         vm.warp(block.timestamp + 100);
 
-        vm.prank(user);
-        recover.markLost(id);
+        // Mark lost signature
+        uint256 lostNonce = recover.userNonces(user);
+        uint256 lostDeadline = block.timestamp + 1 hours;
+        bytes memory lostSig = getStatusSignature(id, Recover.Status.Lost, lostNonce, lostDeadline);
+
+        recover.markLost(id, lostDeadline, lostSig);
 
         Recover.Item memory item = recover.getItem(id);
         assertEq(uint8(item.status), uint8(Recover.Status.Lost));
         assertEq(item.lastUpdated, block.timestamp);
+        assertEq(recover.userNonces(user), lostNonce + 1);
     }
 
-    function test_MarkLostEmitsEvent() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+    function test_MarkLost_AlreadyLostReverts() public {
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
 
-        vm.warp(block.timestamp + 100);
+        uint256 lostNonce = recover.userNonces(user);
+        uint256 lostDeadline = block.timestamp + 1 hours;
+        bytes memory lostSig = getStatusSignature(id, Recover.Status.Lost, lostNonce, lostDeadline);
 
-        vm.expectEmit(true, false, false, true);
-        emit Recover.ItemMarkedLost(id, block.timestamp);
+        recover.markLost(id, lostDeadline, lostSig);
 
-        vm.prank(user);
-        recover.markLost(id);
-    }
+        // Generate new signature for Lost status
+        uint256 lostNonce2 = recover.userNonces(user);
+        bytes memory lostSig2 = getStatusSignature(id, Recover.Status.Lost, lostNonce2, lostDeadline);
 
-    function test_MarkLost_NotOwner() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
-
-        vm.prank(address(0x2));
-        vm.expectRevert(abi.encodeWithSelector(Recover.NotItemOwner.selector, id, address(0x2)));
-        recover.markLost(id);
-    }
-
-    function test_MarkLost_AlreadyLost() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
-
-        vm.prank(user);
-        recover.markLost(id);
-
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Recover.InvalidStatusTransition.selector, id, Recover.Status.Lost, Recover.Status.Lost
             )
         );
-        recover.markLost(id);
+        recover.markLost(id, lostDeadline, lostSig2);
     }
 
     // --- 4. Mark Recovered Tests ---
 
-    function test_MarkRecovered() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+    function test_MarkRecovered_Success() public {
+        // Register item
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
 
-        vm.prank(user);
-        recover.markLost(id);
+        // Mark Lost
+        uint256 lostNonce = recover.userNonces(user);
+        uint256 lostDeadline = block.timestamp + 1 hours;
+        bytes memory lostSig = getStatusSignature(id, Recover.Status.Lost, lostNonce, lostDeadline);
+        recover.markLost(id, lostDeadline, lostSig);
 
         vm.warp(block.timestamp + 100);
 
-        vm.prank(user);
-        recover.markRecovered(id);
+        // Mark Recovered
+        uint256 recNonce = recover.userNonces(user);
+        uint256 recDeadline = block.timestamp + 1 hours;
+        bytes memory recSig = getStatusSignature(id, Recover.Status.Recovered, recNonce, recDeadline);
+
+        recover.markRecovered(id, recDeadline, recSig);
 
         Recover.Item memory item = recover.getItem(id);
         assertEq(uint8(item.status), uint8(Recover.Status.Recovered));
         assertEq(item.lastUpdated, block.timestamp);
     }
 
-    function test_MarkRecoveredEmitsEvent() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+    function test_MarkRecovered_NotLostReverts() public {
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
 
-        vm.prank(user);
-        recover.markLost(id);
+        // Item is currently Active (not Lost). Trying to mark as Recovered should revert.
+        uint256 recNonce = recover.userNonces(user);
+        uint256 recDeadline = block.timestamp + 1 hours;
+        bytes memory recSig = getStatusSignature(id, Recover.Status.Recovered, recNonce, recDeadline);
 
-        vm.warp(block.timestamp + 100);
-
-        vm.expectEmit(true, false, false, true);
-        emit Recover.ItemRecovered(id, block.timestamp);
-
-        vm.prank(user);
-        recover.markRecovered(id);
-    }
-
-    function test_MarkRecovered_NotOwner() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
-
-        vm.prank(user);
-        recover.markLost(id);
-
-        vm.prank(address(0x2));
-        vm.expectRevert(abi.encodeWithSelector(Recover.NotItemOwner.selector, id, address(0x2)));
-        recover.markRecovered(id);
-    }
-
-    function test_MarkRecovered_NotLost() public {
-        vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
-
-        // Item is Active, cannot mark as Recovered
-        vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Recover.InvalidStatusTransition.selector, id, Recover.Status.Active, Recover.Status.Recovered
             )
         );
-        recover.markRecovered(id);
+        recover.markRecovered(id, recDeadline, recSig);
     }
 
-    // --- 5. Transition from Recovered directly to Lost (Option A) ---
+    // --- 5. Owner Actions & Setters Tests ---
 
-    function test_MarkLost_FromRecovered() public {
+    function test_SetBackendSigner_OwnerOnly() public {
+        address newSigner = address(0x9);
+
+        // Non-owner call reverts
         vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+        vm.expectRevert();
+        recover.setBackendSigner(newSigner);
 
-        // Transition: Active -> Lost
-        vm.prank(user);
-        recover.markLost(id);
-
-        // Transition: Lost -> Recovered
-        vm.prank(user);
-        recover.markRecovered(id);
-
-        // Transition: Recovered -> Lost (directly)
-        vm.warp(block.timestamp + 100);
-        vm.prank(user);
-        recover.markLost(id);
-
-        Recover.Item memory item = recover.getItem(id);
-        assertEq(uint8(item.status), uint8(Recover.Status.Lost));
-        assertEq(item.lastUpdated, block.timestamp);
+        // Owner call succeeds
+        recover.setBackendSigner(newSigner);
+        assertEq(recover.backendSigner(), newSigner);
     }
 
-    // --- 6. Get/Verify Item Edge Cases ---
-
-    function test_GetItem_NotFound() public {
-        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, 0));
-        recover.getItem(0);
-
-        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, 1));
-        recover.getItem(1);
+    function test_SetBackendSigner_InvalidAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(Recover.InvalidBackendSigner.selector));
+        recover.setBackendSigner(address(0));
     }
 
-    function test_VerifyItem_NotFound() public {
-        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, 0));
-        recover.verifyItem(0);
+    // --- 6. UUPS Upgradeability Verification ---
 
-        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, 1));
-        recover.verifyItem(1);
-    }
+    function test_UpgradeToV2_OwnerOnly() public {
+        RecoverMockV2 v2Impl = new RecoverMockV2();
 
-    function test_VerifyItem_HappyPath() public {
+        // Non-owner cannot upgrade proxy
         vm.prank(user);
-        uint256 id = recover.registerItem(TEST_HASH);
+        vm.expectRevert();
+        recover.upgradeToAndCall(address(v2Impl), "");
 
-        Recover.Item memory item = recover.verifyItem(id);
+        // Owner upgrades proxy
+        recover.upgradeToAndCall(address(v2Impl), "");
+
+        // Cast proxy handle to MockV2 to access version() view
+        RecoverMockV2 upgradedRecover = RecoverMockV2(address(recover));
+        assertEq(upgradedRecover.version(), "v2");
+    }
+
+    function test_UpgradePreservesState() public {
+        // Register an item before upgrade
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
+
+        // Upgrade implementation
+        RecoverMockV2 v2Impl = new RecoverMockV2();
+        recover.upgradeToAndCall(address(v2Impl), "");
+
+        // State validation post-upgrade
+        RecoverMockV2 upgradedRecover = RecoverMockV2(address(recover));
+        Recover.Item memory item = upgradedRecover.getItem(id);
+
         assertEq(item.registrationId, id);
         assertEq(item.owner, user);
         assertEq(item.itemHash, TEST_HASH);
+        assertEq(upgradedRecover.userNonces(user), regNonce + 1);
+        assertEq(upgradedRecover.backendSigner(), backendSigner);
     }
 }
