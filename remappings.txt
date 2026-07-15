@@ -1,0 +1,3 @@
+forge-std/=smart-contract/lib/forge-std/src/
+@openzeppelin/contracts-upgradeable/=smart-contract/lib/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin/contracts/=smart-contract/lib/openzeppelin-contracts/contracts/
