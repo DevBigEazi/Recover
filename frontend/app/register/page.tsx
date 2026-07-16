@@ -7,6 +7,42 @@ import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 
+const STICKER_SIZES = {
+  mini: {
+    label: "Mini",
+    desc: "~10mm × 10mm",
+    note: "(Recommended)",
+    w: 160, h: 175, qrSize: 90, qrY: 34, idY: 125,
+    boxY: 138, boxW: 120, boxH: 14,
+    rewardTextY: 148, securedTextY: 146, footerY: 160,
+    printW: 120, printH: 135, printTitleSize: 9, printSubSize: 6,
+    printQrSize: 80, printIdSize: 7, printRewardSize: 8,
+    printSecuredSize: 7, printFooterSize: 6,
+  },
+  standard: {
+    label: "Standard",
+    desc: "~25mm × 25mm",
+    note: "",
+    w: 280, h: 300, qrSize: 160, qrY: 60, idY: 212,
+    boxY: 230, boxW: 220, boxH: 22,
+    rewardTextY: 244, securedTextY: 242, footerY: 274,
+    printW: 180, printH: 200, printTitleSize: 12, printSubSize: 8,
+    printQrSize: 120, printIdSize: 10, printRewardSize: 10,
+    printSecuredSize: 9, printFooterSize: 7,
+  },
+  large: {
+    label: "Large",
+    desc: "~50mm × 50mm",
+    note: "",
+    w: 520, h: 560, qrSize: 300, qrY: 110, idY: 398,
+    boxY: 432, boxW: 410, boxH: 42,
+    rewardTextY: 458, securedTextY: 455, footerY: 512,
+    printW: 300, printH: 330, printTitleSize: 18, printSubSize: 12,
+    printQrSize: 200, printIdSize: 13, printRewardSize: 14,
+    printSecuredSize: 12, printFooterSize: 10,
+  },
+};
+
 export default function RegisterPage() {
   const account = useActiveAccount();
   const { openLogin } = useAuth();
@@ -41,6 +77,7 @@ export default function RegisterPage() {
 
   // Sticker size selection state
   const [selectedSize, setSelectedSize] = useState<"mini" | "standard" | "large">("mini");
+  const [isDownloadingLabel, setIsDownloadingLabel] = useState(false);
 
   // Confirm modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -206,114 +243,193 @@ export default function RegisterPage() {
     }
   };
 
-  // Composite PNG Sticker Generator download
-  const handleDownloadStickerLabel = async (sizeName: "mini" | "standard" | "large") => {
+  // High-DPI Sticker Label download — matches StickerStudioModal canvas engine
+  const handleDownloadStickerLabel = async () => {
     if (!successData) return;
+    setIsDownloadingLabel(true);
     try {
-      const canvas = document.createElement("canvas");
-      
-      // Determine canvas resolution based on sticker scale
-      let width = 400;
-      let height = 550;
-      if (sizeName === "mini") {
-        width = 250;
-        height = 350;
-      } else if (sizeName === "large") {
-        width = 800;
-        height = 1100;
-      }
+      const config = STICKER_SIZES[selectedSize as keyof typeof STICKER_SIZES];
+      const scale = 4; // High-DPI multiplier for crisp printing
+      const w = config.w * scale;
+      const h = config.h * scale;
+      const qrSize = config.qrSize * scale;
 
-      canvas.width = width;
-      canvas.height = height;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&margin=10&data=${encodeURIComponent(
+        window.location.origin + "/verify/" + successData.registrationId
+      )}`;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Failed to resolve canvas 2d context.");
 
-      // Background
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Outer border (Navy)
-      ctx.strokeStyle = "#1E2A4A";
-      ctx.lineWidth = sizeName === "mini" ? 6 : sizeName === "large" ? 24 : 12;
-      ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, canvas.width - ctx.lineWidth, canvas.height - ctx.lineWidth);
-
-      // Inner border (Teal)
-      const gap = sizeName === "mini" ? 10 : sizeName === "large" ? 40 : 20;
-      ctx.strokeStyle = "#0EA394";
-      ctx.lineWidth = sizeName === "mini" ? 2 : sizeName === "large" ? 6 : 3;
-      ctx.strokeRect(gap, gap, canvas.width - gap*2, canvas.height - gap*2);
-
-      // Header text
-      ctx.fillStyle = "#1E2A4A";
-      ctx.font = `bold ${sizeName === "mini" ? "14px" : sizeName === "large" ? "42px" : "21px"} sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText("SCAN IF FOUND", canvas.width / 2, sizeName === "mini" ? 40 : sizeName === "large" ? 130 : 65);
-
-      // Load and Draw QR Code Image
-      const qrImg = document.createElement("img");
-      qrImg.crossOrigin = "anonymous";
-      qrImg.src = successData.qrUrl;
-
-      await new Promise<void>((resolve, reject) => {
-        qrImg.onload = () => {
-          const qrSize = sizeName === "mini" ? 140 : sizeName === "large" ? 480 : 240;
-          const qrX = (canvas.width - qrSize) / 2;
-          const qrY = sizeName === "mini" ? 60 : sizeName === "large" ? 180 : 90;
-          ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-          resolve();
-        };
-        qrImg.onerror = (err) => reject(err);
-      });
-
-      // Caption text
-      ctx.fillStyle = "#4A5568";
-      ctx.font = `medium ${sizeName === "mini" ? "8px" : sizeName === "large" ? "20px" : "11px"} sans-serif`;
-      ctx.textAlign = "center";
-      
-      const wrapText = (text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
-        const words = text.split(" ");
-        let line = "";
-        let currentY = y;
-        for (let n = 0; n < words.length; n++) {
-          const testLine = line + words[n] + " ";
-          const metrics = ctx.measureText(testLine);
-          const testWidth = metrics.width;
-          if (testWidth > maxWidth && n > 0) {
-            ctx.fillText(line, x, currentY);
-            line = words[n] + " ";
-            currentY += lineHeight;
-          } else {
-            line = testLine;
-          }
+      // Dynamic text sizing helper to prevent horizontal overflows
+      const fillTextFit = (
+        text: string,
+        x: number,
+        y: number,
+        maxW: number,
+        fontStyle: string,
+        baseSizePx: number,
+        fontFamily = "sans-serif"
+      ) => {
+        let sizePx = baseSizePx;
+        ctx.font = `${fontStyle} ${sizePx}px ${fontFamily}`;
+        while (ctx.measureText(text).width > maxW && sizePx > 6 * scale) {
+          sizePx -= 1;
+          ctx.font = `${fontStyle} ${sizePx}px ${fontFamily}`;
         }
-        ctx.fillText(line, x, currentY);
+        ctx.fillText(text, x, y);
       };
 
-      const captionText = "This item might be lost. If found, please scan to contact the owner.";
-      const textX = canvas.width / 2;
-      const textY = sizeName === "mini" ? 220 : sizeName === "large" ? 720 : 360;
-      const maxWidth = canvas.width - (gap * 3);
-      const lineHeight = sizeName === "mini" ? 12 : sizeName === "large" ? 30 : 16;
-      
-      wrapText(captionText, textX, textY, maxWidth, lineHeight);
+      // Background
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, w, h);
 
-      // Unique label detail at the bottom
-      ctx.fillStyle = "#1E2A4A";
-      ctx.font = `bold ${sizeName === "mini" ? "8px" : sizeName === "large" ? "18px" : "10px"} monospace`;
-      ctx.fillText(`ID: #${successData.registrationId}`, canvas.width / 2, canvas.height - (sizeName === "mini" ? 20 : sizeName === "large" ? 60 : 30));
+      // Outer border (Indigo)
+      ctx.strokeStyle = "#1E2A4A";
+      ctx.lineWidth = Math.max(4, Math.round(config.w * 0.03)) * scale;
+      const outerPad = Math.max(2, Math.round(config.w * 0.015)) * scale;
+      ctx.strokeRect(outerPad, outerPad, w - outerPad * 2, h - outerPad * 2);
 
-      // Trigger download
+      // Inner border (Teal)
+      ctx.strokeStyle = "#0EA394";
+      ctx.lineWidth = Math.max(1, Math.round(config.w * 0.0075)) * scale;
+      const innerPad = Math.max(6, Math.round(config.w * 0.045)) * scale;
+      ctx.strokeRect(innerPad, innerPad, w - innerPad * 2, h - innerPad * 2);
+
+      const maxSafeTextWidth = w - innerPad * 2 - 16 * scale;
+
+      // Header caption — amber warning
+      ctx.fillStyle = "#FF9500";
+      ctx.textAlign = "center";
+      const capLine1Size = Math.max(8, Math.round(config.w * 0.035)) * scale;
+      fillTextFit("This item might be lost.", w / 2, h * 0.1, maxSafeTextWidth, "bold", capLine1Size);
+
+      ctx.fillStyle = "#0EA394";
+      const capLine2Size = Math.max(7, Math.round(config.w * 0.026)) * scale;
+      fillTextFit("If found, please scan to contact the owner.", w / 2, h * 0.145, maxSafeTextWidth, "normal", capLine2Size);
+
+      // Load QR Code Image
+      const qrImg = new window.Image();
+      qrImg.crossOrigin = "anonymous";
+      qrImg.src = qrUrl;
+      await new Promise((resolve, reject) => {
+        qrImg.onload = resolve;
+        qrImg.onerror = reject;
+      });
+      const qrX = (w - qrSize) / 2;
+      ctx.drawImage(qrImg, qrX, config.qrY * scale, qrSize, qrSize);
+
+      // Registration ID
+      ctx.fillStyle = "#6B7280";
+      const idFontSize = Math.max(7, Math.round(config.w * 0.0375)) * scale;
+      fillTextFit(`ID: #${successData.registrationId}`, w / 2, config.idY * scale, maxSafeTextWidth, "bold", idFontSize, "monospace");
+
+      // Reward Banner or Secured text
+      if (reward && rewardType === "custom") {
+        ctx.fillStyle = "#F5A623";
+        ctx.fillRect((w - config.boxW * scale) / 2, config.boxY * scale, config.boxW * scale, config.boxH * scale);
+        ctx.fillStyle = "#FFFFFF";
+        const rewardFontSize = Math.max(8, Math.round(config.w * 0.04)) * scale;
+        fillTextFit(`🎁 REWARD: ${reward.toUpperCase()}`, w / 2, config.rewardTextY * scale, config.boxW * scale - 12 * scale, "bold", rewardFontSize);
+      } else {
+        ctx.fillStyle = "#1E2A4A";
+        const securedFontSize = Math.max(7, Math.round(config.w * 0.035)) * scale;
+        fillTextFit("Owner Identity Secured in Decentralized Registry", w / 2, config.securedTextY * scale, maxSafeTextWidth, "normal", securedFontSize);
+      }
+
+      // Footer
+      ctx.fillStyle = "#9CA3AF";
+      const footerFontSize = Math.max(6, Math.round(config.w * 0.0275)) * scale;
+      fillTextFit("RECOVER PROTOCOL", w / 2, config.footerY * scale, maxSafeTextWidth, "bold", footerFontSize);
+
       const dataUrl = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `recover-sticker-${sizeName}-item-${successData.registrationId}.png`;
+      a.download = `recover-qr-sticker-${successData.registrationId}-${selectedSize}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     } catch (err) {
-      console.error("Failed to generate sticker label:", err);
-      // Fallback: download raw QR
-      handleDownloadQR();
+      console.error("Sticker generation failed, falling back to QR download:", err);
+      await handleDownloadQR();
+    } finally {
+      setIsDownloadingLabel(false);
+    }
+  };
+
+  // Print Sticker via hidden iframe — matches StickerStudioModal print engine
+  const handlePrintSticker = () => {
+    if (!successData) return;
+    const config = STICKER_SIZES[selectedSize as keyof typeof STICKER_SIZES];
+    const printW = config.printW;
+    const qrSize = config.printQrSize;
+
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&margin=10&data=${encodeURIComponent(
+      window.location.origin + "/verify/" + successData.registrationId
+    )}`;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <title>Print QR Sticker</title>
+            <style>
+              @page { size: ${printW}px auto; margin: 0; }
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; background: white; }
+              .sticker {
+                width: ${printW}px;
+                border: ${Math.max(4, Math.round(printW * 0.03))}px solid #1E2A4A;
+                outline: ${Math.max(1, Math.round(printW * 0.0075))}px solid #0EA394;
+                outline-offset: -${Math.max(6, Math.round(printW * 0.045))}px;
+                padding: ${Math.max(8, Math.round(printW * 0.06))}px;
+                box-sizing: border-box; text-align: center; background: white;
+                display: flex; flex-direction: column; align-items: center; gap: 10px;
+              }
+              .title { font-size: ${config.printTitleSize}px; font-weight: bold; color: #FF9500; margin: 0; line-height: 1.2; }
+              .subtitle { font-size: ${config.printSubSize}px; color: #0EA394; margin: 2px 0 0 0; line-height: 1.2; }
+              .qr { width: ${qrSize}px; height: ${qrSize}px; display: block; }
+              .meta { font-size: ${config.printIdSize}px; font-family: monospace; color: #6B7280; font-weight: bold; margin: 0; }
+              .reward-tag { background: #F5A623; color: white; padding: 4px 6px; font-weight: bold; font-size: ${config.printRewardSize}px; width: 90%; box-sizing: border-box; border-radius: 4px; margin: 0 auto; }
+              .info-sec { font-size: ${config.printSecuredSize}px; color: #1E2A4A; margin: 0; }
+              .footer { font-size: ${config.printFooterSize}px; font-weight: bold; color: #9CA3AF; letter-spacing: 0.5px; margin: 0; }
+            </style>
+          </head>
+          <body>
+            <div class="sticker">
+              <div>
+                <div class="title">This item might be lost.</div>
+                <div class="subtitle">If found, please scan to contact the owner.</div>
+              </div>
+              <img class="qr" src="${qrUrl}" />
+              <div class="meta">ID: #${successData.registrationId}</div>
+              ${reward && rewardType === "custom"
+                ? `<div class="reward-tag">&#127873; REWARD: ${reward.toUpperCase()}</div>`
+                : `<div class="info-sec">Owner Identity Secured in Decentralized Registry</div>`
+              }
+              <div class="footer">RECOVER PROTOCOL</div>
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500);
+              }
+            ${"<"}/script>
+          </body>
+        </html>
+      `);
+      doc.close();
     }
   };
 
@@ -747,103 +863,174 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* QR Card Container */}
-            <div className="bg-neutral-mist/40 border border-neutral-mist rounded-2xl p-6 flex flex-col items-center">
-              {/* Sticker Preview */}
-              <div className="bg-neutral-white p-6 rounded-xl shadow-xs border-4 border-primary max-w-[280px] w-full flex flex-col items-center space-y-4">
-                <span className="text-primary font-bold text-xs uppercase tracking-wider">SCAN IF FOUND</span>
-                
-                <div className="bg-neutral-white p-2 rounded-lg border border-neutral-mist">
-                  <Image
-                    src={successData.qrUrl}
-                    alt={`QR code for item registration ID ${successData.registrationId}`}
-                    width={160}
-                    height={160}
-                    className="rounded-xs"
-                    unoptimized
-                  />
+            {/* Sticker Studio */}
+            <div className="border border-neutral-mist rounded-2xl overflow-hidden">
+              {/* Studio Header */}
+              <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border-b border-neutral-mist">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider">Sticker Label Studio</span>
                 </div>
-
-                <p className="text-[9px] text-[#4A5568] leading-tight font-medium text-center max-w-[190px]">
-                  This item might be lost. If found, please scan to contact the owner.
-                </p>
-
-                <span className="text-primary font-mono text-[9px] font-bold">
-                  ID: #{successData.registrationId}
+                <span className="text-[10px] text-neutral-slate font-mono break-all">
+                  Hash: {successData.itemHash.substring(0, 14)}…
                 </span>
               </div>
 
-              <span className="text-xs text-neutral-slate mt-4 font-mono break-all max-w-[280px]">
-                Metadata Hash: {successData.itemHash.substring(0, 16)}...
-              </span>
-            </div>
+              <div className="p-5 space-y-5">
+                {/* Size Preset Tabs */}
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold text-neutral-slate uppercase tracking-wider">
+                    Select Sticker Print Size
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(Object.keys(STICKER_SIZES) as Array<keyof typeof STICKER_SIZES>).map((sizeKey) => {
+                      const sizeInfo = STICKER_SIZES[sizeKey];
+                      const isSelected = selectedSize === sizeKey;
+                      return (
+                        <button
+                          key={sizeKey}
+                          type="button"
+                          onClick={() => setSelectedSize(sizeKey)}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                            isSelected
+                              ? "border-accent bg-accent/5 text-accent shadow-xs"
+                              : "border-neutral-mist hover:border-gray-300 text-neutral-slate bg-neutral-mist/20"
+                          }`}
+                        >
+                          <span className="text-[11px] font-bold font-display flex items-center gap-0.5">
+                            {sizeInfo.label}
+                            {sizeInfo.note && (
+                              <span className="text-[8px] bg-accent text-neutral-white px-0.5 rounded-xs font-sans">
+                                ★
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[9px] mt-0.5 opacity-80">{sizeInfo.desc}</span>
+                          {sizeInfo.note && (
+                            <span className="text-[8px] mt-0.5 text-accent font-semibold uppercase tracking-wider">
+                              Recommended
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* Sticker Presets Selection */}
-            <div className="border-t border-neutral-mist pt-4 space-y-3 text-left">
-              <span className="block text-xs font-bold text-primary uppercase tracking-wider">Select Sticker Label Size</span>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedSize("mini")}
-                  className={`border rounded-lg p-2.5 text-center cursor-pointer transition-all ${
-                    selectedSize === "mini"
-                      ? "border-accent bg-accent/5 text-accent font-semibold"
-                      : "border-gray-200 hover:border-gray-300 text-neutral-slate"
-                  }`}
-                >
-                  <span className="block text-xs">Mini</span>
-                  <span className="block text-[9px] mt-0.5 opacity-85">~10x10mm</span>
-                  <span className="block text-[8px] font-mono font-medium text-accent mt-0.5">(Recommended)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSize("standard")}
-                  className={`border rounded-lg p-2.5 text-center cursor-pointer transition-all ${
-                    selectedSize === "standard"
-                      ? "border-accent bg-accent/5 text-accent font-semibold"
-                      : "border-gray-200 hover:border-gray-300 text-neutral-slate"
-                  }`}
-                >
-                  <span className="block text-xs">Standard</span>
-                  <span className="block text-[9px] mt-0.5 opacity-85">~25x25mm</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSize("large")}
-                  className={`border rounded-lg p-2.5 text-center cursor-pointer transition-all ${
-                    selectedSize === "large"
-                      ? "border-accent bg-accent/5 text-accent font-semibold"
-                      : "border-gray-200 hover:border-gray-300 text-neutral-slate"
-                  }`}
-                >
-                  <span className="block text-xs">Large</span>
-                  <span className="block text-[9px] mt-0.5 opacity-85">~50x50mm</span>
-                </button>
+                {/* Live Sticker Preview */}
+                <div className="flex justify-center py-2">
+                  <div
+                    className={`border-8 border-primary outline-2 outline-accent outline-offset-[-9px] text-center bg-neutral-white flex flex-col items-center shadow-md select-none transition-all duration-200 ${
+                      selectedSize === "mini"
+                        ? "w-[180px] p-2 gap-2"
+                        : selectedSize === "standard"
+                        ? "w-[240px] p-3 pb-2.5 gap-3"
+                        : "w-[320px] p-4 pb-3 gap-4"
+                    }`}
+                  >
+                    <div className="space-y-0.5 mt-1">
+                      <div className={`font-extrabold text-[#FF9500] font-display leading-tight ${
+                        selectedSize === "mini" ? "text-[9px]" : selectedSize === "standard" ? "text-[11px]" : "text-[14px]"
+                      }`}>
+                        This item might be lost.
+                      </div>
+                      <div className={`text-accent leading-tight font-medium ${
+                        selectedSize === "mini" ? "text-[7px]" : selectedSize === "standard" ? "text-[8px]" : "text-[10px]"
+                      }`}>
+                        If found, please scan to contact the owner.
+                      </div>
+                    </div>
+                    <div className="p-1 rounded-sm border border-neutral-mist bg-neutral-white">
+                      <Image
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(
+                          (typeof window !== "undefined" ? window.location.origin : "") + "/verify/" + successData.registrationId
+                        )}`}
+                        alt={`QR code sticker for item ${successData.registrationId}`}
+                        width={selectedSize === "mini" ? 100 : selectedSize === "standard" ? 140 : 180}
+                        height={selectedSize === "mini" ? 100 : selectedSize === "standard" ? 140 : 180}
+                        unoptimized
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className={`font-mono font-bold text-neutral-slate leading-none ${
+                        selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[10px]" : "text-[12px]"
+                      }`}>
+                        ID: #{successData.registrationId}
+                      </div>
+                      {reward && rewardType === "custom" ? (
+                        <div className={`bg-warning text-neutral-white px-2 py-0.5 rounded-xs font-bold uppercase leading-none ${
+                          selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[10px]" : "text-[12px]"
+                        }`}>
+                          🎁 REWARD OFFERED
+                        </div>
+                      ) : (
+                        <div className={`text-primary leading-none font-medium ${
+                          selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[9px]" : "text-[11px]"
+                        }`}>
+                          Identity Secured in Decentralized Registry
+                        </div>
+                      )}
+                    </div>
+                    <div className={`font-extrabold text-gray-400 tracking-wider uppercase ${
+                      selectedSize === "mini" ? "text-[6px]" : selectedSize === "standard" ? "text-[7px]" : "text-[9px]"
+                    }`}>
+                      RECOVER PROTOCOL
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDownloadStickerLabel}
+                    disabled={isDownloadingLabel}
+                    className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {isDownloadingLabel ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Composing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Download PNG</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePrintSticker}
+                    className="bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Print Sticker</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-              <button
-                onClick={() => handleDownloadStickerLabel(selectedSize)}
-                className="bg-accent hover:bg-accent/90 text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>Download Sticker PNG</span>
-              </button>
-              
-              <Link
-                href="/dashboard"
-                className="bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 flex items-center justify-center gap-2"
-              >
-                <span>Go to Dashboard</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
+            {/* Go to Dashboard */}
+            <Link
+              href="/dashboard"
+              className="bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <span>Go to Dashboard</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
         )}
       </div>
