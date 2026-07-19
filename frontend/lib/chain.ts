@@ -2,7 +2,7 @@ import { defineChain } from "thirdweb/chains";
 
 export const electroneum = defineChain({
   id: 52014,
-  rpc: `https://rpc.ankr.com/electroneum/${process.env.NEXT_PUBLIC_ANKR_API_KEY}`,
+  rpc: `https://rpc.ankr.com/electroneum/${process.env.ANKR_API_KEY}`,
   nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
   blockExplorers: [
     {
