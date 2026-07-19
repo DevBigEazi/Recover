@@ -106,15 +106,9 @@ export default function Header() {
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
                   
-                  {isUserMenuOpen && (
+                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
-                      <button
-                        onClick={handleCopyAddress}
-                        className="w-full text-left px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors flex items-center justify-between cursor-pointer"
-                      >
-                        <span>Copy Address</span>
-                        <span className="text-[10px] text-accent font-semibold">{copied ? "Copied!" : ""}</span>
-                      </button>
+                      
                       <Link
                         href="/dashboard"
                         className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
@@ -129,12 +123,19 @@ export default function Header() {
                       >
                         Register Item
                       </Link>
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Settings
+                      </Link>
                       <div className="border-t border-neutral-mist my-1.5" />
                       <button
                         onClick={handleDisconnect}
                         className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                       >
-                        Disconnect
+                        Sign Out
                       </button>
                     </div>
                   )}
@@ -193,17 +194,13 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="pt-4 border-t border-neutral-mist mt-3 space-y-2">
-                  <div className="flex items-center justify-between px-3 py-2 bg-neutral-mist rounded-lg">
-                    <span className={`${fullName || username ? 'font-sans' : 'font-mono'} text-xs font-semibold text-primary`}>
-                      {fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
-                    </span>
-                    <button
-                      onClick={handleCopyAddress}
-                      className="text-xs font-semibold text-accent cursor-pointer"
-                    >
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
+                  <Link
+                    href="/settings"
+                    className="block w-full bg-neutral-mist hover:bg-neutral-mist/80 text-primary font-semibold py-2 px-4 rounded-lg text-xs transition-colors text-center"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
@@ -211,7 +208,7 @@ export default function Header() {
                     }}
                     className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors text-center cursor-pointer"
                   >
-                    Disconnect
+                    Sign Out
                   </button>
                 </div>
               )}
