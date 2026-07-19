@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/provider";
+import PWARegister from "@/components/PWARegister/PWARegister";
 
 const sora = Sora({
   variable: "--font-sora",
@@ -21,9 +22,27 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["500"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#1E2A4A",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Recover — Decentralized Lost & Found",
   description: "Decentralized Lost & Found platform powered by Electroneum and thirdweb",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Recover",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -38,6 +57,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <PWARegister />
         </Providers>
       </body>
     </html>

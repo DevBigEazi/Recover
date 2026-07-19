@@ -60,10 +60,24 @@ $ anvil
 
 ### Foundry Deploy
 
+Deploy implementation and proxy contracts:
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+# Electroneum Testnet
+forge script scripts/Recover.s.sol:RecoverScript --rpc-url electroneum-testnet --account deployer --legacy --with-gas-price 10000000000 --broadcast
+
+# Electroneum Mainnet
+forge script scripts/Recover.s.sol:RecoverScript --rpc-url electroneum --account deployer --broadcast
 ```
 
 ---
 
-**Deployed Testnet Contract Address:** `0xc3bf59348B0359A407dfC0532f34F1eA3Ce92CCf`
+## Deployed Contract Addresses
+
+### Electroneum Mainnet (Chain ID `52014`)
+* **ERC1967 Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
+* **Recover Implementation:** `0xa036a4542bddbf2addca09dfed635b801146f0e3`
+
+### Electroneum Testnet (Chain ID `5201420`)
+* **ERC1967 Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
+* **Recover Implementation:** `0x64A3F3aE151C39D953B5EB5Fb5343b317386b4a5`
+
