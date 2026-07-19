@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useActiveAccount } from "thirdweb/react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -12,9 +13,67 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWARegister() {
+  const account = useActiveAccount();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  // Convert VAPID key
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Subscribe to Web Push Notifications
+  useEffect(() => {
+    if (!account || !("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.ready.then(async (registration) => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          console.warn("Push Notification permission was not granted by user.");
+          return;
+        }
+
+        const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!publicVapidKey) {
+          console.warn("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined. Push subscription skipped.");
+          return;
+        }
+
+        const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
+
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedVapidKey,
+          });
+        }
+
+        await fetch("/api/notifications/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-owner-address": account.address,
+          },
+          body: JSON.stringify({ subscription }),
+        });
+
+        console.log("Registered for Web Push Alerts in real-time.");
+      } catch (err) {
+        console.error("Failed to subscribe user to Web Push:", err);
+      }
+    });
+  }, [account?.address]);
 
   useEffect(() => {
     // 1. Register service worker

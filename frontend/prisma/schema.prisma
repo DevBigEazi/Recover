@@ -1,6 +1,7 @@
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -49,6 +50,29 @@ model User {
   fullName      String
   username      String   @unique
   subscriptionActive Boolean @default(false)
+  emailNotifications Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  ownerAddress   String
+  registrationId String
+  type           String   // "scan", "report", "recovered"
+  message        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([ownerAddress])
+}
+
+model PushSubscription {
+  id             String   @id @default(uuid())
+  ownerAddress   String
+  endpoint       String   @unique
+  keys           String   // Stringified keys JSON: { p256dh: string, auth: string }
+  createdAt      DateTime @default(now())
+
+  @@index([ownerAddress])
 }
