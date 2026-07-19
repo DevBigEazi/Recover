@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sendNotificationEmail } from "@/lib/email";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(request: Request) {
   try {
@@ -53,38 +55,69 @@ export async function POST(request: Request) {
       },
     });
 
-    // Simulate Notification Dispatch (PRD Email alert)
-    if (item.contactInfo) {
-      console.log(`
-=========================================
-📧 EMAIL DISPATCH NOTIFICATION
-=========================================
-To: ${item.contactInfo}
-Subject: [Recover] Found Report for Item #${item.registrationId}
+    const messageText = `New found report submitted for your item "${item.name}".`;
 
-Hello Valued Owner,
+    // 1. Log in-app notification in DB
+    await db.notification.create({
+      data: {
+        ownerAddress: item.ownerAddress,
+        registrationId: item.registrationId,
+        type: "report",
+        message: messageText,
+      },
+    });
 
-Someone has scanned your QR sticker and submitted a found report for: "${item.name}".
+    // 2. Fetch owner preferences
+    const ownerUser = await db.user.findUnique({
+      where: { walletAddress: item.ownerAddress },
+    });
 
-Message details:
------------------------------------------
-${message}
------------------------------------------
+    const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-Finder Contact details:
-${contactInfo || "None provided"}
+    // 3. Dispatch Email Notification
+    if (isEmailEnabled && item.contactInfo) {
+      const emailSubject = `[Recover] Found Report for Item #${item.registrationId}: ${item.name}`;
+      const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <div style="background-color: #1E2A4A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif;">Item Found Alert</h2>
+          </div>
+          <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
+            <p>Hello Valued Owner,</p>
+            <p>Someone has scanned your QR sticker and submitted a found report for your item: <strong>"${item.name}"</strong>.</p>
+            
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h4 style="margin-top: 0; color: #1e2a4a;">Finder Message:</h4>
+              <p style="font-style: italic; white-space: pre-wrap;">"${message}"</p>
+              
+              <h4 style="color: #1e2a4a; margin-bottom: 5px;">Finder Contact Details:</h4>
+              <p>${contactInfo || "None provided"}</p>
+              
+              <h4 style="color: #1e2a4a; margin-bottom: 5px;">Location coordinate shared:</h4>
+              <p>${location || "None provided"}</p>
+            </div>
 
-Location coordinate shared:
-${location || "None provided"}
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${appUrl}/items/${item.registrationId}" style="background-color: #0EA394; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Open Recovery Inbox</a>
+            </div>
+            <p style="font-size: 11px; color: #6b7280; margin-top: 30px;">
+              You received this alert because notification updates are enabled on your Recover profile settings page.
+            </p>
+          </div>
+        </div>
+      `;
 
-Access detailed inbox dashboard to reply and manage recovery:
-http://localhost:3000/items/${item.registrationId}
-
-Thank you,
-The Recover Platform Protocol
-=========================================
-`);
+      await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
     }
+
+    // 4. Dispatch Web Push Alert
+    await sendPushNotification(
+      item.ownerAddress,
+      "New Found Report!",
+      messageText,
+      `/items/${item.registrationId}`
+    );
 
     return NextResponse.json(report, { status: 201 });
   } catch (err: unknown) {

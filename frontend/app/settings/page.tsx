@@ -12,12 +12,13 @@ import { client } from "@/lib/client";
 export default function SettingsPage() {
   const account = useActiveAccount();
   const { openLogin } = useAuth();
-  const { fullName, username, refetchProfile } = useProfile();
+  const { fullName, username, emailNotifications, refetchProfile } = useProfile();
   const detailsModal = useWalletDetailsModal();
 
   // Profile Form States
   const [nameInput, setNameInput] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
+  const [emailNotifPref, setEmailNotifPref] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -30,7 +31,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (fullName) setNameInput(fullName);
     if (username) setUsernameInput(username);
-  }, [fullName, username]);
+    if (emailNotifications !== undefined) setEmailNotifPref(emailNotifications);
+  }, [fullName, username, emailNotifications]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +68,7 @@ export default function SettingsPage() {
           walletAddress: account.address,
           fullName: cleanedName,
           username: cleanedUsername,
+          emailNotifications: emailNotifPref,
         }),
       });
 
@@ -204,7 +207,25 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
+              <div className="border-t border-neutral-mist pt-6">
+                <h4 className="text-xs font-semibold text-primary mb-3">Notification Preferences</h4>
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={emailNotifPref}
+                    onChange={(e) => setEmailNotifPref(e.target.checked)}
+                    className="mt-1 accent-accent"
+                  />
+                  <div className="space-y-1">
+                    <span className="block text-xs font-medium text-primary">Email Notifications</span>
+                    <span className="block text-[10px] text-neutral-slate leading-normal">
+                      Receive email updates for sticker scans and found item reports.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="pt-4 flex justify-end">
                 <button
                   type="submit"
                   disabled={isSaving}

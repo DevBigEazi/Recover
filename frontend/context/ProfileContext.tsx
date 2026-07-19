@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 interface ProfileContextType {
   fullName: string | null;
   username: string | null;
+  emailNotifications: boolean;
   isProfileLoaded: boolean;
   isNewUser: boolean;
   isOpenSetup: boolean;
@@ -80,12 +81,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
+  const emailNotifications = profileData && !("isNotFound" in profileData) ? !!profileData.emailNotifications : true;
 
   return (
     <ProfileContext.Provider
       value={{
         fullName,
         username,
+        emailNotifications,
         isProfileLoaded,
         isNewUser,
         isOpenSetup,

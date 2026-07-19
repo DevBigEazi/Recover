@@ -211,6 +211,17 @@ export default function VerifyPage({ params }: PageProps) {
       };
       setItem(localItem);
 
+      // Trigger verify scan endpoint to notify owner of the scan event in real-time
+      try {
+        fetch("/api/verify/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registrationId: itemId }),
+        });
+      } catch (scanErr) {
+        console.error("Failed to notify scan event:", scanErr);
+      }
+
       // Fetch owner display name
       if (localItem.owner) {
         try {
@@ -273,8 +284,6 @@ export default function VerifyPage({ params }: PageProps) {
       </main>
     );
   }
-
-
 
   return (
     <main className="min-h-screen bg-neutral-mist pb-16">
