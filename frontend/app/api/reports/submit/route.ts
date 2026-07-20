@@ -96,7 +96,9 @@ export async function POST(request: Request) {
               <p>${contactInfo || "None provided"}</p>
               
               <h4 style="color: #1e2a4a; margin-bottom: 5px;">Location coordinate shared:</h4>
-              <p>${location || "None provided"}</p>
+              <p>
+                ${location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}" target="_blank" style="color: #0EA394; font-weight: bold; text-decoration: underline;">📍 Open Coordinates on Google Maps (${location}) ↗</a>` : "None provided"}
+              </p>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
