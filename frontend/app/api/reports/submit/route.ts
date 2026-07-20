@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         </div>
       `;
 
-      await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
+      await sendNotificationEmail(ownerUser.email, emailSubject, emailHtml);
     }
 
     // 4. Dispatch Web Push Alert

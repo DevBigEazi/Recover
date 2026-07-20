@@ -60,8 +60,10 @@ export async function POST(request: Request) {
     const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    const targetEmail = item.email || ownerUser?.email || (item.contactInfo && item.contactInfo.includes("@") ? item.contactInfo : null);
+
     // 4. Send Email Alert in Real-Time if enabled
-    if (isEmailEnabled && item.contactInfo) {
+    if (isEmailEnabled && targetEmail) {
       const emailSubject = `[Recover] Item QR Sticker Scanned: ${item.name}`;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
         </div>
       `;
       // Dispatches real-time email (falls back to console warning if Resend key is missing)
-      await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
+      await sendNotificationEmail(targetEmail, emailSubject, emailHtml);
     }
 
     // 5. Broadcast Web Push Alert in Real-Time
