@@ -89,7 +89,12 @@ export async function POST(
         });
 
         const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
-        const targetEmail = item.email || ownerUser?.email || item.contactInfo;
+        const targetEmail =
+          item.email?.trim() ||
+          ownerUser?.email?.trim() ||
+          (item.contactInfo && /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(item.contactInfo)
+            ? item.contactInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0]
+            : null);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
         if (isEmailEnabled && targetEmail) {
