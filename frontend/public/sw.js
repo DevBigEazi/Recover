@@ -1,12 +1,16 @@
 /* eslint-disable */
-const CACHE_NAME = "recover-cache-v1";
+const CACHE_NAME = "recover-cache-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/dashboard",
   "/register",
   "/manifest.json",
+  "/logo-icon.svg",
   "/icon-192.png",
-  "/icon-512.png"
+  "/icon-192-maskable.png",
+  "/icon-512.png",
+  "/icon-512-maskable.png",
+  "/apple-icon-180x180.png"
 ];
 
 // Install Event
@@ -82,8 +86,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: data.body,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "/icon-192.png",
     vibrate: [100, 50, 100],
     data: {
       url: data.url || "/dashboard",

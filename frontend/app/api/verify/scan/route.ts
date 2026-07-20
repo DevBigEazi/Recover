@@ -60,13 +60,16 @@ export async function POST(request: Request) {
     const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    const targetEmail = item.email || ownerUser?.email || (item.contactInfo && item.contactInfo.includes("@") ? item.contactInfo : null);
+
     // 4. Send Email Alert in Real-Time if enabled
-    if (isEmailEnabled && item.contactInfo) {
+    if (isEmailEnabled && targetEmail) {
       const emailSubject = `[Recover] Item QR Sticker Scanned: ${item.name}`;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-          <div style="background-color: #1E2A4A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif;">QR Code Scan Alert</h2>
+          <div style="background-color: #1E2A4A; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="${appUrl}/icon-192.png" alt="Recover" width="60" height="60" style="margin: 0 auto 12px auto; display: block; border-radius: 12px;" />
+            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 20px;">QR Code Scan Alert</h2>
           </div>
           <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
             <p>Hello,</p>
@@ -82,7 +85,7 @@ export async function POST(request: Request) {
         </div>
       `;
       // Dispatches real-time email (falls back to console warning if Resend key is missing)
-      await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
+      await sendNotificationEmail(targetEmail, emailSubject, emailHtml);
     }
 
     // 5. Broadcast Web Push Alert in Real-Time

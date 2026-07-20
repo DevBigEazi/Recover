@@ -6,6 +6,7 @@ import Image from "next/image";
 import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/context/ProfileContext";
 
 const STICKER_SIZES = {
   mini: {
@@ -46,19 +47,29 @@ const STICKER_SIZES = {
 export default function RegisterPage() {
   const account = useActiveAccount();
   const { openLogin } = useAuth();
+  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail } = useProfile();
 
   // Form states
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [serial, setSerial] = useState("");
   const [reward, setReward] = useState("");
-  const [contact, setContact] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [whatsappInput, setWhatsappInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [instructions, setInstructions] = useState("");
   const [category, setCategory] = useState("Other");
   const [alternateContact, setAlternateContact] = useState("");
   const [secrets, setSecrets] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [rewardType, setRewardType] = useState("none"); // none, undisclosed, custom
+
+  // Sync contact details from profile when available
+  useEffect(() => {
+    if (profilePhone) setPhoneInput(profilePhone);
+    if (profileWhatsapp) setWhatsappInput(profileWhatsapp);
+    if (profileEmail) setEmailInput(profileEmail);
+  }, [profilePhone, profileWhatsapp, profileEmail]);
 
   // File Upload states
   const [receiptBase64, setReceiptBase64] = useState("");
@@ -186,7 +197,10 @@ export default function RegisterPage() {
           brand: brand.trim(),
           serial: serial.trim(),
           reward: rewardType === "custom" ? reward.trim() : "",
-          contactInfo: contact.trim(),
+          contactInfo: [phoneInput.trim(), whatsappInput.trim(), emailInput.trim()].filter(Boolean).join(" | "),
+          phone: phoneInput.trim(),
+          whatsapp: whatsappInput.trim(),
+          email: emailInput.trim(),
           instructions: instructions.trim(),
           category,
           alternateContact: category === "Phone" || alternateContact.trim() ? alternateContact.trim() : "",
@@ -560,20 +574,63 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Primary Contact details */}
-              <div className="sm:col-span-6">
-                <label htmlFor="contact" className="block text-sm font-semibold text-primary">
-                  Primary Contact Details (e.g. Email or Phone)
-                </label>
-                <input
-                  type="text"
-                  id="contact"
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                  placeholder="How should the platform notify you by default?"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent bg-neutral-mist/30"
-                  disabled={isSubmitting}
-                />
+              {/* Primary Contact Channels (Pre-filled from Profile) */}
+              <div className="sm:col-span-6 border-t border-neutral-mist pt-4 space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-primary">
+                    Contact Channels for Finders (Auto-filled from Profile)
+                  </h4>
+                  <p className="text-xs text-neutral-slate mt-0.5">
+                    These contact options will be available on your item's verification page so finders can reach you directly.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="reg_phone" className="block text-xs font-semibold text-neutral-slate mb-1">
+                      📞 Phone Number (Calls)
+                    </label>
+                    <input
+                      id="reg_phone"
+                      type="tel"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="e.g. +2348012345678"
+                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary font-mono focus:border-accent focus:outline-none bg-neutral-mist/30"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg_whatsapp" className="block text-xs font-semibold text-neutral-slate mb-1">
+                      💬 WhatsApp Number
+                    </label>
+                    <input
+                      id="reg_whatsapp"
+                      type="tel"
+                      value={whatsappInput}
+                      onChange={(e) => setWhatsappInput(e.target.value)}
+                      placeholder="e.g. +2348012345678"
+                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary font-mono focus:border-accent focus:outline-none bg-neutral-mist/30"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg_email" className="block text-xs font-semibold text-neutral-slate mb-1">
+                      ✉️ Email Address
+                    </label>
+                    <input
+                      id="reg_email"
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      placeholder="e.g. owner@example.com"
+                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary focus:border-accent focus:outline-none bg-neutral-mist/30"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Conditional Trusted Alternate Contact */}

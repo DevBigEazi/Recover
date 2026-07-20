@@ -18,6 +18,10 @@ broadcast/
 # TS build info
 *.tsbuildinfo
 
+# Local databases
+*.db
+*.db-journal
+
 # Documentation specifications
 PRD.md
 AGENTS.md

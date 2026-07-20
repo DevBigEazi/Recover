@@ -15,6 +15,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
 
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +70,14 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         return;
       }
 
+      if (!phone.trim() && !whatsapp.trim() && !email.trim()) {
+        setError(
+          "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required so finders can reach you."
+        );
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("/api/profile", {
           method: "POST",
@@ -75,6 +86,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             walletAddress: account.address,
             fullName: fullName.trim(),
             username: cleanedUsername,
+            phone: phone.trim(),
+            whatsapp: whatsapp.trim(),
+            email: email.trim(),
           }),
         });
 
@@ -94,7 +108,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
     };
 
     return (
-      <div className="min-h-screen bg-neutral-mist flex items-center justify-center p-4">
+      <div className="min-h-screen bg-neutral-mist flex items-center justify-center p-4 py-8">
         <div className="w-full max-w-md bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl overflow-hidden animate-fade-in flex flex-col">
           {/* Header */}
           <div className="p-6 pb-4 border-b border-neutral-mist text-center space-y-1">
@@ -107,12 +121,12 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               Complete Your Profile
             </h2>
             <p className="text-xs text-neutral-slate max-w-xs mx-auto">
-              Please enter your full name and choose a unique username to access the platform.
+              Choose your profile display details and at least one contact method so finders can reach you when items are found.
             </p>
           </div>
 
           {/* Form Body */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
             {error && (
               <div className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl text-xs flex items-start gap-2 animate-fade-in">
                 <span className="font-medium">{error}</span>
@@ -162,9 +176,66 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               </p>
             </div>
 
+            {/* Permanent Contact Channels */}
+            <div className="border-t border-neutral-mist pt-4 space-y-3">
+              <div>
+                <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
+                  Contact Channels (At Least 1 Compulsory)
+                </h4>
+                <p className="text-[11px] text-neutral-slate mt-0.5">
+                  Finders will use these buttons on your item verify page to contact you directly.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="gate_phone" className="block text-xs font-semibold text-neutral-slate">
+                  📞 Phone Number (For Calls)
+                </label>
+                <input
+                  id="gate_phone"
+                  type="tel"
+                  placeholder="e.g. +2348012345678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full border border-neutral-mist hover:border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent rounded-xl px-4 py-2.5 text-sm text-primary placeholder-neutral-slate/50 outline-hidden transition-all bg-neutral-mist/30 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="gate_whatsapp" className="block text-xs font-semibold text-neutral-slate">
+                  💬 WhatsApp Number
+                </label>
+                <input
+                  id="gate_whatsapp"
+                  type="tel"
+                  placeholder="e.g. +2348012345678"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full border border-neutral-mist hover:border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent rounded-xl px-4 py-2.5 text-sm text-primary placeholder-neutral-slate/50 outline-hidden transition-all bg-neutral-mist/30 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="gate_email" className="block text-xs font-semibold text-neutral-slate">
+                  ✉️ Email Address
+                </label>
+                <input
+                  id="gate_email"
+                  type="email"
+                  placeholder="e.g. owner@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full border border-neutral-mist hover:border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent rounded-xl px-4 py-2.5 text-sm text-primary placeholder-neutral-slate/50 outline-hidden transition-all bg-neutral-mist/30"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={isLoading || !fullName.trim() || !username.trim()}
+              disabled={isLoading || !fullName.trim() || !username.trim() || (!phone.trim() && !whatsapp.trim() && !email.trim())}
               className="w-full bg-primary hover:bg-primary-light disabled:opacity-50 text-neutral-white font-semibold rounded-xl py-3 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm mt-2"
             >
               {isLoading ? (

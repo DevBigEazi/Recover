@@ -7,23 +7,23 @@ export default function AboutPage() {
   const steps = [
     {
       num: "01",
-      title: "Register Item On-Chain",
-      desc: "Connect your wallet and register your valuable items (wallets, keys, laptops) on the Electroneum blockchain. We generate a unique registration ID for each item.",
+      title: "Register Your Valuables",
+      desc: "Log in with Google, Email, or Social account and register your items (phones, laptops, keys, bags, pets). A unique secure registration ID is generated for each item.",
     },
     {
       num: "02",
       title: "Print & Attach Sticker",
-      desc: "Download and print the high-contrast QR code sticker. Attach it securely to your physical item where finders can easily see and scan it.",
+      desc: "Download and print your sticker in your preferred size preset (Mini, Standard, or Large). Attach it securely to your physical item where finders can easily see and scan it.",
     },
     {
       num: "03",
-      title: "Safe Scan Recovery",
-      desc: "If your item goes missing, mark it as 'Lost' on your dashboard. When a finder scans the sticker, they are redirected to a secure verification portal with no wallet required.",
+      title: "Instant Mobile Scan",
+      desc: "If an item goes missing, flag it as 'Lost' on your dashboard. When a finder scans the sticker with their phone camera, they land on a mobile verification page with no app download required.",
     },
     {
       num: "04",
-      title: "Coordinate Delivery",
-      desc: "Finders can submit a location coordinate, upload a photo, and send an anonymous message to the owner. Coordinate a safe drop-off without revealing sensitive PII.",
+      title: "Safe Drop-Off & Recovery",
+      desc: "Finders can submit a message, share map coordinates, or use direct action buttons. Meet in a safe public space and verify ownership via Handover PIN codes.",
     },
   ];
 
@@ -39,7 +39,7 @@ export default function AboutPage() {
             How Recover Works
           </h1>
           <p className="text-md text-neutral-slate leading-relaxed">
-            Recover is a decentralized lost-and-found protocol built on the Electroneum blockchain. We bridge the gap between physical items and digital ownership to ensure privacy-first asset recovery.
+            Recover bridges physical items with smart digital protection. Protect your everyday valuables with printable QR stickers that allow finders to contact you safely and privately.
           </p>
         </div>
 
@@ -64,35 +64,35 @@ export default function AboutPage() {
         {/* Privacy & Security Safeguards Section */}
         <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-8 sm:p-10 shadow-xs space-y-6">
           <div className="border-b border-neutral-mist pb-4">
-            <h2 className="text-2xl font-bold text-primary font-display">On-Chain Privacy Safeguards</h2>
+            <h2 className="text-2xl font-bold text-primary font-display">Built-In Privacy Safeguards</h2>
             <p className="text-xs text-neutral-slate mt-1">
-              Your security and privacy are built directly into the smart contract's protocol.
+              Your security and personal privacy are protected by design at every step.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
             <div className="space-y-2">
               <h4 className="font-bold text-primary flex items-center gap-1.5">
-                <span className="text-accent text-lg">🔒</span> Cryptographic Hashing
+                <span className="text-accent text-lg">🔒</span> Privacy-First Protection
               </h4>
               <p className="text-neutral-slate leading-relaxed">
-                We never store plain-text personal details (names, emails, phone numbers) on the public blockchain. Only a secure SHA-256 hash of item metadata is committed.
+                We never expose plain-text personal details (such as home address or primary phone numbers) on the public internet. Your identity remains private until you choose to share it.
               </p>
             </div>
             <div className="space-y-2">
               <h4 className="font-bold text-primary flex items-center gap-1.5">
-                <span className="text-accent text-lg">🛡️</span> Zero-Wallet Finder Portal
+                <span className="text-accent text-lg">📱</span> No App Required for Finders
               </h4>
               <p className="text-neutral-slate leading-relaxed">
-                Finders do not need to install Web3 extensions, purchase coins, or connect wallets to submit a report. They scan and communicate instantly from any mobile browser.
+                Finders do not need to install an app, create an account, or complete a technical setup. They scan and communicate instantly from any mobile browser.
               </p>
             </div>
             <div className="space-y-2">
               <h4 className="font-bold text-primary flex items-center gap-1.5">
-                <span className="text-accent text-lg">💬</span> Private Communications
+                <span className="text-accent text-lg">💬</span> Direct & Safe Communication
               </h4>
               <p className="text-neutral-slate leading-relaxed">
-                The finder report inbox remains entirely off-chain. Communications are decoupled from block storage to prevent spam, tracking, or unexpected gas fees.
+                Communicate with finders safely via instant in-app messages or direct Call, WhatsApp, and Email action buttons without putting your privacy at risk.
               </p>
             </div>
           </div>

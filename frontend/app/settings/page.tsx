@@ -12,12 +12,15 @@ import { client } from "@/lib/client";
 export default function SettingsPage() {
   const account = useActiveAccount();
   const { openLogin } = useAuth();
-  const { fullName, username, emailNotifications, refetchProfile } = useProfile();
+  const { fullName, username, phone, whatsapp, email, emailNotifications, refetchProfile } = useProfile();
   const detailsModal = useWalletDetailsModal();
 
   // Profile Form States
   const [nameInput, setNameInput] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [whatsappInput, setWhatsappInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [emailNotifPref, setEmailNotifPref] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -31,8 +34,11 @@ export default function SettingsPage() {
   useEffect(() => {
     if (fullName) setNameInput(fullName);
     if (username) setUsernameInput(username);
+    if (phone) setPhoneInput(phone);
+    if (whatsapp) setWhatsappInput(whatsapp);
+    if (email) setEmailInput(email);
     if (emailNotifications !== undefined) setEmailNotifPref(emailNotifications);
-  }, [fullName, username, emailNotifications]);
+  }, [fullName, username, phone, whatsapp, email, emailNotifications]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +51,9 @@ export default function SettingsPage() {
     // Validation
     const cleanedName = nameInput.trim();
     const cleanedUsername = usernameInput.trim().toLowerCase();
+    const cleanedPhone = phoneInput.trim();
+    const cleanedWhatsapp = whatsappInput.trim();
+    const cleanedEmail = emailInput.trim();
 
     if (cleanedName.length === 0 || cleanedName.length > 50) {
       setProfileError("Full Name must be between 1 and 50 characters.");
@@ -60,6 +69,14 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!cleanedPhone && !cleanedWhatsapp && !cleanedEmail) {
+      setProfileError(
+        "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required on your profile."
+      );
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/profile", {
         method: "POST",
@@ -68,6 +85,9 @@ export default function SettingsPage() {
           walletAddress: account.address,
           fullName: cleanedName,
           username: cleanedUsername,
+          phone: cleanedPhone,
+          whatsapp: cleanedWhatsapp,
+          email: cleanedEmail,
           emailNotifications: emailNotifPref,
         }),
       });
@@ -204,6 +224,62 @@ export default function SettingsPage() {
                   <span className="block text-[10px] text-neutral-slate mt-1.5 leading-relaxed">
                     Allowed characters: lowercase letters, numbers, underscores, and hyphens.
                   </span>
+                </div>
+
+                {/* Permanent Contact Channels */}
+                <div className="md:col-span-2 border-t border-neutral-mist pt-4 space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
+                      Permanent Contact Channels (At least 1 required)
+                    </h4>
+                    <p className="text-[11px] text-neutral-slate mt-0.5">
+                      Finders will use these buttons on your item verify page to contact you directly when an item is found.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="settings_phone" className="block text-xs font-semibold text-primary mb-1.5">
+                        📞 Phone Number (Calls)
+                      </label>
+                      <input
+                        id="settings_phone"
+                        type="tel"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        placeholder="e.g. +2348012345678"
+                        className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="settings_whatsapp" className="block text-xs font-semibold text-primary mb-1.5">
+                        💬 WhatsApp Number
+                      </label>
+                      <input
+                        id="settings_whatsapp"
+                        type="tel"
+                        value={whatsappInput}
+                        onChange={(e) => setWhatsappInput(e.target.value)}
+                        placeholder="e.g. +2348012345678"
+                        className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="settings_email" className="block text-xs font-semibold text-primary mb-1.5">
+                        ✉️ Email Address
+                      </label>
+                      <input
+                        id="settings_email"
+                        type="email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        placeholder="e.g. owner@example.com"
+                        className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

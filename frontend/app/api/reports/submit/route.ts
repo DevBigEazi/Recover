@@ -44,13 +44,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const cleanLocation = typeof location === "string" && location.trim() ? location.trim() : null;
+    const locationStr = cleanLocation || "";
+    const escapedLocation = locationStr
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
     // Save report to database
     const report = await db.finderReport.create({
       data: {
         registrationId: registrationId.toString(),
         message,
         contactInfo: contactInfo || null,
-        location: location || null,
+        location: cleanLocation,
         photo: photo || null,
       },
     });
@@ -73,15 +82,15 @@ export async function POST(request: Request) {
     });
 
     const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // 3. Dispatch Email Notification
-    if (isEmailEnabled && item.contactInfo) {
+    if (isEmailEnabled && ownerUser?.email) {
       const emailSubject = `[Recover] Found Report for Item #${item.registrationId}: ${item.name}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-          <div style="background-color: #1E2A4A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif;">Item Found Alert</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #1e2a4a; padding: 20px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 20px;">Item Found Alert</h2>
           </div>
           <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
             <p>Hello Valued Owner,</p>
@@ -95,7 +104,14 @@ export async function POST(request: Request) {
               <p>${contactInfo || "None provided"}</p>
               
               <h4 style="color: #1e2a4a; margin-bottom: 5px;">Location coordinate shared:</h4>
-              <p>${location || "None provided"}</p>
+              <p>
+                ${locationStr ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationStr.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}" target="_blank" style="color: #0EA394; font-weight: bold; text-decoration: underline;">📍 Open Coordinates on Google Maps (${escapedLocation}) ↗</a>` : "None provided"}
+              </p>
+            </div>
+
+            <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 12px 15px; border-radius: 6px; margin: 20px 0; font-size: 12px; color: #92400e;">
+              <strong>💡 Safety Meetup Recommendations:</strong><br/>
+              When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
@@ -108,7 +124,7 @@ export async function POST(request: Request) {
         </div>
       `;
 
-      await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
+      await sendNotificationEmail(ownerUser.email, emailSubject, emailHtml);
     }
 
     // 4. Dispatch Web Push Alert

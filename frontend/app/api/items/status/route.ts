@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt, parseEventLogs, prepareEvent } from "thirdweb";
-import { sendNotificationEmail } from "@/lib/email";
-import { sendPushNotification } from "@/lib/push";
 import { recoverContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { privateKeyToAccount } from "thirdweb/wallets";
@@ -57,7 +55,7 @@ export async function POST(request: Request) {
     const originalStatus = item.status;
 
     // 5. Update Database record status optimistically first.
-    // If the database has connection or locking issues, it will fail here before any transaction is broadcast on-chain.
+    // Also clear existing finder reports so old reports don't linger across lost/recovered cycles.
     await db.item.update({
       where: { registrationId: registrationId },
       data: {
@@ -144,61 +142,15 @@ export async function POST(request: Request) {
         throw new Error(`Failed to find status transition event in transaction receipt.`);
       }
 
+      // Clear existing finder reports on successful on-chain status transition
+      await db.finderReport.deleteMany({
+        where: { registrationId: registrationId },
+      });
+
       // Fetch and return the updated item to verify final state
       const updatedItem = await db.item.findUnique({
         where: { registrationId: registrationId },
       });
-
-      if (status === "Recovered") {
-        const messageText = `Item "${item.name}" has been marked as recovered.`;
-
-        // 1. Log in DB
-        await db.notification.create({
-          data: {
-            ownerAddress: item.ownerAddress,
-            registrationId: item.registrationId,
-            type: "recovered",
-            message: messageText,
-          },
-        });
-
-        // 2. Fetch owner preferences
-        const ownerUser = await db.user.findUnique({
-          where: { walletAddress: item.ownerAddress },
-        });
-
-        const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-        // 3. Dispatch Email Notification
-        if (isEmailEnabled && item.contactInfo) {
-          const emailSubject = `[Recover] Item Marked Recovered: ${item.name}`;
-          const emailHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-              <div style="background-color: #0EA394; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-                <h2 style="color: #ffffff; margin: 0; font-family: sans-serif;">Item Recovered 🎉</h2>
-              </div>
-              <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
-                <p>Hello,</p>
-                <p>Your physical item <strong>"${item.name}"</strong> has been successfully marked as <strong>Recovered</strong> in our secure registry.</p>
-                <p>We are thrilled that your item is back in your possession! The lost alert, reward details, and finder contact options have been deactivated on the public verification page.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${appUrl}/dashboard" style="background-color: #1E2A4A; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
-                </div>
-              </div>
-            </div>
-          `;
-          await sendNotificationEmail(item.contactInfo, emailSubject, emailHtml);
-        }
-
-        // 4. Dispatch Web Push Alert
-        await sendPushNotification(
-          item.ownerAddress,
-          "Item Recovered! 🎉",
-          messageText,
-          `/items/${item.registrationId}`
-        );
-      }
 
       return NextResponse.json(updatedItem || item, { status: 200 });
     } catch (blockchainErr) {

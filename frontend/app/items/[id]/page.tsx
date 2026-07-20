@@ -516,11 +516,23 @@ export default function ItemDetailPage({ params }: PageProps) {
                     <p className="text-xs text-neutral-slate font-medium">Inbox is empty.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-4">
+                    {/* Safety Meetup Recommendation Banner */}
+                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 text-xs space-y-1.5 shadow-xs">
+                      <div className="flex items-center gap-1.5 text-warning font-bold text-xs">
+                        <span className="text-base">💡</span>
+                        <span>Safety Meetup Recommendations:</span>
+                      </div>
+                      <p className="text-neutral-slate leading-relaxed text-[11px]">
+                        When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                     {reports.map((report) => (
                       <div key={report.reportId} className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2">
                         <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
-                          <span className="font-medium">Report #{report.reportId}</span>
+                          <span className="font-medium">Report #{report.reportId.substring(0, 8)}</span>
                           <span>{new Date(report.timestamp).toLocaleDateString()}</span>
                         </div>
                         <p className="text-primary leading-relaxed font-sans">{report.message}</p>
@@ -533,16 +545,24 @@ export default function ItemDetailPage({ params }: PageProps) {
                         )}
                         
                         {report.location && (
-                          <div className="text-[10px] text-neutral-slate flex items-center gap-1 mt-1">
-                            <svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span>Location shared: {report.location}</span>
+                          <div className="mt-2">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent font-medium text-[11px] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
+                            </a>
                           </div>
                         )}
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>

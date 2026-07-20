@@ -41,7 +41,16 @@ export async function sendPushNotification(
       return false;
     }
 
-    const payload = JSON.stringify({ title, body, url });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const iconUrl = `${appUrl}/icon-192.png`;
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      url,
+      icon: iconUrl,
+      badge: iconUrl,
+    });
     let successCount = 0;
 
     for (const sub of subscriptions) {
