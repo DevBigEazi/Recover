@@ -64,10 +64,6 @@ export async function POST(request: Request) {
       },
     });
 
-    await db.finderReport.deleteMany({
-      where: { registrationId: registrationId },
-    });
-
     try {
       // 6. Fetch the owner's nonce from the blockchain contract
       const nonce = await readContract({
@@ -145,6 +141,11 @@ export async function POST(request: Request) {
       if (logs.length === 0) {
         throw new Error(`Failed to find status transition event in transaction receipt.`);
       }
+
+      // Clear existing finder reports on successful on-chain status transition
+      await db.finderReport.deleteMany({
+        where: { registrationId: registrationId },
+      });
 
       // Fetch and return the updated item to verify final state
       const updatedItem = await db.item.findUnique({
