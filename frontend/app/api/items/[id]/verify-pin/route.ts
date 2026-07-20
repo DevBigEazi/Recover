@@ -2,6 +2,46 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendPushNotification } from "@/lib/push";
 import { sendNotificationEmail } from "@/lib/email";
+import crypto from "crypto";
+
+// In-memory rate limiting & lockout store (per item and per IP)
+type AttemptRecord = { count: number; expiresAt: number };
+const pinAttemptsMap = new Map<string, AttemptRecord>();
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const record = pinAttemptsMap.get(key);
+  if (!record || record.expiresAt < now) {
+    return true;
+  }
+  return record.count < MAX_ATTEMPTS;
+}
+
+function recordFailedAttempt(key: string): void {
+  const now = Date.now();
+  const record = pinAttemptsMap.get(key);
+  if (!record || record.expiresAt < now) {
+    pinAttemptsMap.set(key, { count: 1, expiresAt: now + LOCKOUT_WINDOW_MS });
+  } else {
+    record.count += 1;
+  }
+}
+
+function clearRateLimit(key: string): void {
+  pinAttemptsMap.delete(key);
+}
+
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf-8");
+  const bufB = Buffer.from(b, "utf-8");
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,6 +56,18 @@ export async function POST(
     const registrationId = resolvedParams.id;
     const body = await request.json();
     const { pin } = body;
+
+    // Rate limiting check per-item and per-IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || request.headers.get("x-real-ip") || "127.0.0.1";
+    const itemKey = `item:${registrationId}`;
+    const ipKey = `ip:${ip}:${registrationId}`;
+
+    if (!checkRateLimit(itemKey) || !checkRateLimit(ipKey)) {
+      return NextResponse.json(
+        { valid: false, message: "Too many failed PIN attempts. Please wait 15 minutes before trying again." },
+        { status: 429 }
+      );
+    }
 
     if (!pin || typeof pin !== "string" || pin.trim() === "") {
       return NextResponse.json(
@@ -51,7 +103,7 @@ export async function POST(
       );
     }
 
-    const isMatch = pin.trim().toLowerCase() === item.passphrase.trim().toLowerCase();
+    const isMatch = safeCompare(pin.trim().toLowerCase(), item.passphrase.trim().toLowerCase());
 
     if (isMatch) {
       const messageText = `Handover PIN verified! A finder has successfully verified authentic ownership in-person for item "${item.name}".`;
@@ -121,11 +173,17 @@ export async function POST(
         console.error("Failed to send handover email alert:", emailErr);
       }
 
+      clearRateLimit(itemKey);
+      clearRateLimit(ipKey);
+
       return NextResponse.json({
         valid: true,
         message: "✅ Handover Verification Successful! Verified authentic item owner.",
       });
     } else {
+      recordFailedAttempt(itemKey);
+      recordFailedAttempt(ipKey);
+
       return NextResponse.json(
         { valid: false, message: "❌ Invalid Handover PIN. The code entered does not match." },
         { status: 200 }
