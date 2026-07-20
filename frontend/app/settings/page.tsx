@@ -239,10 +239,11 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-primary mb-1.5">
+                      <label htmlFor="settings_phone" className="block text-xs font-semibold text-primary mb-1.5">
                         📞 Phone Number (Calls)
                       </label>
                       <input
+                        id="settings_phone"
                         type="tel"
                         value={phoneInput}
                         onChange={(e) => setPhoneInput(e.target.value)}
@@ -252,10 +253,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-primary mb-1.5">
+                      <label htmlFor="settings_whatsapp" className="block text-xs font-semibold text-primary mb-1.5">
                         💬 WhatsApp Number
                       </label>
                       <input
+                        id="settings_whatsapp"
                         type="tel"
                         value={whatsappInput}
                         onChange={(e) => setWhatsappInput(e.target.value)}
@@ -265,10 +267,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-primary mb-1.5">
+                      <label htmlFor="settings_email" className="block text-xs font-semibold text-primary mb-1.5">
                         ✉️ Email Address
                       </label>
                       <input
+                        id="settings_email"
                         type="email"
                         value={emailInput}
                         onChange={(e) => setEmailInput(e.target.value)}

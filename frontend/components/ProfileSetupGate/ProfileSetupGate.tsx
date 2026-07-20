@@ -188,10 +188,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-neutral-slate">
+                <label htmlFor="gate_phone" className="block text-xs font-semibold text-neutral-slate">
                   📞 Phone Number (For Calls)
                 </label>
                 <input
+                  id="gate_phone"
                   type="tel"
                   placeholder="e.g. +2348012345678"
                   value={phone}
@@ -202,10 +203,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-neutral-slate">
+                <label htmlFor="gate_whatsapp" className="block text-xs font-semibold text-neutral-slate">
                   💬 WhatsApp Number
                 </label>
                 <input
+                  id="gate_whatsapp"
                   type="tel"
                   placeholder="e.g. +2348012345678"
                   value={whatsapp}
@@ -216,10 +218,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-neutral-slate">
+                <label htmlFor="gate_email" className="block text-xs font-semibold text-neutral-slate">
                   ✉️ Email Address
                 </label>
                 <input
+                  id="gate_email"
                   type="email"
                   placeholder="e.g. owner@example.com"
                   value={email}

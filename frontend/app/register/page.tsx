@@ -587,10 +587,11 @@ export default function RegisterPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-slate mb-1">
+                    <label htmlFor="reg_phone" className="block text-xs font-semibold text-neutral-slate mb-1">
                       📞 Phone Number (Calls)
                     </label>
                     <input
+                      id="reg_phone"
                       type="tel"
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
@@ -601,10 +602,11 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-slate mb-1">
+                    <label htmlFor="reg_whatsapp" className="block text-xs font-semibold text-neutral-slate mb-1">
                       💬 WhatsApp Number
                     </label>
                     <input
+                      id="reg_whatsapp"
                       type="tel"
                       value={whatsappInput}
                       onChange={(e) => setWhatsappInput(e.target.value)}
@@ -615,10 +617,11 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-slate mb-1">
+                    <label htmlFor="reg_email" className="block text-xs font-semibold text-neutral-slate mb-1">
                       ✉️ Email Address
                     </label>
                     <input
+                      id="reg_email"
                       type="email"
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
