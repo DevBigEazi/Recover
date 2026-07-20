@@ -44,13 +44,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const cleanLocation = typeof location === "string" && location.trim() ? location.trim() : null;
+    const locationStr = cleanLocation || "";
+    const escapedLocation = locationStr
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
     // Save report to database
     const report = await db.finderReport.create({
       data: {
         registrationId: registrationId.toString(),
         message,
         contactInfo: contactInfo || null,
-        location: location || null,
+        location: cleanLocation,
         photo: photo || null,
       },
     });
@@ -73,15 +82,14 @@ export async function POST(request: Request) {
     });
 
     const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // 3. Dispatch Email Notification
-    if (isEmailEnabled && item.contactInfo) {
+    if (isEmailEnabled && ownerUser?.email) {
       const emailSubject = `[Recover] Found Report for Item #${item.registrationId}: ${item.name}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-          <div style="background-color: #1E2A4A; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
-            <img src="${appUrl}/icon-192.png" alt="Recover" width="60" height="60" style="margin: 0 auto 12px auto; display: block; border-radius: 12px;" />
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #1e2a4a; padding: 20px; text-align: center;">
             <h2 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 20px;">Item Found Alert</h2>
           </div>
           <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
@@ -97,7 +105,7 @@ export async function POST(request: Request) {
               
               <h4 style="color: #1e2a4a; margin-bottom: 5px;">Location coordinate shared:</h4>
               <p>
-                ${location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}" target="_blank" style="color: #0EA394; font-weight: bold; text-decoration: underline;">📍 Open Coordinates on Google Maps (${location}) ↗</a>` : "None provided"}
+                ${locationStr ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationStr.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}" target="_blank" style="color: #0EA394; font-weight: bold; text-decoration: underline;">📍 Open Coordinates on Google Maps (${escapedLocation}) ↗</a>` : "None provided"}
               </p>
             </div>
 
