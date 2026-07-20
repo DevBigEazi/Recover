@@ -101,6 +101,11 @@ export async function POST(request: Request) {
               </p>
             </div>
 
+            <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 12px 15px; border-radius: 6px; margin: 20px 0; font-size: 12px; color: #92400e;">
+              <strong>💡 Safety Meetup Recommendations:</strong><br/>
+              When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
+            </div>
+
             <div style="text-align: center; margin: 30px 0;">
               <a href="${appUrl}/items/${item.registrationId}" style="background-color: #0EA394; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Open Recovery Inbox</a>
             </div>

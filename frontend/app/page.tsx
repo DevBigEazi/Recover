@@ -13,29 +13,29 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center space-y-6 max-w-3xl mx-auto">
             {/* Tagline Badge */}
-            <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full text-xs font-bold text-accent uppercase tracking-wider select-none animate-pulse">
-              🛡️ Electroneum Mainnet Registry
+            <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 px-3.5 py-1.5 rounded-full text-xs font-bold text-accent uppercase tracking-wider select-none shadow-xs">
+              🛡️ Tamper-Proof Item Registry
             </div>
 
             <h1 className="text-4xl font-extrabold tracking-tight text-primary font-display sm:text-5xl lg:text-6xl leading-tight">
-              On-Chain Security for Your Physical Valuables
+              Smart Protection & Private Recovery for Your Valuables
             </h1>
             
             <p className="text-md sm:text-lg text-neutral-slate leading-relaxed max-w-2xl mx-auto">
-              Recover is a decentralized lost-and-found protocol. Attach secure, cryptographic QR stickers to your bags, keys, and devices, and coordinate recoveries privately without exposing your identity.
+              Recover is a smart, privacy-first lost and found platform. Attach printable, scannable QR stickers to your phone, laptop, keys, and bags, and let finders reach you safely without putting your personal privacy at risk.
             </p>
 
             <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/dashboard"
-                className="w-full sm:w-auto bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-8 py-3.5 text-sm transition-colors shadow-xs text-center cursor-pointer"
+                className="w-full sm:w-auto bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-xl px-8 py-3.5 text-sm transition-all shadow-md hover:shadow-lg text-center cursor-pointer"
               >
                 Go to Dashboard
               </Link>
               
               <Link
                 href="/about"
-                className="w-full sm:w-auto bg-neutral-white hover:bg-neutral-mist border border-gray-300 text-primary font-semibold rounded-lg px-8 py-3.5 text-sm transition-colors shadow-xs text-center cursor-pointer"
+                className="w-full sm:w-auto bg-neutral-white hover:bg-neutral-mist border border-gray-300 text-primary font-semibold rounded-xl px-8 py-3.5 text-sm transition-all shadow-xs text-center cursor-pointer"
               >
                 How It Works
               </Link>
@@ -55,41 +55,41 @@ export default function Home() {
               Privacy-First Recoveries
             </h2>
             <p className="mt-2 text-sm text-neutral-slate">
-              Engineered with security defaults to protect user identities and coordinate drop-offs safely.
+              Engineered with security defaults to protect your identity and coordinate safe item drop-offs.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4">
-              <div className="p-3 bg-[#1e2a4a0a] rounded-xl w-max text-2xl">
+            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4 hover:border-accent/40 transition-colors shadow-xs">
+              <div className="p-3 bg-accent/10 rounded-xl w-max text-2xl">
                 🔒
               </div>
-              <h3 className="text-lg font-bold text-primary font-display">On-Chain Signatures</h3>
+              <h3 className="text-lg font-bold text-primary font-display">Privacy-First Protection</h3>
               <p className="text-sm text-neutral-slate leading-relaxed">
-                We never store personal details on-chain. Only secure, client-side cryptographic metadata hashes are committed to Electroneum, preserving ledger privacy.
+                Your personal details stay protected by default. We never expose your private address or primary contact info to the public internet.
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4">
-              <div className="p-3 bg-[#1e2a4a0a] rounded-xl w-max text-2xl">
-                ⚡
+            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4 hover:border-accent/40 transition-colors shadow-xs">
+              <div className="p-3 bg-accent/10 rounded-xl w-max text-2xl">
+                📱
               </div>
-              <h3 className="text-lg font-bold text-primary font-display">Frictionless Scanner Portal</h3>
+              <h3 className="text-lg font-bold text-primary font-display">No App Download Required</h3>
               <p className="text-sm text-neutral-slate leading-relaxed">
-                Strangers scanning the physical sticker require zero wallets, extensions, or gas coins. The verify portal is public, instant, and mobile-optimized.
+                Anyone who finds your lost item can simply scan the QR sticker using their regular smartphone camera to view verification info and contact you.
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4">
-              <div className="p-3 bg-[#1e2a4a0a] rounded-xl w-max text-2xl">
-                📬
+            <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-8 space-y-4 hover:border-accent/40 transition-colors shadow-xs">
+              <div className="p-3 bg-accent/10 rounded-xl w-max text-2xl">
+                💬
               </div>
-              <h3 className="text-lg font-bold text-primary font-display">Anonymous Inbox</h3>
+              <h3 className="text-lg font-bold text-primary font-display">Direct & Safe Communication</h3>
               <p className="text-sm text-neutral-slate leading-relaxed">
-                Finder reports are processed entirely off-chain. Coordinate meetup locations and receive email alerts without exposing phone numbers or private accounts.
+                Receive instant messages, view shared map locations, or let finders reach you via direct Call, WhatsApp, or Email action buttons.
               </p>
             </div>
           </div>

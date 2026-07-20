@@ -516,7 +516,19 @@ export default function ItemDetailPage({ params }: PageProps) {
                     <p className="text-xs text-neutral-slate font-medium">Inbox is empty.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-4">
+                    {/* Safety Meetup Recommendation Banner */}
+                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 text-xs space-y-1.5 shadow-xs">
+                      <div className="flex items-center gap-1.5 text-warning font-bold text-xs">
+                        <span className="text-base">💡</span>
+                        <span>Safety Meetup Recommendations:</span>
+                      </div>
+                      <p className="text-neutral-slate leading-relaxed text-[11px]">
+                        When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                     {reports.map((report) => (
                       <div key={report.reportId} className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2">
                         <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
@@ -550,6 +562,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                         )}
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
