@@ -7,6 +7,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 interface ProfileContextType {
   fullName: string | null;
   username: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
   emailNotifications: boolean;
   isProfileLoaded: boolean;
   isNewUser: boolean;
@@ -31,7 +34,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     isLoading,
     isError,
     error,
-    refetch,
   } = useQuery({
     queryKey: ["profile", walletAddress],
     queryFn: async () => {
@@ -46,6 +48,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     enabled: !!walletAddress,
+    retry: 1,
+    staleTime: 1000 * 60 * 5,
   });
 
   const isProfileLoaded = !isLoading;
@@ -81,6 +85,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
+  const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
+  const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
+  const email = profileData && !("isNotFound" in profileData) ? profileData.email || null : null;
   const emailNotifications = profileData && !("isNotFound" in profileData) ? !!profileData.emailNotifications : true;
 
   return (
@@ -88,6 +95,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       value={{
         fullName,
         username,
+        phone,
+        whatsapp,
+        email,
         emailNotifications,
         isProfileLoaded,
         isNewUser,

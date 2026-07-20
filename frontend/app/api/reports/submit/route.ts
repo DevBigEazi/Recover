@@ -80,8 +80,9 @@ export async function POST(request: Request) {
       const emailSubject = `[Recover] Found Report for Item #${item.registrationId}: ${item.name}`;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-          <div style="background-color: #1E2A4A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif;">Item Found Alert</h2>
+          <div style="background-color: #1E2A4A; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="${appUrl}/icon-192.png" alt="Recover" width="60" height="60" style="margin: 0 auto 12px auto; display: block; border-radius: 12px;" />
+            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 20px;">Item Found Alert</h2>
           </div>
           <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
             <p>Hello Valued Owner,</p>

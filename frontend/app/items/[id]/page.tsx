@@ -520,7 +520,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                     {reports.map((report) => (
                       <div key={report.reportId} className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2">
                         <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
-                          <span className="font-medium">Report #{report.reportId}</span>
+                          <span className="font-medium">Report #{report.reportId.substring(0, 8)}</span>
                           <span>{new Date(report.timestamp).toLocaleDateString()}</span>
                         </div>
                         <p className="text-primary leading-relaxed font-sans">{report.message}</p>

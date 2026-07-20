@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { walletAddress, fullName, username, emailNotifications } = body;
+    const { walletAddress, fullName, username, emailNotifications, phone, whatsapp, email } = body;
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -52,6 +52,10 @@ export async function POST(request: Request) {
     const targetFullName = fullName !== undefined ? fullName.trim() : (existingUser?.fullName || "");
     const targetUsername = username !== undefined ? username.trim().toLowerCase() : (existingUser?.username || "");
     const targetEmailNotifications = emailNotifications !== undefined ? !!emailNotifications : (existingUser?.emailNotifications ?? true);
+    
+    const targetPhone = phone !== undefined ? phone.trim() : (existingUser?.phone || "");
+    const targetWhatsapp = whatsapp !== undefined ? whatsapp.trim() : (existingUser?.whatsapp || "");
+    const targetEmail = email !== undefined ? email.trim() : (existingUser?.email || "");
 
     if (fullName !== undefined || username !== undefined || !existingUser) {
       if (targetFullName.length === 0 || targetFullName.length > 50) {
@@ -70,6 +74,14 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+
+      // Enforce at least one contact method
+      if (!targetPhone && !targetWhatsapp && !targetEmail) {
+        return NextResponse.json(
+          { error: "At least one contact method (Phone, WhatsApp, or Email) is required on your profile." },
+          { status: 400 }
+        );
+      }
     }
 
     try {
@@ -78,12 +90,18 @@ export async function POST(request: Request) {
         update: {
           fullName: targetFullName,
           username: targetUsername,
+          phone: targetPhone || null,
+          whatsapp: targetWhatsapp || null,
+          email: targetEmail || null,
           emailNotifications: targetEmailNotifications,
         },
         create: {
           walletAddress: walletAddress.toLowerCase(),
           fullName: targetFullName,
           username: targetUsername,
+          phone: targetPhone || null,
+          whatsapp: targetWhatsapp || null,
+          email: targetEmail || null,
           emailNotifications: targetEmailNotifications,
         },
       });

@@ -16,6 +16,9 @@ model Item {
   serial         String?
   reward         String?
   contactInfo    String?
+  phone          String?
+  whatsapp       String?
+  email          String?
   instructions   String?
   itemHash       String
   status         String
@@ -49,6 +52,9 @@ model User {
   walletAddress String   @id
   fullName      String
   username      String   @unique
+  phone         String?
+  whatsapp      String?
+  email         String?
   subscriptionActive Boolean @default(false)
   emailNotifications Boolean @default(true)
   createdAt     DateTime @default(now())

@@ -40,7 +40,10 @@ export async function GET(request: Request, { params }: Props) {
       category: item.category,
       image: item.image, // Item photo is allowed publicly
       reward: item.status === "Lost" ? item.reward : null,
-      contactInfo: item.status === "Lost" ? item.contactInfo : null,
+      contactInfo: item.contactInfo || [ownerUser?.phone, ownerUser?.whatsapp, ownerUser?.email].filter(Boolean).join(" | ") || null,
+      phone: item.phone || ownerUser?.phone || null,
+      whatsapp: item.whatsapp || ownerUser?.whatsapp || null,
+      email: item.email || ownerUser?.email || null,
       instructions: item.status === "Lost" ? item.instructions : null,
       alternateContact: item.status === "Lost" ? item.alternateContact : null,
       createdAt: item.createdAt,
