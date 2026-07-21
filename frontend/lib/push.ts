@@ -42,7 +42,7 @@ export async function sendPushNotification(
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const iconUrl = `${appUrl}/icon-192.png`;
+    const iconUrl = `${appUrl}/icon-192-maskable.png`;
 
     const payload = JSON.stringify({
       title,
