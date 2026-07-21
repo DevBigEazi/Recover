@@ -75,9 +75,9 @@ forge script scripts/Recover.s.sol:RecoverScript --rpc-url electroneum --account
 
 ### Electroneum Mainnet (Chain ID `52014`)
 * **ERC1967 Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
-* **Recover Implementation:** `0xa036a4542bddbf2addca09dfed635b801146f0e3`
+* **Recover Implementation (v2 with Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2` (Verified)
 
 ### Electroneum Testnet (Chain ID `5201420`)
 * **ERC1967 Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
-* **Recover Implementation:** `0x64A3F3aE151C39D953B5EB5Fb5343b317386b4a5`
+* **Recover Implementation (v2 with Deletion):** `0x0a637c959cAc325b8a422d4E17EE0f1b7F57Af3b`
 

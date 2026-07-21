@@ -1052,7 +1052,7 @@ export default function RegisterPage() {
                 <span className="text-xs text-neutral-white/80 font-medium">Multi-Item Printing Tip</span>
               </div>
               <p className="text-xs text-neutral-white/90 leading-relaxed">
-                Real-world sticker press paper works best when printing a full sheet! Register your other valuables (laptop, keys, AirPods, backpack, wallet, passport) now so you can print up to 10–12 stickers together on a single A4 page.
+                Real-world sticker press paper works best when printing a full sheet! Register your other valuables (laptop, keys, AirPods, backpack, etc) now so you can print up to 10-12 stickers together on a single A4 page.
               </p>
               <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
                 <button

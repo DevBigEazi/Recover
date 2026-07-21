@@ -45,6 +45,7 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event ItemRegistered(uint256 indexed registrationId, address indexed owner, bytes32 itemHash, uint256 timestamp);
     event ItemMarkedLost(uint256 indexed registrationId, uint256 timestamp);
     event ItemRecovered(uint256 indexed registrationId, uint256 timestamp);
+    event ItemDeleted(uint256 indexed registrationId, address indexed owner, string reason, uint256 timestamp);
     event BackendSignerChanged(address indexed oldSigner, address indexed newSigner);
 
     // --- Custom Errors ---
@@ -195,6 +196,44 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Deletes/de-registers an item on-chain with reason tracking and backend witness signature validation.
+     * @param registrationId The ID of the item.
+     * @param reason The reason for deletion (e.g. sold, gifted, broken).
+     * @param deadline The signature expiration timestamp.
+     * @param signature The cryptographic signature from the backend signer.
+     */
+    function deleteItem(uint256 registrationId, string calldata reason, uint256 deadline, bytes calldata signature)
+        external
+    {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (registrationId == 0 || registrationId >= _nextRegistrationId) {
+            revert ItemNotFound(registrationId);
+        }
+
+        Item storage item = _items[registrationId];
+        address owner = item.owner;
+        if (owner == address(0)) {
+            revert ItemNotFound(registrationId);
+        }
+
+        uint256 nonce = userNonces[owner];
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(registrationId, keccak256(bytes(reason)), nonce, deadline, block.chainid, address(this))
+        );
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        if (ECDSA.recover(ethSignedMessageHash, signature) != backendSigner) {
+            revert InvalidSignature();
+        }
+
+        userNonces[owner] = nonce + 1;
+
+        delete _items[registrationId];
+        uint40 timestamp = uint40(block.timestamp);
+
+        emit ItemDeleted(registrationId, owner, reason, timestamp);
+    }
+
+    /**
      * @notice Configures a new backend signer key. Can only be called by the owner.
      * @param _newBackendSigner The new backend signer address.
      */
@@ -216,7 +255,11 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (registrationId == 0 || registrationId >= _nextRegistrationId) {
             revert ItemNotFound(registrationId);
         }
-        return _items[registrationId];
+        Item memory item = _items[registrationId];
+        if (item.owner == address(0)) {
+            revert ItemNotFound(registrationId);
+        }
+        return item;
     }
 
     /**
@@ -228,7 +271,11 @@ contract Recover is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (registrationId == 0 || registrationId >= _nextRegistrationId) {
             revert ItemNotFound(registrationId);
         }
-        return _items[registrationId];
+        Item memory item = _items[registrationId];
+        if (item.owner == address(0)) {
+            revert ItemNotFound(registrationId);
+        }
+        return item;
     }
 
     // --- UUPS Upgrade Authorization ---

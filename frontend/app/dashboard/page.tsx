@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
 import BatchStickerStudioModal from "@/components/BatchStickerStudioModal/BatchStickerStudioModal";
+import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
 
 interface LocalItem {
   registrationId: string;
@@ -57,6 +58,10 @@ export default function DashboardPage() {
   const [showStickerModal, setShowStickerModal] = useState<boolean>(false);
   const [showBatchStickerModal, setShowBatchStickerModal] = useState<boolean>(false);
   const [stickerItem, setStickerItem] = useState<LocalItem | null>(null);
+
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [deleteItemData, setDeleteItemData] = useState<{ registrationId: string; name: string } | null>(null);
 
   const fetchItems = async () => {
     if (!account) {
@@ -222,7 +227,7 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {/* Multi-Item Printing Recommendation Banner */}
             {items.length > 0 && (
-              <div className="bg-gradient-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="bg-linear-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="space-y-1.5 text-center md:text-left">
                   <div className="flex items-center justify-center md:justify-start gap-2">
                     <span className="bg-accent text-neutral-white text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full tracking-wider">
@@ -234,7 +239,7 @@ export default function DashboardPage() {
                     Save Paper: Print Multi-Item Sticker Sheets (A4)
                   </h3>
                   <p className="text-xs text-neutral-white/80 leading-relaxed max-w-2xl">
-                    Real-world sticker press paper works best when printing a full sheet! Register all your valuables (phone, laptop, keys, AirPods, backpack, wallet, passport) and print up to 10–12 stickers on a single A4 page.
+                    Real-world sticker press paper works best when printing a full sheet! Register all your valuables (phone, laptop, keys, AirPods, backpack, etc) and print up to 10-12 stickers on a single A4 page.
                   </p>
                 </div>
 
@@ -547,6 +552,20 @@ export default function DashboardPage() {
         isOpen={showBatchStickerModal}
         onClose={() => setShowBatchStickerModal(false)}
         items={items}
+      />
+
+      {/* On-Chain Delete Item Critical Warning Modal */}
+      <DeleteItemModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteItemData(null);
+        }}
+        item={deleteItemData}
+        ownerAddress={account?.address || ""}
+        onSuccess={() => {
+          fetchItems();
+        }}
       />
     </main>
   );

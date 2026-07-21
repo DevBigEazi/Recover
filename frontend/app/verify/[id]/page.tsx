@@ -311,15 +311,15 @@ export default function VerifyPage({ params }: PageProps) {
         <Header />
         <div className="max-w-md mx-auto px-4 py-24 text-center">
           <div className="flex justify-center mb-6">
-            <div className="p-3 bg-red-50 rounded-full border border-red-100">
-              <svg className="w-8 h-8 text-critical" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="p-3 bg-amber-50 rounded-full border border-amber-200 text-amber-600">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-primary font-display mb-2">Invalid QR Code</h2>
-          <p className="text-sm text-neutral-slate mb-6">
-            This QR code is not registered on the Recover platform. Please check the sticker or contact support.
+          <h2 className="text-2xl font-bold text-primary font-display mb-2">QR Code De-registered</h2>
+          <p className="text-sm text-neutral-slate mb-6 leading-relaxed">
+            This QR code sticker was de-registered and permanently deleted from the Electroneum Blockchain registry by the owner (sold, gifted, or replaced). This sticker is no longer active.
           </p>
           <Link href="/" className="bg-primary hover:bg-primary-light text-neutral-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
             Back to Home
