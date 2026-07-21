@@ -7,6 +7,7 @@ import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
+import BatchStickerStudioModal from "@/components/BatchStickerStudioModal/BatchStickerStudioModal";
 
 interface LocalItem {
   registrationId: string;
@@ -54,6 +55,7 @@ export default function DashboardPage() {
 
   // Sticker studio states
   const [showStickerModal, setShowStickerModal] = useState<boolean>(false);
+  const [showBatchStickerModal, setShowBatchStickerModal] = useState<boolean>(false);
   const [stickerItem, setStickerItem] = useState<LocalItem | null>(null);
 
   const fetchItems = async () => {
@@ -218,6 +220,41 @@ export default function DashboardPage() {
         ) : (
           /* Dashboard Content */
           <div className="space-y-6">
+            {/* Multi-Item Printing Recommendation Banner */}
+            {items.length > 0 && (
+              <div className="bg-gradient-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="space-y-1.5 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-2">
+                    <span className="bg-accent text-neutral-white text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full tracking-wider">
+                      💡 Printing Recommendation
+                    </span>
+                    <span className="text-xs text-neutral-white/80 font-medium">Sticker Press Best Practice</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold font-display">
+                    Save Paper: Print Multi-Item Sticker Sheets (A4)
+                  </h3>
+                  <p className="text-xs text-neutral-white/80 leading-relaxed max-w-2xl">
+                    Real-world sticker press paper works best when printing a full sheet! Register all your valuables (phone, laptop, keys, AirPods, backpack, wallet, passport) and print up to 10–12 stickers on a single A4 page.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto shrink-0">
+                  <Link
+                    href="/register"
+                    className="w-full sm:w-auto bg-neutral-white/15 hover:bg-neutral-white/25 text-neutral-white text-xs font-semibold rounded-xl px-4 py-2.5 transition-colors text-center cursor-pointer border border-neutral-white/20 whitespace-nowrap"
+                  >
+                    + Add More Items
+                  </Link>
+                  <button
+                    onClick={() => setShowBatchStickerModal(true)}
+                    className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-neutral-white text-xs font-bold rounded-xl px-5 py-2.5 transition-colors shadow-xs text-center cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <span>📄 Print Multi-Item Sheet (A4)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Filter Tabs */}
             <div className="flex border-b border-neutral-mist pb-px overflow-x-auto gap-6 scrollbar-none">
               {(["All", "Active", "Lost", "Recovered"] as const).map((tab) => {
@@ -503,6 +540,13 @@ export default function DashboardPage() {
           setStickerItem(null);
         }}
         item={stickerItem}
+      />
+
+      {/* Batch Multi-Item A4 Sticker Studio Modal */}
+      <BatchStickerStudioModal
+        isOpen={showBatchStickerModal}
+        onClose={() => setShowBatchStickerModal(false)}
+        items={items}
       />
     </main>
   );

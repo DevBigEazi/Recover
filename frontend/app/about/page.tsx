@@ -13,7 +13,7 @@ export default function AboutPage() {
     {
       num: "02",
       title: "Print & Attach Sticker",
-      desc: "Download and print your sticker in your preferred size preset (Mini, Standard, or Large). Attach it securely to your physical item where finders can easily see and scan it.",
+      desc: "Download and print your sticker in your preferred size preset (Mini or Standard). Attach it securely to your physical item where finders can easily see and scan it.",
     },
     {
       num: "03",

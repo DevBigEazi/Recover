@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 
+import { STICKER_SIZES } from "@/constants/sticker";
+
 interface StickerItem {
   registrationId: string;
   name: string;
@@ -15,86 +17,8 @@ export interface StickerStudioModalProps {
   item: StickerItem | null;
 }
 
-const STICKER_SIZES = {
-  mini: {
-    label: "Mini",
-    desc: "~10mm × 10mm",
-    note: "(Recommended)",
-    w: 160,
-    h: 175,
-    qrSize: 90,
-    qrY: 34,
-    idY: 125,
-    boxY: 138,
-    boxW: 120,
-    boxH: 14,
-    rewardTextY: 148,
-    securedTextY: 146,
-    footerY: 160,
-    printW: 120,
-    printH: 135,
-    printTitleSize: 9,
-    printSubSize: 6,
-    printQrSize: 80,
-    printIdSize: 7,
-    printRewardSize: 8,
-    printSecuredSize: 7,
-    printFooterSize: 6,
-  },
-  standard: {
-    label: "Standard",
-    desc: "~25mm × 25mm",
-    note: "",
-    w: 280,
-    h: 300,
-    qrSize: 160,
-    qrY: 60,
-    idY: 212,
-    boxY: 230,
-    boxW: 220,
-    boxH: 22,
-    rewardTextY: 244,
-    securedTextY: 242,
-    footerY: 274,
-    printW: 180,
-    printH: 200,
-    printTitleSize: 12,
-    printSubSize: 8,
-    printQrSize: 120,
-    printIdSize: 10,
-    printRewardSize: 10,
-    printSecuredSize: 9,
-    printFooterSize: 7,
-  },
-  large: {
-    label: "Large",
-    desc: "~50mm × 50mm",
-    note: "",
-    w: 520,
-    h: 560,
-    qrSize: 300,
-    qrY: 110,
-    idY: 398,
-    boxY: 432,
-    boxW: 410,
-    boxH: 42,
-    rewardTextY: 458,
-    securedTextY: 455,
-    footerY: 512,
-    printW: 300,
-    printH: 330,
-    printTitleSize: 18,
-    printSubSize: 12,
-    printQrSize: 200,
-    printIdSize: 13,
-    printRewardSize: 14,
-    printSecuredSize: 12,
-    printFooterSize: 10,
-  },
-};
-
 export default function StickerStudioModal({ isOpen, onClose, item }: StickerStudioModalProps) {
-  const [selectedSize, setSelectedSize] = useState<"mini" | "standard" | "large">("mini");
+  const [selectedSize, setSelectedSize] = useState<"mini" | "standard">("mini");
   const [isDownloadingLabel, setIsDownloadingLabel] = useState(false);
 
   if (!isOpen || !item) return null;
@@ -418,9 +342,9 @@ export default function StickerStudioModal({ isOpen, onClose, item }: StickerStu
             id="sticker-print-area"
             className={`border-8 border-primary outline-2 outline-accent outline-offset-[-9px] text-center bg-neutral-white flex flex-col items-center shadow-md select-none transition-all duration-200 ${
               selectedSize === "mini"
-                ? "w-[180px] p-2 gap-2"
+                ? "w-45 p-2 gap-2"
                 : selectedSize === "standard"
-                ? "w-[240px] p-3 pb-2.5 gap-3"
+                ? "w-60 p-3 pb-2.5 gap-3"
                 : "w-[320px] p-4 pb-3 gap-4"
             }`}
           >
