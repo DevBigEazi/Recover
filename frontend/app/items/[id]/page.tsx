@@ -2,9 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
+import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
 
 interface LocalItem {
   registrationId: string;
@@ -47,6 +49,7 @@ export default function ItemDetailPage({ params }: PageProps) {
   const itemId = resolvedParams.id;
 
   const account = useActiveAccount();
+  const router = useRouter();
 
   // Item & Reports states
   const [item, setItem] = useState<LocalItem | null>(null);
@@ -61,8 +64,11 @@ export default function ItemDetailPage({ params }: PageProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmType, setConfirmType] = useState<"Lost" | "Recovered" | null>(null);
   
-  // Sticker creator modal states (Step 16)
+  // Sticker creator modal states
   const [showStickerModal, setShowStickerModal] = useState(false);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
 
 
@@ -483,6 +489,20 @@ export default function ItemDetailPage({ params }: PageProps) {
                     <span>Sticker Studio</span>
                   </button>
                 </div>
+
+                {/* On-Chain Delete Item Button */}
+                <div className="pt-2 border-t border-neutral-mist">
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    disabled={isActionLoading}
+                    className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Item</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl text-sm flex gap-3">
@@ -528,7 +548,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                       </p>
                     </div>
 
-                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                    <div className="space-y-4 max-h-75 overflow-y-auto pr-1">
                     {reports.map((report) => (
                       <div key={report.reportId} className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2">
                         <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
@@ -645,6 +665,17 @@ export default function ItemDetailPage({ params }: PageProps) {
           </div>
         </div>
       )}
+
+      {/* On-Chain Delete Item Critical Warning Modal */}
+      <DeleteItemModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        item={item ? { registrationId: item.registrationId, name: item.name } : null}
+        ownerAddress={account?.address || ""}
+        onSuccess={() => {
+          router.push("/dashboard");
+        }}
+      />
     </main>
   );
 }

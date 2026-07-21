@@ -64,6 +64,19 @@ contract RecoverTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
+    function getDeleteSignature(uint256 registrationId, string memory reason, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(registrationId, keccak256(bytes(reason)), nonce, deadline, block.chainid, address(recover))
+        );
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(backendPrivateKey, ethSignedMessageHash);
+        return abi.encodePacked(r, s, v);
+    }
+
     // --- 1. Initial State & Proxy Config Tests ---
 
     function test_Initialize() public view {
@@ -228,6 +241,51 @@ contract RecoverTest is Test {
             )
         );
         recover.markRecovered(id, recDeadline, recSig);
+    }
+
+    // --- 4. Delete Item Tests ---
+
+    function test_DeleteItem_Success() public {
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
+
+        string memory reason = "Sold item to a new owner";
+        uint256 delNonce = recover.userNonces(user);
+        uint256 delDeadline = block.timestamp + 1 hours;
+        bytes memory delSig = getDeleteSignature(id, reason, delNonce, delDeadline);
+
+        recover.deleteItem(id, reason, delDeadline, delSig);
+
+        // Verification query should revert as item is deleted from storage
+        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, id));
+        recover.getItem(id);
+    }
+
+    function test_DeleteItem_ExpiredSignatureReverts() public {
+        uint256 regNonce = recover.userNonces(user);
+        uint256 regDeadline = block.timestamp + 1 hours;
+        bytes memory regSig = getRegisterSignature(user, TEST_HASH, regNonce, regDeadline);
+        uint256 id = recover.registerItem(user, TEST_HASH, regDeadline, regSig);
+
+        string memory reason = "Item broken";
+        uint256 delNonce = recover.userNonces(user);
+        uint256 expiredDeadline = block.timestamp - 1;
+        bytes memory delSig = getDeleteSignature(id, reason, delNonce, expiredDeadline);
+
+        vm.expectRevert(abi.encodeWithSelector(Recover.SignatureExpired.selector));
+        recover.deleteItem(id, reason, expiredDeadline, delSig);
+    }
+
+    function test_DeleteItem_NonExistentItemReverts() public {
+        string memory reason = "Item broken";
+        uint256 delNonce = recover.userNonces(user);
+        uint256 delDeadline = block.timestamp + 1 hours;
+        bytes memory delSig = getDeleteSignature(999, reason, delNonce, delDeadline);
+
+        vm.expectRevert(abi.encodeWithSelector(Recover.ItemNotFound.selector, 999));
+        recover.deleteItem(999, reason, delDeadline, delSig);
     }
 
     // --- 5. Owner Actions & Setters Tests ---

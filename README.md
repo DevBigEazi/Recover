@@ -81,6 +81,14 @@ sequenceDiagram
 * **Universal Upgradeable Proxy Standard (UUPS)**: Inherits from OpenZeppelin's UUPS Upgradeable contracts to allow future feature expansions.
 * **Gasless Relayer Pattern**: Uses a cryptographic signer witness on the backend. When users register or transition item statuses, the relayer submits write transactions to the blockchain on their behalf, sponsoring gas fees to provide a seamless Web2-like user experience.
 
+#### Deployed Contracts:
+- **Electroneum Mainnet (`52014`)**:
+  - **Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
+  - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2` (Verified)
+- **Electroneum Testnet (`5201420`)**:
+  - **Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
+  - **Implementation v2 (Item Deletion):** `0x0a637c959cAc325b8a422d4E17EE0f1b7F57Af3b`
+
 ---
 
 ## 🚀 Workspace Commands
