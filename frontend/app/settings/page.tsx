@@ -22,6 +22,9 @@ export default function SettingsPage() {
   const [whatsappInput, setWhatsappInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [emailNotifPref, setEmailNotifPref] = useState(true);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
+  const [isRegisteringPush, setIsRegisteringPush] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -39,6 +42,92 @@ export default function SettingsPage() {
     if (email) setEmailInput(email);
     if (emailNotifications !== undefined) setEmailNotifPref(emailNotifications);
   }, [fullName, username, phone, whatsapp, email, emailNotifications]);
+
+  // Check current Web Push subscription status
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.pushManager.getSubscription().then((sub) => {
+            if (sub) {
+              setPushEnabled(true);
+            }
+          });
+        });
+      }
+    }
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (!account) return;
+    if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+      setPushStatusMsg("Web Push notifications are not supported in this browser.");
+      return;
+    }
+
+    setIsRegisteringPush(true);
+    setPushStatusMsg(null);
+
+    try {
+      if (!pushEnabled) {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          setPushStatusMsg("Notification permission was denied in your browser settings.");
+          setIsRegisteringPush(false);
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!publicVapidKey) {
+          setPushStatusMsg("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
+          setIsRegisteringPush(false);
+          return;
+        }
+
+        const padding = "=".repeat((4 - (publicVapidKey.length % 4)) % 4);
+        const base64 = (publicVapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: outputArray,
+          });
+        }
+
+        await fetch("/api/notifications/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-owner-address": account.address,
+          },
+          body: JSON.stringify({ subscription }),
+        });
+
+        setPushEnabled(true);
+        setPushStatusMsg("Real-time Push Notifications enabled successfully on this device!");
+      } else {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+        }
+        setPushEnabled(false);
+        setPushStatusMsg("Push Notifications disabled for this device.");
+      }
+    } catch (err) {
+      console.error(err);
+      setPushStatusMsg("Failed to update push notification preferences.");
+    } finally {
+      setIsRegisteringPush(false);
+    }
+  };
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,8 +372,10 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="border-t border-neutral-mist pt-6">
-                <h4 className="text-xs font-semibold text-primary mb-3">Notification Preferences</h4>
+              <div className="border-t border-neutral-mist pt-6 space-y-5">
+                <h4 className="text-xs font-bold text-primary uppercase tracking-wider">Notification Preferences</h4>
+                
+                {/* Email Notifications Option */}
                 <label className="flex items-start gap-3 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -293,12 +384,53 @@ export default function SettingsPage() {
                     className="mt-1 accent-accent"
                   />
                   <div className="space-y-1">
-                    <span className="block text-xs font-medium text-primary">Email Notifications</span>
+                    <span className="block text-xs font-semibold text-primary">Email Notifications</span>
                     <span className="block text-[10px] text-neutral-slate leading-normal">
-                      Receive email updates for sticker scans and found item reports.
+                      Receive email updates when your item sticker is scanned or when a finder submits a report.
                     </span>
                   </div>
                 </label>
+
+                {/* Mobile & Web Push Notifications Toggle Button */}
+                <div className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-primary">📲 Real-time Mobile Push Notifications</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pushEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {pushEnabled ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                      <span className="block text-[11px] text-neutral-slate leading-normal">
+                        Receive instant push alerts on your phone or device screen when a scan or report occurs.
+                      </span>
+                    </div>
+
+                    {/* Interactive Toggle Switch Button */}
+                    <button
+                      type="button"
+                      onClick={handleTogglePush}
+                      disabled={isRegisteringPush}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        pushEnabled ? "bg-accent" : "bg-gray-300"
+                      } ${isRegisteringPush ? "opacity-50" : ""}`}
+                      role="switch"
+                      aria-checked={pushEnabled}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          pushEnabled ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {pushStatusMsg && (
+                    <div className="text-[11px] font-medium text-accent pt-1">
+                      {pushStatusMsg}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-4 flex justify-end">
@@ -351,7 +483,7 @@ export default function SettingsPage() {
             <div className="border border-neutral-mist rounded-xl p-4 space-y-2.5 text-xs text-neutral-slate bg-neutral-mist/20">
               <div className="flex justify-between">
                 <span className="font-medium text-primary">Account ID:</span>
-                <span className="font-mono text-primary font-semibold break-all text-right max-w-[200px] sm:max-w-xs">{account.address}</span>
+                <span className="font-mono text-primary font-semibold break-all text-right max-w-50 sm:max-w-xs">{account.address}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium text-primary">Session Status:</span>

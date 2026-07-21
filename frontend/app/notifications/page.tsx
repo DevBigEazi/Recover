@@ -95,11 +95,11 @@ export default function NotificationsPage() {
         </button>
 
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8 border-b border-neutral-mist pb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-primary font-display">Notifications</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8 border-b border-neutral-mist pb-4">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-primary font-display">Notifications</h1>
             {unreadCount > 0 && (
-              <span className="bg-critical/10 text-critical font-bold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full">
+              <span className="bg-critical/10 text-critical font-bold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0">
                 {unreadCount} unread
               </span>
             )}
@@ -107,9 +107,9 @@ export default function NotificationsPage() {
           {unreadCount > 0 && (
             <button
               onClick={() => markReadMutation.mutate()}
-              className="flex items-center gap-1.5 bg-neutral-white border border-neutral-mist hover:bg-neutral-mist text-xs text-accent font-semibold px-3 py-1.5 rounded-xl transition-colors cursor-pointer shadow-xs"
+              className="self-start sm:self-auto flex items-center gap-1.5 bg-neutral-white border border-neutral-mist hover:bg-neutral-mist text-xs text-accent font-semibold px-3 py-1.5 rounded-xl transition-colors cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-3.5 h-3.5 shrink-0" />
               <span>Mark all as read</span>
             </button>
           )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Bell } from "lucide-react";
+import { Menu, X, ChevronDown, Bell, Home, LayoutDashboard, PlusCircle, Info, Settings, LogOut, User as UserIcon } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useActiveAccount, useActiveWallet, useDisconnect } from "thirdweb/react";
@@ -150,7 +150,7 @@ export default function Header() {
                           {unreadCount > 0 && (
                             <button
                               onClick={() => markReadMutation.mutate()}
-                              className="text-[10px] text-accent font-semibold hover:underline cursor-pointer"
+                              className="text-[10px] text-accent font-semibold hover:underline cursor-pointer shrink-0 whitespace-nowrap"
                             >
                               Mark all as read
                             </button>
@@ -282,73 +282,175 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Navigation Panel */}
+        {/* Mobile Navigation Sidebar Drawer */}
         {isMenuOpen && (
-          <div className="md:hidden animate-fade-in pb-4">
-            <div className="space-y-1 pt-2 pb-3 border-t border-neutral-mist">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className={`block rounded-md px-3 py-2.5 text-base font-medium transition-colors ${
-                    isActive(link.href)
-                      ? "text-primary bg-neutral-mist font-semibold"
-                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              
-              {/* Mobile Connect Wallet */}
-              {!account ? (
-                <div className="pt-4 border-t border-neutral-mist mt-3">
+          <>
+            {/* Backdrop Overlay */}
+            <div
+              className="fixed inset-0 bg-neutral-slate/60 backdrop-blur-xs z-50 transition-opacity duration-300 md:hidden"
+              onClick={() => setIsMenuOpen(false)}
+            />
+
+            {/* Sidebar Drawer */}
+            <aside className="fixed top-0 right-0 bottom-0 w-[85%] max-w-xs bg-neutral-white shadow-2xl z-50 flex flex-col justify-between p-6 transition-transform duration-300 ease-in-out md:hidden overflow-y-auto animate-slide-left border-l border-neutral-mist">
+              <div className="space-y-6">
+                {/* Header Row: Logo & Close Button */}
+                <div className="flex items-center justify-between border-b border-neutral-mist pb-4">
+                  <Link href="/" onClick={() => setIsMenuOpen(false)}>
+                    <Image
+                      src="/logo-full.svg"
+                      alt="Recover Logo"
+                      width={120}
+                      height={35}
+                      className="h-8 w-auto"
+                    />
+                  </Link>
+                  <button
+                    onClick={() => setIsMenuOpen(false)}
+                    className="p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-xl transition-colors cursor-pointer"
+                    aria-label="Close sidebar navigation"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* User Profile Info Card (if logged in) */}
+                {account && (
+                  <div className="bg-neutral-mist/50 border border-neutral-mist rounded-xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm font-bold shrink-0">
+                      <UserIcon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="overflow-hidden min-w-0">
+                      <div className="text-xs font-bold text-primary truncate">
+                        {fullName || username || "Registered User"}
+                      </div>
+                      <div className="text-[10px] font-mono text-neutral-slate truncate">
+                        {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Items */}
+                <nav className="space-y-1.5">
+                  <Link
+                    href="/"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                      isActive("/")
+                        ? "text-primary bg-neutral-mist font-semibold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <Home className="w-4 h-4 text-accent" />
+                    <span>Home</span>
+                  </Link>
+
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                      isActive("/dashboard")
+                        ? "text-primary bg-neutral-mist font-semibold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-accent" />
+                    <span>Dashboard</span>
+                  </Link>
+
+                  <Link
+                    href="/register"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                      isActive("/register")
+                        ? "text-primary bg-neutral-mist font-semibold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <PlusCircle className="w-4 h-4 text-accent" />
+                    <span>Register Item</span>
+                  </Link>
+
+                  {account && (
+                    <Link
+                      href="/notifications"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                        isActive("/notifications")
+                          ? "text-primary bg-neutral-mist font-semibold"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Bell className="w-4 h-4 text-accent" />
+                        <span>Notifications</span>
+                      </div>
+                      {unreadCount > 0 && (
+                        <span className="bg-critical text-neutral-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+
+                  {account && (
+                    <Link
+                      href="/settings"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                        isActive("/settings")
+                          ? "text-primary bg-neutral-mist font-semibold"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                      }`}
+                    >
+                      <Settings className="w-4 h-4 text-accent" />
+                      <span>Settings</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/about"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                      isActive("/about")
+                        ? "text-primary bg-neutral-mist font-semibold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <Info className="w-4 h-4 text-accent" />
+                    <span>About</span>
+                  </Link>
+                </nav>
+              </div>
+
+              {/* Sidebar Footer Action */}
+              <div className="border-t border-neutral-mist pt-4 mt-6">
+                {!account ? (
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
                       openLogin();
                     }}
-                    className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors text-center cursor-pointer"
+                    className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors text-center cursor-pointer shadow-xs"
                   >
                     Sign In
                   </button>
-                </div>
-              ) : (
-                <div className="pt-4 border-t border-neutral-mist mt-3 space-y-2">
-                  <div className="px-3 py-1.5 text-xs text-neutral-slate font-medium">
-                    Signed in as: <span className="font-semibold text-primary">{fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}</span>
-                  </div>
-                  <Link
-                    href="/notifications"
-                    className="block w-full bg-neutral-mist hover:bg-neutral-mist/80 text-primary font-semibold py-2 px-4 rounded-lg text-xs transition-colors text-center relative"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Notifications
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-3 w-2 h-2 bg-critical rounded-full animate-pulse" />
-                    )}
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="block w-full bg-neutral-mist hover:bg-neutral-mist/80 text-primary font-semibold py-2 px-4 rounded-lg text-xs transition-colors text-center"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Settings
-                  </Link>
+                ) : (
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
                       handleDisconnect();
                     }}
-                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors text-center cursor-pointer"
+                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer border border-red-100"
                   >
-                    Sign Out
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
                   </button>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </div>
+            </aside>
+          </>
         )}
       </nav>
     </header>

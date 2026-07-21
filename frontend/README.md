@@ -23,8 +23,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Folder Structure
 
-- `app/`: Next.js App Router pages and layouts.
-- `components/`: UI components (including the header with thirdweb `ConnectButton` and the `Count` dashboard).
+- `app/`: Next.js App Router pages and layouts (including `/settings` with Push Notification toggle preferences).
+- `components/`: UI components (including `Header` mobile sidebar drawer, `StickerStudioModal`, and `BatchStickerStudioModal`).
+- `constants/`: ABI files, contract addresses, and centralized `sticker.ts` size specifications (`STICKER_SIZES`).
 - `hooks/`: Custom thirdweb React hooks for contract interaction.
-- `lib/`: thirdweb client configuration.
-- `constants/`: ABI files and deployed contract addresses.
+- `lib/`: thirdweb client configuration and Web Push service utilities.
+
+### PWA & Sticker Printing Features
+
+- **Multi-Item Batch Sticker Studio (A4 Sheet)**: Real-world sticker press printing feature enabling users to register multiple items and print full 6 to 12 sticker grid sheets on a single A4 page without wasting adhesive paper.
+- **Push Notification Toggle**: Manage real-time VAPID push notification subscriptions directly on the `/settings` page.
+- **Mobile Navigation Sidebar Drawer**: Touch-friendly, slide-out sidebar navigation with backdrop overlay.
+

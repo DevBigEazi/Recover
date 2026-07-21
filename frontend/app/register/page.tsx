@@ -7,42 +7,7 @@ import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
-
-const STICKER_SIZES = {
-  mini: {
-    label: "Mini",
-    desc: "~10mm × 10mm",
-    note: "(Recommended)",
-    w: 160, h: 175, qrSize: 90, qrY: 34, idY: 125,
-    boxY: 138, boxW: 120, boxH: 14,
-    rewardTextY: 148, securedTextY: 146, footerY: 160,
-    printW: 120, printH: 135, printTitleSize: 9, printSubSize: 6,
-    printQrSize: 80, printIdSize: 7, printRewardSize: 8,
-    printSecuredSize: 7, printFooterSize: 6,
-  },
-  standard: {
-    label: "Standard",
-    desc: "~25mm × 25mm",
-    note: "",
-    w: 280, h: 300, qrSize: 160, qrY: 60, idY: 212,
-    boxY: 230, boxW: 220, boxH: 22,
-    rewardTextY: 244, securedTextY: 242, footerY: 274,
-    printW: 180, printH: 200, printTitleSize: 12, printSubSize: 8,
-    printQrSize: 120, printIdSize: 10, printRewardSize: 10,
-    printSecuredSize: 9, printFooterSize: 7,
-  },
-  large: {
-    label: "Large",
-    desc: "~50mm × 50mm",
-    note: "",
-    w: 520, h: 560, qrSize: 300, qrY: 110, idY: 398,
-    boxY: 432, boxW: 410, boxH: 42,
-    rewardTextY: 458, securedTextY: 455, footerY: 512,
-    printW: 300, printH: 330, printTitleSize: 18, printSubSize: 12,
-    printQrSize: 200, printIdSize: 13, printRewardSize: 14,
-    printSecuredSize: 12, printFooterSize: 10,
-  },
-};
+import { STICKER_SIZES } from "@/constants/sticker";
 
 export default function RegisterPage() {
   const account = useActiveAccount();
@@ -87,7 +52,7 @@ export default function RegisterPage() {
   } | null>(null);
 
   // Sticker size selection state
-  const [selectedSize, setSelectedSize] = useState<"mini" | "standard" | "large">("mini");
+  const [selectedSize, setSelectedSize] = useState<"mini" | "standard">("mini");
   const [isDownloadingLabel, setIsDownloadingLabel] = useState(false);
 
   // Confirm modal state
@@ -1078,10 +1043,46 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Multi-Item Sticker Printing Tip Card */}
+            <div className="bg-gradient-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="bg-accent text-neutral-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  💡 Save Paper & Money
+                </span>
+                <span className="text-xs text-neutral-white/80 font-medium">Multi-Item Printing Tip</span>
+              </div>
+              <p className="text-xs text-neutral-white/90 leading-relaxed">
+                Real-world sticker press paper works best when printing a full sheet! Register your other valuables (laptop, keys, AirPods, backpack, wallet, passport) now so you can print up to 10–12 stickers together on a single A4 page.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessData(null);
+                    setName("");
+                    setCategory("Other");
+                    setSerial("");
+                    setBrand("");
+                    setReward("");
+                    setInstructions("");
+                  }}
+                  className="bg-neutral-white text-primary hover:bg-neutral-mist font-bold text-xs px-4 py-2.5 rounded-xl transition-colors text-center cursor-pointer shadow-xs"
+                >
+                  + Register Another Item (Recommended)
+                </button>
+                <Link
+                  href="/dashboard"
+                  className="bg-accent hover:bg-accent/90 text-neutral-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors text-center cursor-pointer shadow-xs"
+                >
+                  📄 Go to Dashboard & Print A4 Sheet
+                </Link>
+              </div>
+            </div>
+
             {/* Go to Dashboard */}
             <Link
               href="/dashboard"
-              className="bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 flex items-center justify-center gap-2"
+              className="bg-neutral-white border border-gray-300 hover:bg-neutral-mist text-primary font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 flex items-center justify-center gap-2"
             >
               <span>Go to Dashboard</span>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1175,3 +1176,4 @@ export default function RegisterPage() {
     </main>
   );
 }
+
