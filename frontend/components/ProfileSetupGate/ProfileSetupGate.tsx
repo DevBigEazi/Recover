@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2, User, UserCheck } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 interface ProfileSetupGateProps {
   children: React.ReactNode;
@@ -12,6 +13,8 @@ interface ProfileSetupGateProps {
 export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const account = useActiveAccount();
   const { isOpenSetup, isProfileLoaded, isError, refetchProfile, closeProfileSetup } = useProfile();
+  const pathname = usePathname();
+  const isPublicPage = pathname === "/" || pathname === "/about" || pathname.startsWith("/verify/");
 
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
@@ -21,8 +24,103 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. If wallet is connected but profile is still loading, show global loader
-  if (account && !isProfileLoaded) {
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+  const [accessError, setAccessError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+    if (typeof window !== "undefined") {
+      const unlocked = localStorage.getItem("recover_access_unlocked") === "true";
+      setHasAccess(unlocked);
+    }
+  }, []);
+
+  const handleVerifyAccess = (e: React.SyntheticEvent): void => {
+    e.preventDefault();
+    const trimmed = accessCode.trim().toUpperCase();
+    const validCodes = ["RECOVER2026", "ALPHA2026", "INVITE2026"];
+    if (process.env.NEXT_PUBLIC_ACCESS_CODE) {
+      validCodes.push(process.env.NEXT_PUBLIC_ACCESS_CODE.trim().toUpperCase());
+    }
+
+    if (validCodes.includes(trimmed)) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("recover_access_unlocked", "true");
+      }
+      setHasAccess(true);
+    } else {
+      setAccessError("Invalid invite or access code. Please try again.");
+    }
+  };
+
+  // 1. Hydration safety loading state
+  if (!isMounted && account && !isPublicPage) {
+    return (
+      <div className="min-h-screen bg-neutral-mist flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-xs font-medium text-neutral-slate">Verifying access...</span>
+      </div>
+    );
+  }
+
+  // 2. Private Beta Access Restricted Screen
+  if (account && !hasAccess && !isPublicPage) {
+    return (
+      <div className="min-h-screen bg-neutral-mist flex items-center justify-center p-4 animate-fade-in">
+        <div className="w-full max-w-md bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl overflow-hidden p-6 sm:p-8 space-y-6 text-center">
+          <div className="flex justify-center">
+            <div className="p-4 bg-amber-50 rounded-full text-amber-500 border border-amber-100 animate-pulse">
+              <span className="text-2xl">🔒</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-primary font-display">Alpha-Testing Access</h2>
+            <p className="text-xs text-neutral-slate max-w-xs mx-auto leading-normal">
+              Recover is currently in invite-only alpha-testing. Please enter your invite code to continue.
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyAccess} className="space-y-4">
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="invite-code" className="block text-xs font-semibold text-neutral-slate uppercase tracking-wider">
+                Invite Code
+              </label>
+              <input
+                id="invite-code"
+                type="text"
+                required
+                placeholder="Enter invite code (e.g. ACCESS2026)"
+                value={accessCode}
+                onChange={(e) => {
+                  setAccessCode(e.target.value);
+                  setAccessError(null);
+                }}
+                className="w-full border border-neutral-mist hover:border-gray-300 focus:border-accent focus:ring-1 focus:ring-accent rounded-xl px-4 py-3 text-sm text-primary placeholder-neutral-slate/50 outline-hidden transition-all bg-neutral-mist/30 font-mono text-center tracking-widest uppercase font-semibold"
+              />
+            </div>
+
+            {accessError && (
+              <p className="text-xs font-medium text-red-600 animate-fade-in">
+                {accessError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-xl py-3 text-sm transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
+            >
+              Verify & Enter
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. If wallet is connected but profile is still loading, show global loader
+  if (account && !isProfileLoaded && !isPublicPage) {
     return (
       <div className="min-h-screen bg-neutral-mist flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -32,7 +130,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   }
 
   // 1.5 If there is a query load error, intercept with a reload card
-  if (account && isError) {
+  if (account && isError && !isPublicPage) {
     return (
       <div className="min-h-screen bg-neutral-mist flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl p-6 text-center space-y-4 animate-fade-in">
@@ -53,8 +151,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   }
 
   // 2. If profile setup is not done and account is logged in, intercept rendering with the setup card
-  if (account && isOpenSetup) {
-    const handleSubmit = async (e: React.FormEvent) => {
+  if (account && isOpenSetup && !isPublicPage) {
+    const handleSubmit = async (e: React.SyntheticEvent) => {
       e.preventDefault();
       if (!fullName.trim() || !username.trim()) return;
 

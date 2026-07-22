@@ -169,6 +169,17 @@ export default function DashboardPage() {
       <Header />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Invite-Only Alpha-Testing Banner */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3 text-amber-800 animate-fade-in shadow-xs">
+          <span className="text-xl shrink-0 leading-none">⚠️</span>
+          <div className="space-y-1 text-left">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">Invite-Only Alpha-Testing</h4>
+            <p className="text-[11px] leading-relaxed text-amber-800/90 font-medium">
+              Recover is currently in its invite-only alpha-testing phase. All item registrations, status toggles, and printing actions are for pre-launch testing purposes only.
+            </p>
+          </div>
+        </div>
+
         {/* Upper Title Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
