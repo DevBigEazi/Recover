@@ -10,7 +10,6 @@ interface ProfileContextType {
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
-  emailNotifications: boolean;
   isProfileLoaded: boolean;
   isNewUser: boolean;
   isOpenSetup: boolean;
@@ -88,7 +87,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
   const email = profileData && !("isNotFound" in profileData) ? profileData.email || null : null;
-  const emailNotifications = profileData && !("isNotFound" in profileData) ? !!profileData.emailNotifications : true;
 
   return (
     <ProfileContext.Provider
@@ -98,7 +96,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         phone,
         whatsapp,
         email,
-        emailNotifications,
         isProfileLoaded,
         isNewUser,
         isOpenSetup,

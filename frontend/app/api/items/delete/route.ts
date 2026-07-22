@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt, parseEventLogs, prepareEvent } from "thirdweb";
 import { recoverContract } from "@/lib/contract";
 import { client } from "@/lib/client";
@@ -19,9 +19,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Fetch the item details from local Prisma DB
-    const item = await db.item.findUnique({
-      where: { registrationId: registrationId },
+    await connectDB();
+
+    // 2. Fetch the item details from local MongoDB
+    const item = await db.item.findOne({
+      _id: registrationId,
     });
 
     if (!item) {
@@ -117,9 +119,8 @@ export async function POST(request: Request) {
     }
 
     // 10. Permanently delete item record and linked reports/notifications from local DB
-    await db.item.delete({
-      where: { registrationId: registrationId },
-    });
+    await db.finderReport.deleteMany({ registrationId });
+    await db.item.deleteOne({ _id: registrationId });
 
     return NextResponse.json(
       { success: true, registrationId, reason: reason.trim(), txHash: txResult.transactionHash },

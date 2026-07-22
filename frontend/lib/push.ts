@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -32,8 +32,9 @@ export async function sendPushNotification(
   }
 
   try {
-    const subscriptions = await db.pushSubscription.findMany({
-      where: { ownerAddress: ownerAddress.toLowerCase() },
+    await connectDB();
+    const subscriptions = await db.pushSubscription.find({
+      ownerAddress: ownerAddress.toLowerCase(),
     });
 
     if (subscriptions.length === 0) {
@@ -71,8 +72,8 @@ export async function sendPushNotification(
         const statusCode = (err && typeof err === "object" && "statusCode" in err) ? (err.statusCode as number) : 0;
         if (statusCode === 410 || statusCode === 404) {
           console.log(`Push subscription expired/invalid. Removing endpoint: ${sub.endpoint}`);
-          await db.pushSubscription.delete({
-            where: { endpoint: sub.endpoint },
+          await db.pushSubscription.deleteOne({
+            endpoint: sub.endpoint,
           });
         } else {
           console.error(`Failed to send push alert to endpoint ${sub.endpoint}:`, err);

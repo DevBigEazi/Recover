@@ -436,7 +436,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                 <div>
                   <h3 className="text-lg font-bold text-primary font-display">Manage Item Status</h3>
                   <p className="text-xs text-neutral-slate mt-1">
-                    Toggle your item status on the Electroneum blockchain. Transition history is permanently archived.
+                    Toggle your item status on the Electroneum blockchain. All Data are permanently archived.
                   </p>
                 </div>
 

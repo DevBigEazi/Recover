@@ -210,7 +210,7 @@ export default function DeleteItemModal({
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Broadcasting to Blockchain...</span>
+                <span>Deleting...</span>
               </>
             ) : (
               <>

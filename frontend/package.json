@@ -4,15 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.101.2",
     "@types/web-push": "^3.6.4",
     "lucide-react": "^1.24.0",
+    "mongoose": "^9.8.0",
     "next": "16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -28,7 +28,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

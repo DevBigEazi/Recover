@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { sendNotificationEmail } from "@/lib/email";
+import { db, connectDB } from "@/lib/db";
 import { sendPushNotification } from "@/lib/push";
+import crypto from "node:crypto";
 
 export async function POST(request: Request) {
   try {
@@ -15,9 +15,11 @@ export async function POST(request: Request) {
       );
     }
 
+    await connectDB();
+
     // Fetch corresponding item to verify existence and retrieve owner contact info
-    const item = await db.item.findUnique({
-      where: { registrationId: registrationId.toString() },
+    const item = await db.item.findOne({
+      _id: registrationId.toString(),
     });
 
     if (!item) {
@@ -28,12 +30,10 @@ export async function POST(request: Request) {
     }
 
     // Rate-limiting check: restrict reports for this item in the last 60 seconds
-    const recentReport = await db.finderReport.findFirst({
-      where: {
-        registrationId: registrationId.toString(),
-        createdAt: {
-          gte: new Date(Date.now() - 60000), // last 60 seconds
-        },
+    const recentReport = await db.finderReport.findOne({
+      registrationId: registrationId.toString(),
+      createdAt: {
+        $gte: new Date(Date.now() - 60000), // last 60 seconds
       },
     });
 
@@ -45,87 +45,30 @@ export async function POST(request: Request) {
     }
 
     const cleanLocation = typeof location === "string" && location.trim() ? location.trim() : null;
-    const locationStr = cleanLocation || "";
-    const escapedLocation = locationStr
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+
 
     // Save report to database
     const report = await db.finderReport.create({
-      data: {
-        registrationId: registrationId.toString(),
-        message,
-        contactInfo: contactInfo || null,
-        location: cleanLocation,
-        photo: photo || null,
-      },
+      _id: crypto.randomUUID(),
+      registrationId: registrationId.toString(),
+      message,
+      contactInfo: contactInfo || null,
+      location: cleanLocation,
+      photo: photo || null,
     });
 
     const messageText = `New found report submitted for your item "${item.name}".`;
 
     // 1. Log in-app notification in DB
     await db.notification.create({
-      data: {
-        ownerAddress: item.ownerAddress,
-        registrationId: item.registrationId,
-        type: "report",
-        message: messageText,
-      },
+      _id: crypto.randomUUID(),
+      ownerAddress: item.ownerAddress,
+      registrationId: item.registrationId || "",
+      type: "report",
+      message: messageText,
     });
 
-    // 2. Fetch owner preferences
-    const ownerUser = await db.user.findUnique({
-      where: { walletAddress: item.ownerAddress },
-    });
 
-    const isEmailEnabled = ownerUser ? ownerUser.emailNotifications : true;
-
-    // 3. Dispatch Email Notification
-    if (isEmailEnabled && ownerUser?.email) {
-      const emailSubject = `[Recover] Found Report for Item #${item.registrationId}: ${item.name}`;
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-          <div style="background-color: #1e2a4a; padding: 20px; text-align: center;">
-            <h2 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 20px;">Item Found Alert</h2>
-          </div>
-          <div style="padding: 20px; color: #1f2937; line-height: 1.6;">
-            <p>Hello Valued Owner,</p>
-            <p>Someone has scanned your QR sticker and submitted a found report for your item: <strong>"${item.name}"</strong>.</p>
-            
-            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <h4 style="margin-top: 0; color: #1e2a4a;">Finder Message:</h4>
-              <p style="font-style: italic; white-space: pre-wrap;">"${message}"</p>
-              
-              <h4 style="color: #1e2a4a; margin-bottom: 5px;">Finder Contact Details:</h4>
-              <p>${contactInfo || "None provided"}</p>
-              
-              <h4 style="color: #1e2a4a; margin-bottom: 5px;">Location coordinate shared:</h4>
-              <p>
-                ${locationStr ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationStr.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}" target="_blank" style="color: #0EA394; font-weight: bold; text-decoration: underline;">📍 Open Coordinates on Google Maps (${escapedLocation}) ↗</a>` : "None provided"}
-              </p>
-            </div>
-
-            <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 12px 15px; border-radius: 6px; margin: 20px 0; font-size: 12px; color: #92400e;">
-              <strong>💡 Safety Meetup Recommendations:</strong><br/>
-              When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
-            </div>
-
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${appUrl}/items/${item.registrationId}" style="background-color: #0EA394; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Open Recovery Inbox</a>
-            </div>
-            <p style="font-size: 11px; color: #6b7280; margin-top: 30px;">
-              You received this alert because notification updates are enabled on your Recover profile settings page.
-            </p>
-          </div>
-        </div>
-      `;
-
-      await sendNotificationEmail(ownerUser.email, emailSubject, emailHtml);
-    }
 
     // 4. Dispatch Web Push Alert
     await sendPushNotification(

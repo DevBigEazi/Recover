@@ -101,9 +101,5 @@ Run these commands from the root directory:
 * **`npm run compile`**: Compile smart contracts (Forge build)
 * **`npm run test`**: Run smart contract tests (Forge test)
 
-### Database Sync Commands
-Inside `frontend/`:
-```bash
-npx prisma db push
-npx prisma generate
-```
+### Database Setup
+Ensure you configure the `MONGODB_URI` environment variable in your `frontend/.env.local` file pointing to a MongoDB instance. Indexes are dynamically registered via Mongoose on connection.

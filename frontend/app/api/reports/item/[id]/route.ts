@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -7,9 +7,11 @@ export async function GET(request: Request, { params }: Props) {
   try {
     const { id } = await params;
 
+    await connectDB();
+
     // Verify item existence and owner address
-    const item = await db.item.findUnique({
-      where: { registrationId: id },
+    const item = await db.item.findOne({
+      _id: id,
     });
 
     if (!item) {
@@ -24,10 +26,9 @@ export async function GET(request: Request, { params }: Props) {
       );
     }
 
-    const reports = await db.finderReport.findMany({
-      where: { registrationId: id },
-      orderBy: { createdAt: "desc" },
-    });
+    const reports = await db.finderReport.find({
+      registrationId: id,
+    }).sort({ createdAt: -1 });
 
     return NextResponse.json(reports, { status: 200 });
   } catch (err: unknown) {
