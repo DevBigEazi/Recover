@@ -9,6 +9,9 @@ Before starting, create a `.env` or `.env.local` file in the root of the `fronte
 ```env
 # Required for thirdweb client initialization (get it from thirdweb.com/dashboard)
 NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
+
+# Required for Google Gemini 2.0 API integrations (free tier)
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ### Getting Started
@@ -27,11 +30,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `components/`: UI components (including `Header` mobile sidebar drawer, `StickerStudioModal`, and `BatchStickerStudioModal`).
 - `constants/`: ABI files, contract addresses, and centralized `sticker.ts` size specifications (`STICKER_SIZES`).
 - `hooks/`: Custom thirdweb React hooks for contract interaction.
-- `lib/`: thirdweb client configuration and Web Push service utilities.
+- `lib/`: thirdweb client configuration, Web Push service utilities, and AI engine helper (`ai.ts`).
 
-### PWA & Sticker Printing Features
+### PWA, Sticker Printing & AI Features
 
 - **Multi-Item Batch Sticker Studio (A4 Sheet)**: Real-world sticker press printing feature enabling users to register multiple items and print full 6 to 12 sticker grid sheets on a single A4 page without wasting adhesive paper.
+- **AI Suggested Recovery Instructions**: Auto-generates return instructions for owners during item registration using Gemini 2.0.
+- **AI Finder Templates**: Drafts polite coordination return templates for finders.
+- **AI Location Insight**: Translates GPS coordinates from reports into semantic safety advice inside the Owner Recovery Inbox.
 - **Push Notification Toggle**: Manage real-time VAPID push notification subscriptions directly on the `/settings` page.
 - **Mobile Navigation Sidebar Drawer**: Touch-friendly, slide-out sidebar navigation with backdrop overlay.
 

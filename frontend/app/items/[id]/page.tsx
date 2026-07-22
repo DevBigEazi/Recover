@@ -37,6 +37,7 @@ interface FinderReport {
   message: string;
   contactInfo: string;
   location: string;
+  locationContext?: string | null;
   timestamp: number;
 }
 
@@ -135,6 +136,7 @@ export default function ItemDetailPage({ params }: PageProps) {
             message: string;
             contactInfo?: string | null;
             location?: string | null;
+            locationContext?: string | null;
             createdAt: string;
           }
 
@@ -145,6 +147,7 @@ export default function ItemDetailPage({ params }: PageProps) {
             message: r.message,
             contactInfo: r.contactInfo || "",
             location: r.location || "",
+            locationContext: r.locationContext || null,
             timestamp: new Date(r.createdAt).getTime(),
           }));
           setReports(mappedReports);
@@ -565,7 +568,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                         )}
                         
                         {report.location && (
-                          <div className="mt-2">
+                          <div className="mt-2 text-left">
                             <a
                               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}`}
                               target="_blank"
@@ -578,6 +581,15 @@ export default function ItemDetailPage({ params }: PageProps) {
                               </svg>
                               <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
                             </a>
+                            {report.locationContext && (
+                              <div className="bg-amber-50/50 border border-amber-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-amber-800 leading-normal flex items-start gap-1.5 text-left">
+                                <span className="shrink-0 text-xs mt-0.5">💡</span>
+                                <div>
+                                  <strong className="font-semibold text-amber-900 block mb-0.5">AI Location Insight</strong>
+                                  {report.locationContext}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

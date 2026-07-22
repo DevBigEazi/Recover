@@ -322,7 +322,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-bold text-primary font-display mb-1">No items found</h3>
                 <p className="text-sm text-neutral-slate max-w-sm mx-auto mb-6">
                   {activeTab === "All"
-                    ? "You haven't registered any items yet. Register your first item to secure it in our registry."
+                    ? "You haven't registered any items yet. Register your first item to secure it in our decentralized registry."
                     : `You have no items currently in "${activeTab}" status.`}
                 </p>
                 {activeTab === "All" && (

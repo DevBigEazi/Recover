@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
 import { sendPushNotification } from "@/lib/push";
+import { generateContent } from "@/lib/ai";
 import crypto from "node:crypto";
 
 export async function POST(request: Request) {
@@ -46,6 +47,19 @@ export async function POST(request: Request) {
 
     const cleanLocation = typeof location === "string" && location.trim() ? location.trim() : null;
 
+    let locationContext = null;
+    if (cleanLocation) {
+      try {
+        const aiPrompt = `Interpret the following location coordinates or address: '${cleanLocation}'.
+Generate a very short, polite, and practical human-readable summary (max 2 sentences, 30 words) explaining where this is and any quick safety or recovery recommendation for the owner who lost their item.
+Example style: 'Scanned near Lagos International Airport. This is a high-traffic public space; coordinate meetups near check-in security desks.'
+Return ONLY the plain text context summary, without quotes, markdown formatting, or any extra explanation.`;
+
+        locationContext = await generateContent(aiPrompt);
+      } catch (aiErr) {
+        console.error("Failed to generate AI location context:", aiErr);
+      }
+    }
 
     // Save report to database
     const report = await db.finderReport.create({
@@ -54,6 +68,7 @@ export async function POST(request: Request) {
       message,
       contactInfo: contactInfo || null,
       location: cleanLocation,
+      locationContext,
       photo: photo || null,
     });
 
