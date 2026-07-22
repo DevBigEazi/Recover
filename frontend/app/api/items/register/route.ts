@@ -194,10 +194,7 @@ export async function POST(request: Request) {
       const registrationId = logs[0].args.registrationId.toString();
 
       // 11. Replace the temporary Pending record with the final Active record in MongoDB.
-      // Delete pending record
-      await db.item.deleteOne({ _id: tempId });
-
-      // Create the active record with final registrationId
+      // Create the active record with final registrationId first
       const item = await db.item.create({
         _id: registrationId,
         ownerAddress: ownerAddress.toLowerCase(),
@@ -220,6 +217,9 @@ export async function POST(request: Request) {
         image: image || null,
         rewardType: rewardType || "custom",
       });
+
+      // Delete pending record only after successful active record insertion
+      await db.item.deleteOne({ _id: tempId });
 
       return NextResponse.json(item, { status: 201 });
     } catch (blockchainErr) {
