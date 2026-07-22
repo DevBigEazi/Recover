@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -12,10 +12,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const notifications = await db.notification.findMany({
-      where: { ownerAddress: ownerAddress },
-      orderBy: { createdAt: "desc" },
-    });
+    await connectDB();
+
+    const notifications = await db.notification.find({ ownerAddress: ownerAddress }).sort({ createdAt: -1 });
 
     return NextResponse.json(notifications, { status: 200 });
   } catch (err: unknown) {
@@ -36,15 +35,17 @@ export async function POST(request: Request) {
       );
     }
 
-    await db.notification.updateMany({
-      where: {
+    await connectDB();
+
+    await db.notification.updateMany(
+      {
         ownerAddress: ownerAddress,
         read: false,
       },
-      data: {
-        read: true,
-      },
-    });
+      {
+        $set: { read: true },
+      }
+    );
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err: unknown) {

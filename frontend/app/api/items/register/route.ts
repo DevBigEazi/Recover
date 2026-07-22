@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 import { recoverContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt, parseEventLogs, prepareEvent } from "thirdweb";
@@ -78,68 +78,49 @@ export async function POST(request: Request) {
     
     const itemHash = "0x" + crypto.createHash("sha256").update(JSON.stringify(metadataToHash)).digest("hex");
 
+    await connectDB();
+
     // 4. Check if an active record with the same owner and itemHash already exists in the database
-    const existingActiveItem = await db.item.findFirst({
-      where: {
-        ownerAddress: ownerAddress.toLowerCase(),
-        itemHash,
-        status: "Active",
-      },
+    const existingActiveItem = await db.item.findOne({
+      ownerAddress: ownerAddress.toLowerCase(),
+      itemHash,
+      status: "Active",
     });
 
     if (existingActiveItem) {
       return NextResponse.json(existingActiveItem, { status: 200 });
     }
 
-    // 5. Save details in local Prisma database as PENDING first.
+    // 5. Save details in local Mongoose database as PENDING first.
     // If the database has connection or schema issues, it will fail here before any transaction is broadcast on-chain.
     const tempId = `pending_${itemHash}`;
-    await db.item.upsert({
-      where: { registrationId: tempId },
-      update: {
-        ownerAddress: ownerAddress.toLowerCase(),
-        name: name.trim(),
-        brand: brand?.trim() || null,
-        serial: serial?.trim() || null,
-        reward: reward?.trim() || null,
-        contactInfo: contactInfo?.trim() || null,
-        phone: phone?.trim() || null,
-        whatsapp: whatsapp?.trim() || null,
-        email: email?.trim() || null,
-        instructions: instructions?.trim() || null,
-        itemHash,
-        status: "Pending",
-        category: category || "Other",
-        alternateContact: alternateContact?.trim() || null,
-        receiptData: receiptData || null,
-        secrets: secrets || null,
-        passphrase: passphrase || null,
-        image: image || null,
-        rewardType: rewardType || "custom",
+    await db.item.findOneAndUpdate(
+      { _id: tempId },
+      {
+        $set: {
+          ownerAddress: ownerAddress.toLowerCase(),
+          name: name.trim(),
+          brand: brand?.trim() || null,
+          serial: serial?.trim() || null,
+          reward: reward?.trim() || null,
+          contactInfo: contactInfo?.trim() || null,
+          phone: phone?.trim() || null,
+          whatsapp: whatsapp?.trim() || null,
+          email: email?.trim() || null,
+          instructions: instructions?.trim() || null,
+          itemHash,
+          status: "Pending",
+          category: category || "Other",
+          alternateContact: alternateContact?.trim() || null,
+          receiptData: receiptData || null,
+          secrets: secrets || null,
+          passphrase: passphrase || null,
+          image: image || null,
+          rewardType: rewardType || "custom",
+        },
       },
-      create: {
-        registrationId: tempId,
-        ownerAddress: ownerAddress.toLowerCase(),
-        name: name.trim(),
-        brand: brand?.trim() || null,
-        serial: serial?.trim() || null,
-        reward: reward?.trim() || null,
-        contactInfo: contactInfo?.trim() || null,
-        phone: phone?.trim() || null,
-        whatsapp: whatsapp?.trim() || null,
-        email: email?.trim() || null,
-        instructions: instructions?.trim() || null,
-        itemHash,
-        status: "Pending",
-        category: category || "Other",
-        alternateContact: alternateContact?.trim() || null,
-        receiptData: receiptData || null,
-        secrets: secrets || null,
-        passphrase: passphrase || null,
-        image: image || null,
-        rewardType: rewardType || "custom",
-      },
-    });
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     try {
       // 6. Fetch the owner's nonce from the blockchain contract
@@ -212,47 +193,39 @@ export async function POST(request: Request) {
 
       const registrationId = logs[0].args.registrationId.toString();
 
-      // 11. Transactionally replace the temporary Pending record with the final Active record in Prisma.
-      const item = await db.$transaction(async (tx) => {
-        // Delete pending record
-        await tx.item.deleteMany({
-          where: { registrationId: tempId },
-        });
-
-        // Create the active record with final registrationId
-        return await tx.item.create({
-          data: {
-            registrationId: registrationId,
-            ownerAddress: ownerAddress.toLowerCase(),
-            name: name.trim(),
-            brand: brand?.trim() || null,
-            serial: serial?.trim() || null,
-            reward: reward?.trim() || null,
-            contactInfo: contactInfo?.trim() || null,
-            phone: phone?.trim() || null,
-            whatsapp: whatsapp?.trim() || null,
-            email: email?.trim() || null,
-            instructions: instructions?.trim() || null,
-            itemHash,
-            status: "Active",
-            category: category || "Other",
-            alternateContact: alternateContact?.trim() || null,
-            receiptData: receiptData || null,
-            secrets: secrets || null,
-            passphrase: passphrase || null,
-            image: image || null,
-            rewardType: rewardType || "custom",
-          },
-        });
+      // 11. Replace the temporary Pending record with the final Active record in MongoDB.
+      // Create the active record with final registrationId first
+      const item = await db.item.create({
+        _id: registrationId,
+        ownerAddress: ownerAddress.toLowerCase(),
+        name: name.trim(),
+        brand: brand?.trim() || null,
+        serial: serial?.trim() || null,
+        reward: reward?.trim() || null,
+        contactInfo: contactInfo?.trim() || null,
+        phone: phone?.trim() || null,
+        whatsapp: whatsapp?.trim() || null,
+        email: email?.trim() || null,
+        instructions: instructions?.trim() || null,
+        itemHash,
+        status: "Active",
+        category: category || "Other",
+        alternateContact: alternateContact?.trim() || null,
+        receiptData: receiptData || null,
+        secrets: secrets || null,
+        passphrase: passphrase || null,
+        image: image || null,
+        rewardType: rewardType || "custom",
       });
+
+      // Delete pending record only after successful active record insertion
+      await db.item.deleteOne({ _id: tempId });
 
       return NextResponse.json(item, { status: 201 });
     } catch (blockchainErr) {
       // If the blockchain execution failed (revert/timeout), clean up the pending DB entry.
       try {
-        await db.item.deleteMany({
-          where: { registrationId: tempId },
-        });
+        await db.item.deleteOne({ _id: tempId });
       } catch (cleanupErr) {
         console.error("Failed to clean up pending record after blockchain failure:", cleanupErr);
       }

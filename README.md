@@ -26,7 +26,7 @@ sequenceDiagram
     Owner->>App: Mark item status as "Lost"
     Finder->>App: Scans QR sticker on physical item
     App->>Relayer: Log QR scan event
-    Relayer-->>Owner: Dispatch real-time Push + Email alerts
+    Relayer-->>Owner: Dispatch real-time Web Push alerts
 
     Note over Owner, Chain: 3. Recovery Phase
     Finder->>App: Submits report (Coordinates + Message)
@@ -46,7 +46,7 @@ sequenceDiagram
 ### 2. Loss & Real-time Tracking
 * If an item goes missing, the owner marks it as **Lost** on their dashboard.
 * When a finder scans the sticker with a phone camera, it loads the public verification landing page.
-* The landing page immediately triggers a scan event in the background, dispatching **real-time Web Push alerts** and **Email notifications** directly to the owner.
+* The landing page immediately triggers a scan event in the background, dispatching **real-time Web Push alerts** directly to the owner.
 
 ### 3. Secure Handover Verification
 * The finder submits a report containing their contact info, location coordinates, and a message.
@@ -70,10 +70,8 @@ sequenceDiagram
 * **TanStack Query** handles real-time UI status polling and alerts synchronization.
 * Direct RPC reads on the client-side are prohibited; all frontend pages query local database APIs.
 
-### Backend (Next.js API Routes & Prisma)
-* Database layer: **PostgreSQL** (hosted via Supabase) mapped with **Prisma ORM**.
-* Uses **Connection Pooling** (Transaction mode for serverless functions, Session mode for DDL schema pushes).
-* **Resend API Integration**: Sends real-time responsive HTML email alerts to owners when codes are scanned or reports are submitted.
+### Backend (Next.js API Routes & MongoDB/Mongoose)
+* Database layer: **MongoDB** (hosted via Atlas or locally) managed with **Mongoose ODM**.
 * **Web Push Protocol**: Signs and broadcasts native mobile push alerts to clients.
 
 ### Smart Contract Layer (Electroneum Mainnet)
@@ -101,9 +99,5 @@ Run these commands from the root directory:
 * **`npm run compile`**: Compile smart contracts (Forge build)
 * **`npm run test`**: Run smart contract tests (Forge test)
 
-### Database Sync Commands
-Inside `frontend/`:
-```bash
-npx prisma db push
-npx prisma generate
-```
+### Database Setup
+Ensure you configure the `MONGODB_URI` environment variable in your `frontend/.env.local` file pointing to a MongoDB instance. Indexes are dynamically registered via Mongoose on connection.

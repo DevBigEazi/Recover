@@ -417,6 +417,17 @@ export default function RegisterPage() {
       <Header />
 
       <div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        {/* Invite-Only Alpha-Testing Banner */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 flex items-start gap-3 text-amber-800 animate-fade-in shadow-xs">
+          <span className="text-xl shrink-0 leading-none">⚠️</span>
+          <div className="space-y-1 text-left">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">Invite-Only Alpha-Testing</h4>
+            <p className="text-[11px] leading-relaxed text-amber-800/90 font-medium">
+              Recover is currently in its invite-only alpha-testing phase. All item registrations, QR labels, and reporting interactions are for pre-launch testing purposes only.
+            </p>
+          </div>
+        </div>
+
         {/* Title */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-primary font-display sm:text-4xl">

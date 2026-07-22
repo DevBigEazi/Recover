@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Props) {
   try {
     const { id } = await params;
-    const item = await db.item.findUnique({
-      where: { registrationId: id },
+    await connectDB();
+
+    const item = await db.item.findOne({
+      _id: id,
     });
 
     if (!item) {
@@ -18,14 +20,14 @@ export async function GET(request: Request, { params }: Props) {
     const requestOwner = request.headers.get("x-owner-address")?.toLowerCase();
     const isOwner = requestOwner === item.ownerAddress.toLowerCase();
 
-    const ownerUser = await db.user.findUnique({
-      where: { walletAddress: item.ownerAddress },
+    const ownerUser = await db.user.findOne({
+      _id: item.ownerAddress,
     });
     const ownerName = ownerUser?.fullName || ownerUser?.username || "Secured Owner";
 
     // If verified owner, return full record with secrets and passphrase
     if (isOwner) {
-      return NextResponse.json({ ...item, ownerName }, { status: 200 });
+      return NextResponse.json({ ...item.toObject(), ownerName }, { status: 200 });
     }
 
     // Masked public copy for finders/scanners (strictly excludes secrets, passphrase, and receipt)

@@ -12,7 +12,7 @@ import { client } from "@/lib/client";
 export default function SettingsPage() {
   const account = useActiveAccount();
   const { openLogin } = useAuth();
-  const { fullName, username, phone, whatsapp, email, emailNotifications, refetchProfile } = useProfile();
+  const { fullName, username, phone, whatsapp, email, refetchProfile } = useProfile();
   const detailsModal = useWalletDetailsModal();
 
   // Profile Form States
@@ -21,7 +21,6 @@ export default function SettingsPage() {
   const [phoneInput, setPhoneInput] = useState("");
   const [whatsappInput, setWhatsappInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
-  const [emailNotifPref, setEmailNotifPref] = useState(true);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
   const [isRegisteringPush, setIsRegisteringPush] = useState(false);
@@ -40,8 +39,7 @@ export default function SettingsPage() {
     if (phone) setPhoneInput(phone);
     if (whatsapp) setWhatsappInput(whatsapp);
     if (email) setEmailInput(email);
-    if (emailNotifications !== undefined) setEmailNotifPref(emailNotifications);
-  }, [fullName, username, phone, whatsapp, email, emailNotifications]);
+  }, [fullName, username, phone, whatsapp, email]);
 
   // Check current Web Push subscription status
   useEffect(() => {
@@ -59,7 +57,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleTogglePush = async () => {
-    if (!account) return;
+    if (!account || isRegisteringPush) return;
     if (!("serviceWorker" in navigator) || !("Notification" in window)) {
       setPushStatusMsg("Web Push notifications are not supported in this browser.");
       return;
@@ -77,7 +75,7 @@ export default function SettingsPage() {
           return;
         }
 
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.register("/sw.js");
         const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!publicVapidKey) {
           setPushStatusMsg("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
@@ -101,7 +99,7 @@ export default function SettingsPage() {
           });
         }
 
-        await fetch("/api/notifications/subscribe", {
+        const response = await fetch("/api/notifications/subscribe", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -110,10 +108,15 @@ export default function SettingsPage() {
           body: JSON.stringify({ subscription }),
         });
 
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Server error" }));
+          throw new Error(errorData.error || "Subscription registration failed.");
+        }
+
         setPushEnabled(true);
         setPushStatusMsg("Real-time Push Notifications enabled successfully on this device!");
       } else {
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
         if (subscription) {
           await subscription.unsubscribe();
@@ -121,9 +124,10 @@ export default function SettingsPage() {
         setPushEnabled(false);
         setPushStatusMsg("Push Notifications disabled for this device.");
       }
-    } catch (err) {
-      console.error(err);
-      setPushStatusMsg("Failed to update push notification preferences.");
+    } catch (err: unknown) {
+      console.error("Error toggling push notifications:", err);
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      setPushStatusMsg(`Failed to update push notification preferences: ${errMsg}`);
     } finally {
       setIsRegisteringPush(false);
     }
@@ -177,7 +181,6 @@ export default function SettingsPage() {
           phone: cleanedPhone,
           whatsapp: cleanedWhatsapp,
           email: cleanedEmail,
-          emailNotifications: emailNotifPref,
         }),
       });
 
@@ -375,24 +378,13 @@ export default function SettingsPage() {
               <div className="border-t border-neutral-mist pt-6 space-y-5">
                 <h4 className="text-xs font-bold text-primary uppercase tracking-wider">Notification Preferences</h4>
                 
-                {/* Email Notifications Option */}
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={emailNotifPref}
-                    onChange={(e) => setEmailNotifPref(e.target.checked)}
-                    className="mt-1 accent-accent"
-                  />
-                  <div className="space-y-1">
-                    <span className="block text-xs font-semibold text-primary">Email Notifications</span>
-                    <span className="block text-[10px] text-neutral-slate leading-normal">
-                      Receive email updates when your item sticker is scanned or when a finder submits a report.
-                    </span>
-                  </div>
-                </label>
-
-                {/* Mobile & Web Push Notifications Toggle Button */}
-                <div className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 space-y-3">
+                {/* Mobile & Web Push Notifications Toggle Card */}
+                <div 
+                  onClick={handleTogglePush}
+                  className={`bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 space-y-3 cursor-pointer hover:bg-neutral-mist/60 transition-colors select-none ${
+                    isRegisteringPush ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="space-y-1 pr-4">
                       <div className="flex items-center gap-2">
@@ -406,14 +398,11 @@ export default function SettingsPage() {
                       </span>
                     </div>
 
-                    {/* Interactive Toggle Switch Button */}
-                    <button
-                      type="button"
-                      onClick={handleTogglePush}
-                      disabled={isRegisteringPush}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    {/* Interactive Toggle Switch (Visual Representation) */}
+                    <div
+                      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                         pushEnabled ? "bg-accent" : "bg-gray-300"
-                      } ${isRegisteringPush ? "opacity-50" : ""}`}
+                      }`}
                       role="switch"
                       aria-checked={pushEnabled}
                     >
@@ -422,7 +411,7 @@ export default function SettingsPage() {
                           pushEnabled ? "translate-x-5" : "translate-x-0"
                         }`}
                       />
-                    </button>
+                    </div>
                   </div>
 
                   {pushStatusMsg && (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
+import crypto from "node:crypto";
 
 export async function POST(request: Request) {
   try {
@@ -22,18 +23,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const savedSub = await db.pushSubscription.upsert({
-      where: { endpoint: subscription.endpoint },
-      update: {
-        ownerAddress: ownerAddress,
-        keys: JSON.stringify(subscription.keys),
+    await connectDB();
+
+    const savedSub = await db.pushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      {
+        $set: {
+          ownerAddress: ownerAddress,
+          keys: JSON.stringify(subscription.keys),
+        },
+        $setOnInsert: {
+          _id: crypto.randomUUID(),
+        },
       },
-      create: {
-        endpoint: subscription.endpoint,
-        ownerAddress: ownerAddress,
-        keys: JSON.stringify(subscription.keys),
-      },
-    });
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     return NextResponse.json(savedSub, { status: 201 });
   } catch (err: unknown) {

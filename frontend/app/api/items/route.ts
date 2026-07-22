@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -13,10 +13,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const items = await db.item.findMany({
-      where: { ownerAddress: ownerAddress.toLowerCase() },
-      orderBy: { createdAt: "desc" },
-    });
+    await connectDB();
+
+    const items = await db.item.find({ ownerAddress: ownerAddress.toLowerCase() }).sort({ createdAt: -1 });
 
     return NextResponse.json(items, { status: 200 });
   } catch (err: unknown) {

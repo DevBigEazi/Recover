@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt, parseEventLogs, prepareEvent } from "thirdweb";
 import { recoverContract } from "@/lib/contract";
 import { client } from "@/lib/client";
@@ -26,9 +26,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Fetch the item details from local Prisma DB to retrieve owner Address
-    const item = await db.item.findUnique({
-      where: { registrationId: registrationId },
+    await connectDB();
+
+    // 2. Fetch the item details from local MongoDB to retrieve owner Address
+    const item = await db.item.findOne({
+      _id: registrationId,
     });
 
     if (!item) {
@@ -55,14 +57,12 @@ export async function POST(request: Request) {
     const originalStatus = item.status;
 
     // 5. Update Database record status optimistically first.
-    // Also clear existing finder reports so old reports don't linger across lost/recovered cycles.
-    await db.item.update({
-      where: { registrationId: registrationId },
-      data: {
-        status: status,
-        updatedAt: new Date(),
-      },
-    });
+    await db.item.updateOne(
+      { _id: registrationId },
+      {
+        $set: { status: status },
+      }
+    );
 
     try {
       // 6. Fetch the owner's nonce from the blockchain contract
@@ -144,25 +144,24 @@ export async function POST(request: Request) {
 
       // Clear existing finder reports on successful on-chain status transition
       await db.finderReport.deleteMany({
-        where: { registrationId: registrationId },
+        registrationId: registrationId,
       });
 
       // Fetch and return the updated item to verify final state
-      const updatedItem = await db.item.findUnique({
-        where: { registrationId: registrationId },
+      const updatedItem = await db.item.findOne({
+        _id: registrationId,
       });
 
-      return NextResponse.json(updatedItem || item, { status: 200 });
+      return NextResponse.json(updatedItem ? updatedItem.toObject() : item.toObject(), { status: 200 });
     } catch (blockchainErr) {
       // Revert the DB status if the blockchain execution failed (revert/timeout)
       try {
-        await db.item.update({
-          where: { registrationId: registrationId },
-          data: {
-            status: originalStatus,
-            updatedAt: new Date(),
-          },
-        });
+        await db.item.updateOne(
+          { _id: registrationId },
+          {
+            $set: { status: originalStatus },
+          }
+        );
       } catch (revertErr) {
         console.error("Failed to revert database status after blockchain transaction failure:", revertErr);
       }

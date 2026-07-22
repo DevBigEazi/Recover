@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, connectDB } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -13,8 +13,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const user = await db.user.findUnique({
-      where: { walletAddress: walletAddress.toLowerCase() },
+    await connectDB();
+
+    const user = await db.user.findOne({
+      _id: walletAddress.toLowerCase(),
     });
 
     if (!user) {
@@ -35,7 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { walletAddress, fullName, username, emailNotifications, phone, whatsapp, email } = body;
+    const { walletAddress, fullName, username, phone, whatsapp, email } = body;
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -44,15 +46,16 @@ export async function POST(request: Request) {
       );
     }
 
+    await connectDB();
+
     // Load existing user profile to merge details if fields are partially provided
-    const existingUser = await db.user.findUnique({
-      where: { walletAddress: walletAddress.toLowerCase() },
+    const existingUser = await db.user.findOne({
+      _id: walletAddress.toLowerCase(),
     });
 
     const targetFullName = fullName !== undefined ? fullName.trim() : (existingUser?.fullName || "");
     const targetUsername = username !== undefined ? username.trim().toLowerCase() : (existingUser?.username || "");
-    const targetEmailNotifications = emailNotifications !== undefined ? !!emailNotifications : (existingUser?.emailNotifications ?? true);
-    
+
     const targetPhone = phone !== undefined ? phone.trim() : (existingUser?.phone || "");
     const targetWhatsapp = whatsapp !== undefined ? whatsapp.trim() : (existingUser?.whatsapp || "");
     const targetEmail = email !== undefined ? email.trim() : (existingUser?.email || "");
@@ -85,30 +88,23 @@ export async function POST(request: Request) {
     }
 
     try {
-      const user = await db.user.upsert({
-        where: { walletAddress: walletAddress.toLowerCase() },
-        update: {
-          fullName: targetFullName,
-          username: targetUsername,
-          phone: targetPhone || null,
-          whatsapp: targetWhatsapp || null,
-          email: targetEmail || null,
-          emailNotifications: targetEmailNotifications,
+      const user = await db.user.findOneAndUpdate(
+        { _id: walletAddress.toLowerCase() },
+        {
+          $set: {
+            fullName: targetFullName,
+            username: targetUsername,
+            phone: targetPhone || null,
+            whatsapp: targetWhatsapp || null,
+            email: targetEmail || null,
+          },
         },
-        create: {
-          walletAddress: walletAddress.toLowerCase(),
-          fullName: targetFullName,
-          username: targetUsername,
-          phone: targetPhone || null,
-          whatsapp: targetWhatsapp || null,
-          email: targetEmail || null,
-          emailNotifications: targetEmailNotifications,
-        },
-      });
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
       return NextResponse.json(user, { status: 201 });
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "code" in err && err.code === "P2002") {
+      if (err && typeof err === "object" && "code" in err && (err.code === 11000 || err.code === "P2002")) {
         return NextResponse.json(
           { error: "Username is already taken." },
           { status: 400 }
