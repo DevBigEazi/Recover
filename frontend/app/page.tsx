@@ -16,15 +16,15 @@ export default function Home() {
             <div className="text-center space-y-4 sm:space-y-6 max-w-3xl mx-auto">
               {/* Tagline Badge */}
               <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold text-accent uppercase tracking-wider select-none shadow-xs">
-                🛡️ Tamper-Proof Item Registry
+                🛡️ AI-Powered & Decentralized Registry
               </div>
 
               <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl lg:text-6xl leading-tight">
-                Smart Protection & Private Recovery for Your Valuables
+                AI-Powered Smart Protection & Private Recovery for Your Valuables
               </h1>
               
               <p className="text-sm sm:text-lg text-neutral-slate leading-relaxed max-w-2xl mx-auto">
-                Recover is a smart, privacy-first lost and found platform. Attach printable, scannable QR stickers to your phone, laptop, keys, and bags, and let finders reach you safely without putting your personal privacy at risk.
+                Recover is a smart, AI-powered lost and found platform. Attach printable, scannable QR stickers to your phone, laptop, keys, and bags, use AI to generate recovery instructions, and get secure AI-contextualized scan locations automatically.
               </p>
 
               <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
@@ -61,14 +61,14 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {/* Feature 1 */}
               <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-3 sm:space-y-4 hover:border-accent/40 transition-colors shadow-xs">
                 <div className="p-2.5 bg-accent/10 rounded-xl w-max text-xl sm:text-2xl">
                   🔒
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-primary font-display">Privacy-First Protection</h3>
-                <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                <p className="text-xs text-neutral-slate leading-relaxed">
                   Your personal details stay protected by default. We never expose your private address or primary contact info to the public internet.
                 </p>
               </div>
@@ -79,7 +79,7 @@ export default function Home() {
                   📱
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-primary font-display">No App Download Required</h3>
-                <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                <p className="text-xs text-neutral-slate leading-relaxed">
                   Anyone who finds your lost item can simply scan the QR sticker using their regular smartphone camera to view verification info and contact you.
                 </p>
               </div>
@@ -90,8 +90,19 @@ export default function Home() {
                   💬
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-primary font-display">Direct & Safe Communication</h3>
-                <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                <p className="text-xs text-neutral-slate leading-relaxed">
                   Receive instant messages, view shared map locations, or let finders reach you via direct Call, WhatsApp, or Email action buttons.
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-3 sm:space-y-4 hover:border-accent/40 transition-colors shadow-xs">
+                <div className="p-2.5 bg-accent/10 rounded-xl w-max text-xl sm:text-2xl">
+                  🤖
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-primary font-display">AI Recovery Assistance</h3>
+                <p className="text-xs text-neutral-slate leading-relaxed">
+                  Let AI suggest customized recovery instructions, help finders draft polite templates, and summarize coordinates into safety insights.
                 </p>
               </div>
             </div>

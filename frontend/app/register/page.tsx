@@ -45,6 +45,8 @@ export default function RegisterPage() {
   // UI/Flow states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingInstructions, setIsGeneratingInstructions] = useState(false);
+  const [aiInstructionsError, setAiInstructionsError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<{
     registrationId: string;
     qrUrl: string;
@@ -62,6 +64,39 @@ export default function RegisterPage() {
   useEffect(() => {
     setPassphrase(Math.floor(100000 + Math.random() * 900000).toString());
   }, []);
+
+  const handleGenerateAiInstructions = async () => {
+    if (!name.trim()) return;
+    setIsGeneratingInstructions(true);
+    setAiInstructionsError(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "instructions",
+          itemName: name,
+          category,
+          brand,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "AI failed to generate." }));
+        throw new Error(errorData.error || "AI failed to generate instructions.");
+      }
+
+      const data = await res.json();
+      if (data.text) {
+        setInstructions(data.text);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      setAiInstructionsError(err instanceof Error ? err.message : "AI failed to generate instructions.");
+    } finally {
+      setIsGeneratingInstructions(false);
+    }
+  };
 
   const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -650,10 +685,36 @@ export default function RegisterPage() {
               )}
 
               {/* Recovery Instructions */}
-              <div className="sm:col-span-6">
-                <label htmlFor="instructions" className="block text-sm font-semibold text-primary">
-                  Recovery Instructions
-                </label>
+              <div className="sm:col-span-6 space-y-1">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="instructions" className="block text-sm font-semibold text-primary">
+                    Recovery Instructions
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiInstructions}
+                    disabled={isGeneratingInstructions || !name.trim()}
+                    className="text-xs text-accent hover:text-accent/90 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors cursor-pointer select-none bg-accent/5 hover:bg-accent/10 px-2 py-1 rounded-lg border border-accent/20"
+                  >
+                    {isGeneratingInstructions ? (
+                      <>
+                        <span className="animate-spin text-[10px]">🌀</span>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>✨</span>
+                        <span>AI Suggest</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {aiInstructionsError && (
+                  <div className="bg-red-50 border border-red-100 text-red-600 px-3 py-2 rounded-lg text-xs flex items-start gap-1.5 animate-fade-in font-medium mt-1">
+                    <span className="shrink-0 text-red-500 mt-0.5">⚠️</span>
+                    <span>{aiInstructionsError}</span>
+                  </div>
+                )}
                 <textarea
                   id="instructions"
                   rows={3}
