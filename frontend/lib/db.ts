@@ -91,6 +91,7 @@ export interface IFinderReport {
   message: string;
   contactInfo: string | null;
   location: string | null;
+  locationContext?: string | null;
   photo: string | null;
   createdAt?: Date;
 }
@@ -187,6 +188,7 @@ const FinderReportSchema = new Schema<IFinderReport>(
     message: { type: String, required: true },
     contactInfo: { type: String, default: null },
     location: { type: String, default: null },
+    locationContext: { type: String, default: null },
     photo: { type: String, default: null },
     createdAt: { type: Date, default: Date.now },
   },

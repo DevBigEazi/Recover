@@ -8,7 +8,7 @@ export default function AboutPage() {
     {
       num: "01",
       title: "Register Your Valuables",
-      desc: "Log in with Google, Email, or Social account and register your items (phones, laptops, keys, bags, pets). A unique secure registration ID is generated for each item.",
+      desc: "Log in with Google, Email, or Social account and register your items in our decentralized blockchain registry. Leverage AI to automatically generate personalized recovery instructions.",
     },
     {
       num: "02",
@@ -23,7 +23,7 @@ export default function AboutPage() {
     {
       num: "04",
       title: "Safe Drop-Off & Recovery",
-      desc: "Finders can submit a message, share map coordinates, or use direct action buttons. Meet in a safe public space and verify ownership via Handover PIN codes.",
+      desc: "Finders can use AI message templates to draft polite, clear coordination updates. Owners receive safe meetup locations and AI-generated coordinates context.",
     },
   ];
 
@@ -71,29 +71,37 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 text-xs sm:text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 text-xs leading-relaxed">
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
                   <span className="text-accent text-base sm:text-lg">🔒</span> Privacy-First Protection
                 </h4>
-                <p className="text-neutral-slate leading-relaxed">
+                <p className="text-neutral-slate">
                   We never expose plain-text personal details (such as home address or primary phone numbers) on the public internet. Your identity remains private until you choose to share it.
                 </p>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">📱</span> No App Required for Finders
+                  <span className="text-accent text-base sm:text-lg">📱</span> No App Required
                 </h4>
-                <p className="text-neutral-slate leading-relaxed">
+                <p className="text-neutral-slate">
                   Finders do not need to install an app, create an account, or complete a technical setup. They scan and communicate instantly from any mobile browser.
                 </p>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">💬</span> Direct & Safe Communication
+                  <span className="text-accent text-base sm:text-lg">💬</span> Safe Communication
                 </h4>
-                <p className="text-neutral-slate leading-relaxed">
+                <p className="text-neutral-slate">
                   Communicate with finders safely via instant in-app messages or direct Call, WhatsApp, and Email action buttons without putting your privacy at risk.
+                </p>
+              </div>
+              <div className="space-y-1.5 sm:space-y-2">
+                <h4 className="font-bold text-primary flex items-center gap-1.5">
+                  <span className="text-accent text-base sm:text-lg">🤖</span> AI Safety Insights
+                </h4>
+                <p className="text-neutral-slate">
+                  Our system automatically analyzes report coordinates and translates them into semantic context to give you clear guidance on coordinates security.
                 </p>
               </div>
             </div>

@@ -52,6 +52,7 @@ export default function VerifyPage({ params }: PageProps) {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
   // Handover PIN verification states
   const [inputPin, setInputPin] = useState("");
@@ -64,6 +65,38 @@ export default function VerifyPage({ params }: PageProps) {
       navigator.clipboard.writeText(targetEmail);
       setCopiedEmail(targetEmail);
       setTimeout(() => setCopiedEmail(null), 4000);
+    }
+  };
+
+  const handleGenerateAiMessage = async () => {
+    if (!item?.name) return;
+    setIsGeneratingMessage(true);
+    setReportError(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "message",
+          itemName: item.name,
+          finderNotes: finderMessage,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "AI failed to generate." }));
+        throw new Error(errorData.error || "AI failed to generate template.");
+      }
+
+      const data = await res.json();
+      if (data.text) {
+        setFinderMessage(data.text);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      setReportError(err instanceof Error ? err.message : "AI failed to generate template.");
+    } finally {
+      setIsGeneratingMessage(false);
     }
   };
 
@@ -364,7 +397,7 @@ export default function VerifyPage({ params }: PageProps) {
               </span>
               <h2 className="text-2xl font-bold text-primary font-display mt-2">Verified Owner Ownership</h2>
               <p className="text-sm text-neutral-slate max-w-md mx-auto">
-                This item is registered on the Recover registry. It belongs to the verified owner below.
+                This item is secured in Recover's decentralized registry. It belongs to the verified owner below.
               </p>
             </div>
 
@@ -579,10 +612,30 @@ export default function VerifyPage({ params }: PageProps) {
                       )}
 
                       {/* Message */}
-                      <div>
-                        <label htmlFor="msg" className="block text-xs font-semibold text-primary">
-                          Message to Owner <span className="text-red-500">*</span>
-                        </label>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="msg" className="block text-xs font-semibold text-primary">
+                            Message to Owner <span className="text-red-500">*</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleGenerateAiMessage}
+                            disabled={isGeneratingMessage}
+                            className="text-[10px] text-accent hover:text-accent/90 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors cursor-pointer select-none bg-accent/5 hover:bg-accent/10 px-2 py-0.5 rounded-lg border border-accent/20"
+                          >
+                            {isGeneratingMessage ? (
+                              <>
+                                <span className="animate-spin text-[8px]">🌀</span>
+                                <span>Generating...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>✨</span>
+                                <span>AI Write Template</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                         <textarea
                           id="msg"
                           rows={4}
