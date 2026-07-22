@@ -1,6 +1,6 @@
 # Recover — Decentralized Physical Item Recovery Protocol
 
-Recover is a privacy-first, secure physical item tracking and recovery protocol. By linking printed QR code stickers to an immutable decentralized ownership registry, it allows finders to contact owners instantly and coordinate returns securely—all without exposing the owner's private credentials or wallet address.
+Recover is an AI-powered, privacy-first, secure physical item tracking and recovery protocol. By linking printed QR code stickers to an immutable decentralized ownership registry and leveraging AI helper utilities, it allows finders to contact owners instantly and coordinate returns securely—all without exposing the owner's private credentials or wallet address.
 
 ---
 
@@ -49,8 +49,8 @@ sequenceDiagram
 * The landing page immediately triggers a scan event in the background, dispatching **real-time Web Push alerts** directly to the owner.
 
 ### 3. Secure Handover Verification
-* The finder submits a report containing their contact info, location coordinates, and a message.
-* This report appears instantly in the owner's dashboard inbox.
+* The finder submits a report containing their contact info, location coordinates, and a message. Finders can use AI message templates to construct polite return updates.
+* This report appears instantly in the owner's dashboard inbox, accompanied by an AI-generated location context safety analysis of the finder's coordinates.
 * When meeting the finder physically, the owner enters their private verification PIN on the verification screen to match the handshake, resetting the status in the registry to **Recovered**.
 
 ---
@@ -72,6 +72,7 @@ sequenceDiagram
 
 ### Backend (Next.js API Routes & MongoDB/Mongoose)
 * Database layer: **MongoDB** (hosted via Atlas or locally) managed with **Mongoose ODM**.
+* **AI Engine**: Connects to the **Google Gemini 2.0 Flash** API with exponential backoff retry resilience, drafting registration guidelines and coordinate context summaries.
 * **Web Push Protocol**: Signs and broadcasts native mobile push alerts to clients.
 
 ### Smart Contract Layer (Electroneum Mainnet)
