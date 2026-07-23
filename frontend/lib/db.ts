@@ -80,6 +80,8 @@ export interface IItem {
   image: string | null;
   rewardType: string;
   isActiveQr: boolean;
+  showPublicContact?: boolean;
+  publicContactMethod?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -165,6 +167,8 @@ const ItemSchema = new Schema<IItem>(
     image: { type: String, default: null },
     rewardType: { type: String, default: "custom" },
     isActiveQr: { type: Boolean, default: true },
+    showPublicContact: { type: Boolean, default: false },
+    publicContactMethod: { type: String, default: "phone" },
   },
   {
     timestamps: true,

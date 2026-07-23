@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -20,13 +23,27 @@ export async function GET(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    return NextResponse.json(user, { status: 200 });
+    // Check request header for authentication
+    const requestOwner = request.headers.get("x-owner-address")?.toLowerCase();
+    const isOwner = requestOwner === walletAddress.toLowerCase();
+
+    if (isOwner) {
+      return NextResponse.json(user, { status: 200 });
+    }
+
+    // Return sanitized public profile for non-owners (excluding phone, email, whatsapp)
+    const publicProfile = {
+      _id: user._id,
+      walletAddress: user._id,
+      fullName: user.fullName,
+      username: user.username,
+      subscriptionActive: Boolean(user.subscriptionActive),
+    };
+
+    return NextResponse.json(publicProfile, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Failed to fetch user profile:", err);

@@ -7,6 +7,7 @@ import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
 import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
+import EditItemModal from "@/components/EditItemModal/EditItemModal";
 
 interface LocalItem {
   registrationId: string;
@@ -29,6 +30,11 @@ interface LocalItem {
   passphrase?: string;
   rewardType?: string;
   image?: string;
+  showPublicContact?: boolean;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  publicContactMethod?: string;
 }
 
 interface FinderReport {
@@ -71,6 +77,9 @@ export default function ItemDetailPage({ params }: PageProps) {
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Edit item modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+
 
 
   const fetchItemAndReports = async () => {
@@ -84,7 +93,7 @@ export default function ItemDetailPage({ params }: PageProps) {
         headers["x-owner-address"] = account.address;
       }
       
-      const response = await fetch(`/api/items/${itemId}`, { headers });
+      const response = await fetch(`/api/items/${itemId}`, { headers, cache: "no-store" });
       if (!response.ok) {
         if (response.status === 404) {
           setItem(null);
@@ -118,6 +127,11 @@ export default function ItemDetailPage({ params }: PageProps) {
         passphrase: dbItem.passphrase || "",
         rewardType: dbItem.rewardType || "custom",
         image: dbItem.image || "",
+        showPublicContact: Boolean(dbItem.showPublicContact),
+        phone: dbItem.phone || "",
+        whatsapp: dbItem.whatsapp || "",
+        email: dbItem.email || "",
+        publicContactMethod: dbItem.publicContactMethod || "phone",
       };
 
       setItem(localItem);
@@ -126,6 +140,7 @@ export default function ItemDetailPage({ params }: PageProps) {
       if (account && account.address.toLowerCase() === localItem.owner.toLowerCase()) {
         const repResponse = await fetch(`/api/reports/item/${itemId}`, {
           headers: { "x-owner-address": account.address },
+          cache: "no-store",
         });
         if (repResponse.ok) {
           const dbReports = await repResponse.json();
@@ -493,8 +508,16 @@ export default function ItemDetailPage({ params }: PageProps) {
                   </button>
                 </div>
 
-                {/* On-Chain Delete Item Button */}
-                <div className="pt-2 border-t border-neutral-mist">
+                {/* Edit & Delete Action Buttons */}
+                <div className="pt-2 border-t border-neutral-mist grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    disabled={isActionLoading}
+                    className="w-full bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-neutral-mist font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>✏️ Edit Item Details</span>
+                  </button>
+
                   <button
                     onClick={() => setShowDeleteModal(true)}
                     disabled={isActionLoading}
@@ -676,6 +699,17 @@ export default function ItemDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {item && account && (
+        <EditItemModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          item={item}
+          ownerAddress={account.address}
+          onItemUpdated={fetchItemAndReports}
+        />
       )}
 
       {/* On-Chain Delete Item Critical Warning Modal */}

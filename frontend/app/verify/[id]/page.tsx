@@ -21,6 +21,7 @@ interface SyncedItem {
   itemHash: string;
   registeredAt: number;
   lastUpdated: number;
+  showPublicContact?: boolean;
 }
 
 interface PageProps {
@@ -257,13 +258,18 @@ export default function VerifyPage({ params }: PageProps) {
     }
   };
 
-  const syncOnChainStatus = async () => {
-    setIsLoading(true);
+  const syncOnChainStatus = async (showLoader = true) => {
+    if (showLoader) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       // 1. Read metadata from database API
-      const res = await fetch(`/api/items/${itemId}`);
+      const res = await fetch(`/api/items/${itemId}?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" },
+      });
       if (!res.ok) {
         setItem(null);
         return;
@@ -285,24 +291,27 @@ export default function VerifyPage({ params }: PageProps) {
         itemHash: dbItem.itemHash,
         registeredAt: new Date(dbItem.createdAt).getTime(),
         lastUpdated: new Date(dbItem.updatedAt).getTime(),
+        showPublicContact: Boolean(dbItem.showPublicContact),
       };
       setItem(localItem);
 
       // Trigger verify scan endpoint to notify owner of the scan event in real-time
-      try {
-        fetch("/api/verify/scan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ registrationId: itemId }),
-        });
-      } catch (scanErr) {
-        console.error("Failed to notify scan event:", scanErr);
+      if (showLoader) {
+        try {
+          fetch("/api/verify/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ registrationId: itemId }),
+          });
+        } catch (scanErr) {
+          console.error("Failed to notify scan event:", scanErr);
+        }
       }
 
       // Fetch owner display name
       if (localItem.owner) {
         try {
-          const profileRes = await fetch(`/api/profile?walletAddress=${localItem.owner}`);
+          const profileRes = await fetch(`/api/profile?walletAddress=${localItem.owner}`, { cache: "no-store" });
           if (profileRes.ok) {
             const profileData = await profileRes.json();
             setOwnerName(profileData.fullName);
@@ -315,12 +324,18 @@ export default function VerifyPage({ params }: PageProps) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Failed to load item status.");
     } finally {
-      setIsLoading(false);
+      if (showLoader) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    syncOnChainStatus();
+    syncOnChainStatus(true);
+    const interval = setInterval(() => {
+      syncOnChainStatus(false);
+    }, 3000);
+    return () => clearInterval(interval);
   }, [itemId]);
 
   if (isLoading) {
@@ -421,6 +436,83 @@ export default function VerifyPage({ params }: PageProps) {
               </div>
             </div>
 
+            {/* Direct Owner Contact Channel or Privacy Protection Badge */}
+            {(() => {
+              const isPublicContact = Boolean(item.showPublicContact);
+              if (!isPublicContact) {
+                return (
+                  <div className="bg-neutral-mist/50 border border-neutral-mist p-3.5 rounded-xl text-center space-y-1 max-w-md mx-auto">
+                    <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-primary">
+                      <span>🛡️</span>
+                      <span>Owner Privacy Protected</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-slate leading-relaxed">
+                      All finder messages are delivered safely via Recover in-app messaging and push notifications without exposing owner phone or email.
+                    </p>
+                  </div>
+                );
+              }
+
+              const phoneVal = item.phone?.trim() || "";
+              const whatsappVal = item.whatsapp?.trim() || "";
+              const emailVal = item.email?.trim() || "";
+              const contactVal = item.contact?.trim() || "";
+              const hasDirectChannel = Boolean(phoneVal || whatsappVal || emailVal || contactVal);
+
+              return (
+                <div className="space-y-2 max-w-md mx-auto">
+                  {hasDirectChannel ? (
+                    <div>
+                      {phoneVal ? (
+                        <a
+                          href={`tel:${phoneVal}`}
+                          className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                        >
+                          <span className="text-base">📞</span>
+                          <span>Call Owner ({phoneVal})</span>
+                        </a>
+                      ) : whatsappVal ? (
+                        <a
+                          href={`https://wa.me/${whatsappVal.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                        >
+                          <span className="text-base">💬</span>
+                          <span>Chat on WhatsApp ({whatsappVal})</span>
+                        </a>
+                      ) : emailVal ? (
+                        <a
+                          href={`mailto:${emailVal}`}
+                          onClick={(e) => handleEmailClick(e, emailVal)}
+                          className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                        >
+                          <span className="text-base">✉️</span>
+                          <span>Email Owner ({emailVal})</span>
+                        </a>
+                      ) : contactVal ? (
+                        <div className="text-center p-3 bg-neutral-mist/50 rounded-xl border border-neutral-mist">
+                          <span className="text-xs text-neutral-slate font-medium block mb-1">Owner Contact Info:</span>
+                          <span className="text-xs font-semibold text-primary font-mono select-all">{contactVal}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="text-center p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs space-y-1">
+                      <span className="font-semibold block">📞 Direct Owner Contact Enabled</span>
+                      <p className="text-[11px] leading-relaxed">No phone or email was provided.</p>
+                    </div>
+                  )}
+
+                  {copiedEmail && (
+                    <div className="bg-green-50 border border-green-200 text-accent p-3 rounded-xl text-xs text-center animate-fade-in font-medium">
+                      📋 Copied email <strong>{copiedEmail}</strong> to clipboard! Opening email app...
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="text-xs text-neutral-slate max-w-sm mx-auto">
               If this is your item, you can toggle its status or edit metadata via the{" "}
               <Link href="/dashboard" className="text-accent hover:underline font-semibold">
@@ -503,54 +595,76 @@ export default function VerifyPage({ params }: PageProps) {
                   <span>I Found This Item (Submit Report)</span>
                 </button>
 
-                {/* Direct Owner Contact Channels */}
+                {/* Direct Owner Contact Channels or Privacy Badge */}
                 {(() => {
-                  const phoneVal = item.phone?.trim() || (item.contact && /\+?[0-9\s-]{7,}/.test(item.contact) ? item.contact.match(/\+?[0-9\s-]{7,}/)?.[0].trim() : "");
-                  const whatsappVal = item.whatsapp?.trim() || phoneVal;
-                  const emailVal = item.email?.trim() || (item.contact && /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(item.contact) ? item.contact.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : "");
+                  const isPublicContact = Boolean(item.showPublicContact);
+                  if (!isPublicContact) {
+                    return (
+                      <div className="bg-neutral-mist/50 border border-neutral-mist p-3 rounded-xl text-center space-y-1">
+                        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-primary">
+                          <span>🛡️</span>
+                          <span>Owner Privacy Protected</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-slate leading-relaxed">
+                          All finder messages are delivered safely via Recover in-app messaging and push notifications without exposing owner phone or email.
+                        </p>
+                      </div>
+                    );
+                  }
 
-                  const hasDirectChannels = phoneVal || whatsappVal || emailVal;
+                  // Owner opted into public contact (Render ONLY the single selected contact method)
+                  const phoneVal = item.phone?.trim() || "";
+                  const whatsappVal = item.whatsapp?.trim() || "";
+                  const emailVal = item.email?.trim() || "";
+
+                  const hasDirectChannel = Boolean(phoneVal || whatsappVal || emailVal || item.contact);
 
                   return (
                     <div className="space-y-2 pt-1">
-                      {hasDirectChannels ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          {phoneVal && (
+                      {hasDirectChannel ? (
+                        <div className="max-w-md mx-auto">
+                          {phoneVal ? (
                             <a
                               href={`tel:${phoneVal}`}
-                              className="bg-primary hover:bg-primary-light text-neutral-white font-semibold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                              className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                             >
-                              <span>📞 Call Owner</span>
+                              <span className="text-base">📞</span>
+                              <span>Call Owner ({phoneVal})</span>
                             </a>
-                          )}
-
-                          {whatsappVal && (
+                          ) : whatsappVal ? (
                             <a
                               href={`https://wa.me/${whatsappVal.replace(/[^0-9]/g, "")}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="bg-[#25D366] hover:bg-[#20ba5a] text-neutral-white font-semibold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                              className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                             >
-                              <span>💬 WhatsApp</span>
+                              <span className="text-base">💬</span>
+                              <span>Chat on WhatsApp ({whatsappVal})</span>
                             </a>
-                          )}
-
-                          {emailVal && (
+                          ) : emailVal ? (
                             <a
                               href={`mailto:${emailVal}`}
                               onClick={(e) => handleEmailClick(e, emailVal)}
-                              className="bg-primary hover:bg-primary-light text-neutral-white font-semibold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                              className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                             >
-                              <span>✉️ Email Owner</span>
+                              <span className="text-base">✉️</span>
+                              <span>Email Owner ({emailVal})</span>
                             </a>
-                          )}
+                          ) : item.contact ? (
+                            <div className="text-center p-3 bg-neutral-mist/50 rounded-xl border border-neutral-mist">
+                              <span className="text-xs text-neutral-slate font-medium block mb-1">Owner Contact Info:</span>
+                              <span className="text-xs font-semibold text-primary font-mono select-all">{item.contact}</span>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : item.contact ? (
-                        <div className="text-center p-3 bg-neutral-mist/50 rounded-xl border border-neutral-mist">
-                          <span className="text-xs text-neutral-slate font-medium block mb-1">Owner Contact Info:</span>
-                          <span className="text-xs font-semibold text-primary font-mono select-all">{item.contact}</span>
+                      ) : (
+                        <div className="text-center p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs space-y-1">
+                          <span className="font-semibold block">📞 Direct Owner Contact Enabled</span>
+                          <p className="text-[11px] leading-relaxed">
+                            No direct phone or email was provided. Please use the direct message button above to contact the owner.
+                          </p>
                         </div>
-                      ) : null}
+                      )}
 
                       {copiedEmail && (
                         <div className="bg-green-50 border border-green-200 text-accent p-3 rounded-xl text-xs text-center animate-fade-in font-medium">
