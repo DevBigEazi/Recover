@@ -37,7 +37,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     queryKey: ["profile", walletAddress],
     queryFn: async () => {
       if (!walletAddress) return null;
-      const res = await fetch(`/api/profile?walletAddress=${walletAddress}`);
+      const res = await fetch(`/api/profile?walletAddress=${walletAddress}`, {
+        headers: { "x-owner-address": walletAddress },
+      });
       if (res.status === 404) {
         return { isNotFound: true };
       }

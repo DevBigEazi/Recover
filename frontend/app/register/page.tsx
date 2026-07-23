@@ -19,22 +19,28 @@ export default function RegisterPage() {
   const [brand, setBrand] = useState("");
   const [serial, setSerial] = useState("");
   const [reward, setReward] = useState("");
-  const [phoneInput, setPhoneInput] = useState("");
-  const [whatsappInput, setWhatsappInput] = useState("");
-  const [emailInput, setEmailInput] = useState("");
   const [instructions, setInstructions] = useState("");
   const [category, setCategory] = useState("Other");
   const [alternateContact, setAlternateContact] = useState("");
   const [secrets, setSecrets] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [rewardType, setRewardType] = useState("none"); // none, undisclosed, custom
+  const [keepPrivate, setKeepPrivate] = useState(true); // Default to 100% private in-app relay
+  const [contactMethod, setContactMethod] = useState<"phone" | "whatsapp" | "email">("phone");
+  const [singleContactValue, setSingleContactValue] = useState("");
 
-  // Sync contact details from profile when available
+  // Sync single contact value when method or profile changes
   useEffect(() => {
-    if (profilePhone) setPhoneInput(profilePhone);
-    if (profileWhatsapp) setWhatsappInput(profileWhatsapp);
-    if (profileEmail) setEmailInput(profileEmail);
-  }, [profilePhone, profileWhatsapp, profileEmail]);
+    if (contactMethod === "phone") {
+      setSingleContactValue(profilePhone || "");
+    } else if (contactMethod === "whatsapp") {
+      setSingleContactValue(profileWhatsapp || profilePhone || "");
+    } else if (contactMethod === "email") {
+      setSingleContactValue(profileEmail || "");
+    }
+  }, [contactMethod, profilePhone, profileWhatsapp, profileEmail]);
+
+
 
   // File Upload states
   const [receiptBase64, setReceiptBase64] = useState("");
@@ -197,10 +203,7 @@ export default function RegisterPage() {
           brand: brand.trim(),
           serial: serial.trim(),
           reward: rewardType === "custom" ? reward.trim() : "",
-          contactInfo: [phoneInput.trim(), whatsappInput.trim(), emailInput.trim()].filter(Boolean).join(" | "),
-          phone: phoneInput.trim(),
-          whatsapp: whatsappInput.trim(),
-          email: emailInput.trim(),
+
           instructions: instructions.trim(),
           category,
           alternateContact: category === "Phone" || alternateContact.trim() ? alternateContact.trim() : "",
@@ -209,6 +212,12 @@ export default function RegisterPage() {
           passphrase: passphrase.trim(),
           rewardType,
           image: imageBase64,
+          showPublicContact: !keepPrivate,
+          publicContactMethod: contactMethod,
+          phone: contactMethod === "phone" ? singleContactValue.trim() : profilePhone || "",
+          whatsapp: contactMethod === "whatsapp" ? singleContactValue.trim() : profileWhatsapp || "",
+          email: contactMethod === "email" ? singleContactValue.trim() : profileEmail || "",
+          contactInfo: singleContactValue.trim() || [profilePhone, profileEmail].filter(Boolean).join(" | "),
         }),
       });
 
@@ -585,64 +594,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Primary Contact Channels (Pre-filled from Profile) */}
-              <div className="sm:col-span-6 border-t border-neutral-mist pt-4 space-y-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-primary">
-                    Contact Channels for Finders (Auto-filled from Profile)
-                  </h4>
-                  <p className="text-xs text-neutral-slate mt-0.5">
-                    These contact options will be available on your item's verification page so finders can reach you directly.
-                  </p>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label htmlFor="reg_phone" className="block text-xs font-semibold text-neutral-slate mb-1">
-                      📞 Phone Number (Calls)
-                    </label>
-                    <input
-                      id="reg_phone"
-                      type="tel"
-                      value={phoneInput}
-                      onChange={(e) => setPhoneInput(e.target.value)}
-                      placeholder="e.g. +2348012345678"
-                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary font-mono focus:border-accent focus:outline-none bg-neutral-mist/30"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="reg_whatsapp" className="block text-xs font-semibold text-neutral-slate mb-1">
-                      💬 WhatsApp Number
-                    </label>
-                    <input
-                      id="reg_whatsapp"
-                      type="tel"
-                      value={whatsappInput}
-                      onChange={(e) => setWhatsappInput(e.target.value)}
-                      placeholder="e.g. +2348012345678"
-                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary font-mono focus:border-accent focus:outline-none bg-neutral-mist/30"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="reg_email" className="block text-xs font-semibold text-neutral-slate mb-1">
-                      ✉️ Email Address
-                    </label>
-                    <input
-                      id="reg_email"
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder="e.g. owner@example.com"
-                      className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-xs text-primary focus:border-accent focus:outline-none bg-neutral-mist/30"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Conditional Trusted Alternate Contact */}
               {category === "Phone" ? (
@@ -683,7 +635,136 @@ export default function RegisterPage() {
                   </p>
                 </div>
               )}
+              {/* Contact Privacy Mode Selection */}
+              <div className="sm:col-span-6 p-4 bg-neutral-mist/40 border border-neutral-mist rounded-xl space-y-3">
+                <label className="block font-bold text-sm text-primary">
+                  Contact Privacy Preference
+                </label>
 
+                <div className="space-y-2">
+                  {/* Option 1: Keep Private */}
+                  <div
+                    onClick={() => setKeepPrivate(true)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      keepPrivate
+                        ? "bg-neutral-white border-accent shadow-xs"
+                        : "bg-neutral-mist/30 border-gray-200 hover:bg-neutral-mist/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      id="reg_privacy_private"
+                      name="reg_privacy_mode"
+                      checked={keepPrivate}
+                      onChange={() => setKeepPrivate(true)}
+                      className="mt-0.5 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <label htmlFor="reg_privacy_private" className="cursor-pointer space-y-0.5">
+                      <span className="block font-semibold text-xs text-primary">
+                        🛡️ Keep Contact Details Private (Recommended)
+                      </span>
+                      <span className="block text-[11px] text-neutral-slate leading-relaxed">
+                        Finders send messages directly to your dashboard. Your phone and email are hidden from public QR scans.
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Option 2: Reveal Direct Contact */}
+                  <div
+                    onClick={() => setKeepPrivate(false)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      !keepPrivate
+                        ? "bg-neutral-white border-accent shadow-xs"
+                        : "bg-neutral-mist/30 border-gray-200 hover:bg-neutral-mist/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      id="reg_privacy_public"
+                      name="reg_privacy_mode"
+                      checked={!keepPrivate}
+                      onChange={() => setKeepPrivate(false)}
+                      className="mt-0.5 text-accent focus:ring-accent cursor-pointer"
+                    />
+                    <label htmlFor="reg_privacy_public" className="cursor-pointer space-y-0.5">
+                      <span className="block font-semibold text-xs text-primary">
+                        📞 Reveal Direct Contact Button to Finders
+                      </span>
+                      <span className="block text-[11px] text-neutral-slate leading-relaxed">
+                        Finders scanning your item's QR sticker will see a direct Call, WhatsApp, or Email button.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {!keepPrivate && (
+                  <div className="pt-3 border-t border-neutral-mist space-y-3 animate-fade-in">
+                    <div>
+                      <label className="block font-semibold text-primary mb-1.5 text-xs">
+                        Select Contact Method to Reveal (Only 1 Allowed)
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setContactMethod("phone")}
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                            contactMethod === "phone"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
+                          }`}
+                        >
+                          <span>📞 Phone Call</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setContactMethod("whatsapp")}
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                            contactMethod === "whatsapp"
+                              ? "bg-[#25D366] text-white border-[#25D366]"
+                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
+                          }`}
+                        >
+                          <span>💬 WhatsApp</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setContactMethod("email")}
+                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                            contactMethod === "email"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
+                          }`}
+                        >
+                          <span>✉️ Email</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="reg_single_contact_input" className="block font-semibold text-primary mb-1 text-xs">
+                        {contactMethod === "phone" && "Public Phone Number (For Calls)"}
+                        {contactMethod === "whatsapp" && "Public WhatsApp Number"}
+                        {contactMethod === "email" && "Public Email Address"}
+                      </label>
+                      <input
+                        type={contactMethod === "email" ? "email" : "text"}
+                        id="reg_single_contact_input"
+                        value={singleContactValue}
+                        onChange={(e) => setSingleContactValue(e.target.value)}
+                        placeholder={
+                          contactMethod === "email"
+                            ? "e.g. owner@example.com"
+                            : "e.g. +234 814 599 1080"
+                        }
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-accent focus:outline-hidden bg-neutral-white font-mono"
+                      />
+                      <p className="text-[10px] text-neutral-slate mt-1">
+                        Finders scanning your QR sticker when lost will see only this selected contact button.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Recovery Instructions */}
               <div className="sm:col-span-6 space-y-1">
                 <div className="flex items-center justify-between">
