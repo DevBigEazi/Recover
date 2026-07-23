@@ -28,6 +28,8 @@ export async function POST(request: Request) {
       passphrase,
       rewardType,
       image,
+      showPublicContact,
+      publicContactMethod,
     } = body;
 
     // 1. Inputs validation
@@ -117,6 +119,8 @@ export async function POST(request: Request) {
           passphrase: passphrase || null,
           image: image || null,
           rewardType: rewardType || "custom",
+          showPublicContact: Boolean(showPublicContact),
+          publicContactMethod: publicContactMethod || "phone",
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -216,6 +220,8 @@ export async function POST(request: Request) {
         passphrase: passphrase || null,
         image: image || null,
         rewardType: rewardType || "custom",
+        showPublicContact: Boolean(showPublicContact),
+        publicContactMethod: publicContactMethod || "phone",
       });
 
       // Delete pending record only after successful active record insertion
