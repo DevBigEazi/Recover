@@ -30,7 +30,20 @@ export async function GET(request: Request, { params }: Props) {
       registrationId: id,
     }).sort({ createdAt: -1 });
 
-    return NextResponse.json(reports, { status: 200 });
+    const isBootstrapFree = process.env.BOOTSTRAP_FREE_PHASE === "true";
+    const isItemUnlocked = item.unlockedForCurrentLostCycle === true;
+
+    const mappedReports = reports.map((report) => {
+      const isUnlocked = isBootstrapFree || isItemUnlocked || report.unlocked === true;
+      return {
+        ...report.toObject(),
+        message: isUnlocked ? report.message : "🔒 Message locked. Pay to unlock.",
+        contactInfo: isUnlocked ? report.contactInfo : "🔒 Contact details locked.",
+        unlocked: isUnlocked,
+      };
+    });
+
+    return NextResponse.json(mappedReports, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
     console.error("Failed to list reports for item:", err);

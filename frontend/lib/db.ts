@@ -80,6 +80,7 @@ export interface IItem {
   image: string | null;
   rewardType: string;
   isActiveQr: boolean;
+  unlockedForCurrentLostCycle: boolean;
   showPublicContact?: boolean;
   publicContactMethod?: string;
   createdAt?: Date;
@@ -95,6 +96,7 @@ export interface IFinderReport {
   location: string | null;
   locationContext?: string | null;
   photo: string | null;
+  unlocked: boolean;
   createdAt?: Date;
 }
 
@@ -167,6 +169,7 @@ const ItemSchema = new Schema<IItem>(
     image: { type: String, default: null },
     rewardType: { type: String, default: "custom" },
     isActiveQr: { type: Boolean, default: true },
+    unlockedForCurrentLostCycle: { type: Boolean, default: false },
     showPublicContact: { type: Boolean, default: false },
     publicContactMethod: { type: String, default: "phone" },
   },
@@ -194,6 +197,7 @@ const FinderReportSchema = new Schema<IFinderReport>(
     location: { type: String, default: null },
     locationContext: { type: String, default: null },
     photo: { type: String, default: null },
+    unlocked: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },
   {
