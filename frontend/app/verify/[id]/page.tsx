@@ -43,6 +43,10 @@ export default function VerifyPage({ params }: PageProps) {
   // Finder Report form states
   const [finderMessage, setFinderMessage] = useState("");
   const [finderContact, setFinderContact] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"meetup" | "courier">("meetup");
+  const [courierCompany, setCourierCompany] = useState("");
+  const [courierTracking, setCourierTracking] = useState("");
+  const [courierNotes, setCourierNotes] = useState("");
   const [shareLocation, setShareLocation] = useState(false);
   const [locationCoords, setLocationCoords] = useState("");
   const [isLocating, setIsLocating] = useState(false);
@@ -203,6 +207,15 @@ export default function VerifyPage({ params }: PageProps) {
       return;
     }
 
+    if (deliveryMethod === "courier" && (!courierCompany.trim() || !courierTracking.trim())) {
+      setReportError("Courier service name and tracking/contact details are required.");
+      return;
+    }
+
+    const combinedCourierDetails = deliveryMethod === "courier"
+      ? `Company: ${courierCompany.trim()} | Tracking/Contact: ${courierTracking.trim()}${courierNotes.trim() ? ` | Notes: ${courierNotes.trim()}` : ""}`
+      : "";
+
     setIsSubmittingReport(true);
     setReportError(null);
 
@@ -217,6 +230,8 @@ export default function VerifyPage({ params }: PageProps) {
           contactInfo: finderContact.trim(),
           location: locationCoords,
           photo: photoBase64,
+          deliveryMethod,
+          courierDetails: deliveryMethod === "courier" ? combinedCourierDetails.trim() : null,
         }),
       });
 
@@ -228,6 +243,10 @@ export default function VerifyPage({ params }: PageProps) {
       setReportSuccess(true);
       setFinderMessage("");
       setFinderContact("");
+      setDeliveryMethod("meetup");
+      setCourierCompany("");
+      setCourierTracking("");
+      setCourierNotes("");
       setShareLocation(false);
       setLocationCoords("");
       setPhotoBase64("");
@@ -381,6 +400,7 @@ export default function VerifyPage({ params }: PageProps) {
       </main>
     );
   }
+
 
   return (
     <main className="min-h-screen bg-neutral-mist pb-16">
@@ -788,6 +808,115 @@ export default function VerifyPage({ params }: PageProps) {
                           disabled={isSubmittingReport}
                         />
                       </div>
+
+                      {/* Handover Preference */}
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-primary">
+                          Handover Preference
+                        </label>
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                          <label className="flex items-center gap-1.5 text-xs text-primary font-medium cursor-pointer">
+                            <input
+                              type="radio"
+                              name="deliveryMethod"
+                              value="meetup"
+                              checked={deliveryMethod === "meetup"}
+                              onChange={() => {
+                                setDeliveryMethod("meetup");
+                                setCourierCompany("");
+                                setCourierTracking("");
+                                setCourierNotes("");
+                              }}
+                              disabled={isSubmittingReport}
+                              className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
+                            />
+                            🤝 Public Meetup
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-primary font-medium cursor-pointer">
+                            <input
+                              type="radio"
+                              name="deliveryMethod"
+                              value="courier"
+                              checked={deliveryMethod === "courier"}
+                              onChange={() => setDeliveryMethod("courier")}
+                              disabled={isSubmittingReport}
+                              className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
+                            />
+                            📦 Send via Courier
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-neutral-slate font-medium cursor-not-allowed select-none group relative">
+                            <input
+                              type="radio"
+                              name="deliveryMethod"
+                              value="integrated"
+                              disabled={true}
+                              className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-not-allowed opacity-50"
+                            />
+                            <span className="opacity-50">🚚 Integrated Courier</span>
+                            <span className="bg-amber-100 text-amber-800 text-[8px] font-bold px-1 py-0.5 rounded-sm uppercase tracking-wide opacity-80">Coming Soon</span>
+                            <span className="cursor-help text-neutral-slate text-[11px] font-bold">ⓘ</span>
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-56 p-3 bg-[#1e293b] text-[#f8fafc] text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50 leading-relaxed font-normal text-center border border-slate-700">
+                              Coming soon: Dispatches automated courier partners (Uber/DHL) to pick up items anonymously, protecting your home address privacy.
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Courier Details */}
+                      {deliveryMethod === "courier" && (
+                        <div className="space-y-3 bg-neutral-mist/20 p-3.5 border border-neutral-mist rounded-xl">
+                          <h4 className="text-xs font-bold text-primary font-display flex items-center gap-1.5">
+                            📦 Courier Delivery Setup
+                          </h4>
+                          
+                          <div>
+                            <label htmlFor="courier_company" className="block text-[11px] font-semibold text-neutral-slate">
+                              Courier Service / Company Name <span className="text-accent font-bold">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              id="courier_company"
+                              value={courierCompany}
+                              onChange={(e) => setCourierCompany(e.target.value)}
+                              placeholder="e.g. GIG Logistics, DHL, Local Dispatch Rider"
+                              required={deliveryMethod === "courier"}
+                              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
+                              disabled={isSubmittingReport}
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="courier_tracking" className="block text-[11px] font-semibold text-neutral-slate">
+                              Tracking Number or Dispatch Contact <span className="text-accent font-bold">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              id="courier_tracking"
+                              value={courierTracking}
+                              onChange={(e) => setCourierTracking(e.target.value)}
+                              placeholder="e.g. Waybill ID or rider's phone number"
+                              required={deliveryMethod === "courier"}
+                              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
+                              disabled={isSubmittingReport}
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="courier_notes" className="block text-[11px] font-semibold text-neutral-slate">
+                              Additional Delivery Instructions (Optional)
+                            </label>
+                            <textarea
+                              id="courier_notes"
+                              rows={2}
+                              value={courierNotes}
+                              onChange={(e) => setCourierNotes(e.target.value)}
+                              placeholder="e.g. package details, expected delivery day, or special instructions."
+                              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
+                              disabled={isSubmittingReport}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Geolocation Capture */}
                       <div className="flex items-center justify-between p-3 bg-neutral-mist/40 border border-neutral-mist rounded-xl">

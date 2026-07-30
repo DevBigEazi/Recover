@@ -39,6 +39,7 @@ export async function GET(request: Request, { params }: Props) {
         ...report.toObject(),
         message: isUnlocked ? report.message : "🔒 Message locked. Pay to unlock.",
         contactInfo: isUnlocked ? report.contactInfo : "🔒 Contact details locked.",
+        courierDetails: isUnlocked ? report.courierDetails : "🔒 Courier details locked.",
         unlocked: isUnlocked,
       };
     });

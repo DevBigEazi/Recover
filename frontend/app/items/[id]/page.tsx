@@ -46,6 +46,8 @@ interface FinderReport {
   location: string;
   locationContext?: string | null;
   unlocked?: boolean;
+  deliveryMethod?: "meetup" | "courier";
+  courierDetails?: string | null;
   timestamp: number;
 }
 
@@ -342,6 +344,8 @@ export default function ItemDetailPage({ params }: PageProps) {
             location?: string | null;
             locationContext?: string | null;
             unlocked?: boolean;
+            deliveryMethod?: "meetup" | "courier";
+            courierDetails?: string | null;
             createdAt: string;
           }
 
@@ -354,6 +358,8 @@ export default function ItemDetailPage({ params }: PageProps) {
             location: r.location || "",
             locationContext: r.locationContext || null,
             unlocked: Boolean(r.unlocked),
+            deliveryMethod: r.deliveryMethod || "meetup",
+            courierDetails: r.courierDetails || null,
             timestamp: new Date(r.createdAt).getTime(),
           }));
           setReports(mappedReports);
@@ -773,12 +779,26 @@ export default function ItemDetailPage({ params }: PageProps) {
                             <span className="font-medium">Report #{report.reportId.substring(0, 8)}</span>
                             <span>{new Date(report.timestamp).toLocaleDateString()}</span>
                           </div>
-                          <p className="text-primary leading-relaxed font-sans">{report.message}</p>
+
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${report.deliveryMethod === "courier" ? "bg-blue-50 text-blue-700 border border-blue-100" : "bg-green-50 text-green-700 border border-green-100"}`}>
+                              {report.deliveryMethod === "courier" ? "📦 Courier Return" : "🤝 In-Person Meetup"}
+                            </span>
+                          </div>
+
+                          <p className="text-primary leading-relaxed font-sans mt-2">{report.message}</p>
                           
                           {report.contactInfo && (
                             <div className="bg-neutral-white border border-neutral-mist p-2 rounded-lg mt-2">
                               <span className="font-semibold text-primary block">Finder Contact:</span>
                               <span className="text-neutral-slate">{report.contactInfo}</span>
+                            </div>
+                          )}
+
+                          {report.deliveryMethod === "courier" && report.courierDetails && (
+                            <div className="bg-neutral-white border border-neutral-mist p-2 rounded-lg mt-2">
+                              <span className="font-semibold text-primary block">Courier / Delivery Details:</span>
+                              <span className="text-neutral-slate">{report.courierDetails}</span>
                             </div>
                           )}
                           
