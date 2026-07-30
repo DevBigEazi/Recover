@@ -57,15 +57,49 @@ export async function POST(request: Request) {
     const originalStatus = item.status;
 
     // 5. Update Database record status optimistically first.
+    const updateFields: Record<string, unknown> = { status: status };
+    if (status === "Lost") {
+      updateFields.unlockedForCurrentLostCycle = false;
+    }
+
     await db.item.updateOne(
       { _id: registrationId },
       {
-        $set: { status: status },
+        $set: updateFields,
       }
     );
 
     try {
-      // 6. Fetch the owner's nonce from the blockchain contract
+      // 6. Fetch the current on-chain item details to check status
+      interface OnChainItem {
+        registrationId: bigint;
+        owner: string;
+        status: number;
+        registeredAt: number;
+        lastUpdated: number;
+        itemHash: string;
+      }
+
+      const onChainItem = await readContract({
+        contract: recoverContract,
+        method: "function getItem(uint256 registrationId) view returns ((uint256 registrationId, address owner, uint8 status, uint40 registeredAt, uint40 lastUpdated, bytes32 itemHash))",
+        params: [BigInt(registrationId)],
+      }) as unknown as OnChainItem;
+
+      const targetStatusNumber = status === "Lost" ? 1 : 2; // 1 for Lost, 2 for Recovered
+
+      if (onChainItem && Number(onChainItem.status) === targetStatusNumber) {
+        console.log(`[ON-CHAIN] Item ${registrationId} is already in target status ${status} on-chain. Skipping transition transaction.`);
+        if (status === "Recovered") {
+          await db.finderReport.deleteMany({
+            registrationId: registrationId,
+          });
+        }
+        const updatedItem = await db.item.findOne({ _id: registrationId });
+        return NextResponse.json(updatedItem ? updatedItem.toObject() : item.toObject(), { status: 200 });
+      }
+
+      // Fetch the owner's nonce from the blockchain contract
       const nonce = await readContract({
         contract: recoverContract,
         method: "function userNonces(address user) view returns (uint256)",

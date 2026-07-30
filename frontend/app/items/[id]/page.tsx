@@ -35,6 +35,7 @@ interface LocalItem {
   whatsapp?: string;
   email?: string;
   publicContactMethod?: string;
+  unlockedForCurrentLostCycle?: boolean;
 }
 
 interface FinderReport {
@@ -44,7 +45,94 @@ interface FinderReport {
   contactInfo: string;
   location: string;
   locationContext?: string | null;
+  unlocked?: boolean;
   timestamp: number;
+}
+
+interface CurrencyInfo {
+  currency: string;
+  symbol: string;
+  phonePrice: number;
+  otherPrice: number;
+}
+
+const detectCurrency = async (): Promise<CurrencyInfo> => {
+  const getFallback = (): CurrencyInfo => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (tz.includes("Lagos") || tz.includes("Abidjan")) {
+      return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
+    }
+    if (tz.includes("Accra")) {
+      return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
+    }
+    if (tz.includes("Nairobi")) {
+      return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
+    }
+    if (tz.includes("Johannesburg")) {
+      return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
+    }
+    return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
+  };
+
+  try {
+    const cfRes = await fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: AbortSignal.timeout(3000) });
+    if (cfRes.ok) {
+      const text = await cfRes.text();
+      const lines = text.split("\n");
+      const locLine = lines.find(l => l.startsWith("loc="));
+      if (locLine) {
+        const country = locLine.split("=")[1].trim().toUpperCase();
+        if (country === "NG") return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
+        if (country === "GH") return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
+        if (country === "KE") return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
+        if (country === "ZA") return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
+        return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
+      }
+    }
+  } catch (e) {
+    console.warn("Cloudflare trace geolocation failed, trying ipapi.co...", e);
+  }
+
+  try {
+    const ipRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
+    if (ipRes.ok) {
+      const data = await ipRes.json();
+      const country = data.country_code?.toUpperCase();
+      if (country === "NG") return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
+      if (country === "GH") return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
+      if (country === "KE") return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
+      if (country === "ZA") return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
+      return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
+    }
+  } catch (e) {
+    console.warn("ipapi.co failed, falling back to timezone...", e);
+  }
+
+  return getFallback();
+};
+
+interface PaystackResponse {
+  reference: string;
+}
+
+interface PaystackPopInstance {
+  resumeTransaction: (
+    accessCode: string,
+    options?: {
+      onSuccess?: (transaction: PaystackResponse) => void | Promise<void>;
+      onCancel?: () => void;
+    }
+  ) => void;
+}
+
+interface PaystackPop {
+  new (): PaystackPopInstance;
+}
+
+declare global {
+  interface Window {
+    PaystackPop?: PaystackPop;
+  }
 }
 
 interface PageProps {
@@ -66,6 +154,106 @@ export default function ItemDetailPage({ params }: PageProps) {
 
   // Quick Action States
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo>({
+    currency: "USD",
+    symbol: "$",
+    phonePrice: 10,
+    otherPrice: 4
+  });
+
+  useEffect(() => {
+    const runDetect = async () => {
+      const info = await detectCurrency();
+      setCurrencyInfo(info);
+    };
+    runDetect();
+  }, []);
+
+  const loadPaystackScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (window.PaystackPop) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://js.paystack.co/v2/inline.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleUnlock = async (reportId: string) => {
+    setIsActionLoading(true);
+    try {
+      const scriptLoaded = await loadPaystackScript();
+      if (!scriptLoaded) {
+        alert("Failed to load payment gateway. Please check your internet connection.");
+        setIsActionLoading(false);
+        return;
+      }
+
+      if (!window.PaystackPop) {
+        alert("Payment gateway not loaded.");
+        setIsActionLoading(false);
+        return;
+      }
+
+      const pricing = currencyInfo;
+
+      // 1. Initialize the transaction from the backend to get the access_code
+      const initRes = await fetch("/api/reports/initialize-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId, currency: pricing.currency })
+      });
+
+      if (!initRes.ok) {
+        const errData = await initRes.json();
+        throw new Error(errData.error || "Failed to initialize payment.");
+      }
+
+      const { access_code } = await initRes.json();
+
+      // 2. Open the Paystack Pop V2 Checkout using the access_code
+      const popup = new window.PaystackPop();
+      popup.resumeTransaction(access_code, {
+        onSuccess: async (transaction: PaystackResponse) => {
+          await completeUnlock(reportId, transaction.reference, pricing.currency);
+        },
+        onCancel: () => {
+          setIsActionLoading(false);
+        }
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to initialize checkout.";
+      alert(errMsg);
+      setIsActionLoading(false);
+    }
+  };
+
+  const completeUnlock = async (reportId: string, reference: string, currency: string) => {
+    setIsActionLoading(true);
+    try {
+      const res = await fetch("/api/reports/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId, reference, currency })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Verification failed");
+      }
+      
+      await fetchItemAndReports();
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to unlock report.";
+      alert(errMsg);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   // Confirm state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -132,6 +320,7 @@ export default function ItemDetailPage({ params }: PageProps) {
         whatsapp: dbItem.whatsapp || "",
         email: dbItem.email || "",
         publicContactMethod: dbItem.publicContactMethod || "phone",
+        unlockedForCurrentLostCycle: Boolean(dbItem.unlockedForCurrentLostCycle),
       };
 
       setItem(localItem);
@@ -152,6 +341,7 @@ export default function ItemDetailPage({ params }: PageProps) {
             contactInfo?: string | null;
             location?: string | null;
             locationContext?: string | null;
+            unlocked?: boolean;
             createdAt: string;
           }
 
@@ -163,6 +353,7 @@ export default function ItemDetailPage({ params }: PageProps) {
             contactInfo: r.contactInfo || "",
             location: r.location || "",
             locationContext: r.locationContext || null,
+            unlocked: Boolean(r.unlocked),
             timestamp: new Date(r.createdAt).getTime(),
           }));
           setReports(mappedReports);
@@ -544,8 +735,8 @@ export default function ItemDetailPage({ params }: PageProps) {
 
           {/* RIGHT: QR Code sticker & Finder Reports Inbox */}
           <div className="space-y-6">
-            {/* Finder Messages Inbox (Only for owner) */}
-            {isOwner && (
+            {/* Finder Messages Inbox (Only for owner when item is Lost) */}
+            {isOwner && item?.status === "Lost" && (
               <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 shadow-xs space-y-4">
                 <h3 className="text-md font-bold text-primary font-display flex items-center justify-between">
                   <span>Finder Messages</span>
@@ -576,43 +767,69 @@ export default function ItemDetailPage({ params }: PageProps) {
 
                     <div className="space-y-4 max-h-75 overflow-y-auto pr-1">
                     {reports.map((report) => (
-                      <div key={report.reportId} className="bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2">
-                        <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
-                          <span className="font-medium">Report #{report.reportId.substring(0, 8)}</span>
-                          <span>{new Date(report.timestamp).toLocaleDateString()}</span>
-                        </div>
-                        <p className="text-primary leading-relaxed font-sans">{report.message}</p>
-                        
-                        {report.contactInfo && (
-                          <div className="bg-neutral-white border border-neutral-mist p-2 rounded-lg mt-2">
-                            <span className="font-semibold text-primary block">Finder Contact:</span>
-                            <span className="text-neutral-slate">{report.contactInfo}</span>
+                      <div key={report.reportId} className="relative bg-neutral-mist/40 border border-neutral-mist rounded-xl p-4 text-xs space-y-2 overflow-hidden">
+                        <div className={`space-y-2 transition-all ${!report.unlocked ? "filter blur-sm select-none pointer-events-none" : ""}`}>
+                          <div className="flex justify-between items-center text-[10px] text-neutral-slate border-b border-neutral-mist pb-1.5">
+                            <span className="font-medium">Report #{report.reportId.substring(0, 8)}</span>
+                            <span>{new Date(report.timestamp).toLocaleDateString()}</span>
                           </div>
-                        )}
-                        
-                        {report.location && (
-                          <div className="mt-2 text-left">
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent font-medium text-[11px] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
-                            </a>
-                            {report.locationContext && (
-                              <div className="bg-amber-50/50 border border-amber-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-amber-800 leading-normal flex items-start gap-1.5 text-left">
-                                <span className="shrink-0 text-xs mt-0.5">💡</span>
-                                <div>
-                                  <strong className="font-semibold text-amber-900 block mb-0.5">AI Location Insight</strong>
-                                  {report.locationContext}
+                          <p className="text-primary leading-relaxed font-sans">{report.message}</p>
+                          
+                          {report.contactInfo && (
+                            <div className="bg-neutral-white border border-neutral-mist p-2 rounded-lg mt-2">
+                              <span className="font-semibold text-primary block">Finder Contact:</span>
+                              <span className="text-neutral-slate">{report.contactInfo}</span>
+                            </div>
+                          )}
+                          
+                          {report.location && (
+                            <div className="mt-2 text-left">
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.location.replace(/Lat:\s*|Lng:\s*/gi, "").trim())}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent font-medium text-[11px] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
+                              </a>
+                              {report.locationContext && (
+                                <div className="bg-amber-50/50 border border-amber-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-amber-800 leading-normal flex items-start gap-1.5 text-left">
+                                  <span className="shrink-0 text-xs mt-0.5">💡</span>
+                                  <div>
+                                    <strong className="font-semibold text-amber-900 block mb-0.5">AI Location Insight</strong>
+                                    {report.locationContext}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {!report.unlocked && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-white/80 backdrop-blur-xs p-4 text-center space-y-3">
+                            <div className="p-2 bg-amber-500/10 rounded-full text-warning text-base leading-none">
+                              🔒
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-primary text-xs font-display">Locked Finder Report</h4>
+                              <p className="text-[10px] text-neutral-slate max-w-60 leading-normal">
+                                Pay a one-time fee to unlock the finder's message and contact details to coordinate return.
+                              </p>
+                            </div>
+                            <div className="flex flex-col w-full gap-2 px-4 max-w-55">
+                              <button
+                                type="button"
+                                disabled={isActionLoading}
+                                onClick={() => handleUnlock(report.reportId)}
+                                className="w-full bg-accent hover:bg-accent/90 text-neutral-white font-bold py-2 px-3 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              >
+                                {isActionLoading ? "Processing..." : `Unlock for ${currencyInfo.symbol}${item?.category === "Phone" ? currencyInfo.phonePrice.toLocaleString() : currencyInfo.otherPrice.toLocaleString()} ${currencyInfo.currency}`}
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
