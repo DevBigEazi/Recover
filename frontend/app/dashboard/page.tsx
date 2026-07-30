@@ -11,6 +11,7 @@ import { useProfile } from "@/context/ProfileContext";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
 import BatchStickerStudioModal from "@/components/BatchStickerStudioModal/BatchStickerStudioModal";
 import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
+import { toast } from "react-hot-toast";
 
 interface LocalItem {
   registrationId: string;
@@ -104,11 +105,13 @@ export default function DashboardPage() {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
+      toast.success("Item marked as Lost.");
       queryClient.invalidateQueries({ queryKey: ["items", account.address] });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark lost:", err);
       setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoadingId(null);
     }
@@ -137,11 +140,13 @@ export default function DashboardPage() {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
+      toast.success("Item marked as Recovered.");
       queryClient.invalidateQueries({ queryKey: ["items", account.address] });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark recovered:", err);
       setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoadingId(null);
     }

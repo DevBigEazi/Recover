@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 interface HandoverVerificationCardProps {
   itemId: string;
@@ -28,9 +29,15 @@ export default function HandoverVerificationCard({ itemId }: HandoverVerificatio
 
       const data = await res.json();
       setPinResult({ valid: data.valid, message: data.message });
+      if (data.valid) {
+        toast.success(data.message || "PIN verified successfully!");
+      } else {
+        toast.error(data.message || "Invalid PIN entered.");
+      }
     } catch (err) {
       console.error("Failed to verify PIN:", err);
       setPinResult({ valid: false, message: "Failed to connect to verification server." });
+      toast.error("Failed to connect to verification server.");
     } finally {
       setIsVerifyingPin(false);
     }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 interface FinderReportFormProps {
   itemId: string;
@@ -110,6 +111,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
     } catch (err) {
       console.error("Image compression failed:", err);
       setReportError("Failed to compress and upload photo. Try a smaller file.");
+      toast.error("Failed to compress and upload photo. Try a smaller file.");
     } finally {
       setIsCompressing(false);
     }
@@ -125,6 +127,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
 
     if (!navigator.geolocation) {
       setReportError("Geolocation is not supported by your browser.");
+      toast.error("Geolocation is not supported by your browser.");
       setShareLocation(false);
       return;
     }
@@ -142,6 +145,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       (err) => {
         console.error("Geolocation error:", err);
         setReportError("Location access denied or unavailable.");
+        toast.error("Location access denied or unavailable.");
         setShareLocation(false);
         setIsLocating(false);
       },
@@ -153,16 +157,19 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
     e.preventDefault();
     if (finderMessage.trim().length < 10) {
       setReportError("Message must be at least 10 characters long.");
+      toast.error("Message must be at least 10 characters long.");
       return;
     }
 
     if (!finderContact.trim()) {
       setReportError("Contact information is required.");
+      toast.error("Contact information is required.");
       return;
     }
 
     if (deliveryMethod === "courier" && (!courierCompany.trim() || !courierTracking.trim())) {
       setReportError("Courier service name and tracking/contact details are required.");
+      toast.error("Courier service name and tracking/contact details are required.");
       return;
     }
 
@@ -193,6 +200,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
         throw new Error(errorData.error || "Failed to submit report to backend database.");
       }
 
+      toast.success("Found report submitted successfully!");
       setReportSuccess(true);
       setFinderMessage("");
       setFinderContact("");
@@ -205,7 +213,9 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       setPhotoBase64("");
     } catch (err: unknown) {
       console.error(err);
-      setReportError(err instanceof Error ? err.message : "An unexpected error occurred while submitting.");
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred while submitting.";
+      setReportError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmittingReport(false);
     }

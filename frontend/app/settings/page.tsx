@@ -9,6 +9,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { useWalletDetailsModal } from "thirdweb/react";
 import { Loader2 } from "lucide-react";
 import { client } from "@/lib/client";
+import { toast } from "react-hot-toast";
 
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
@@ -61,6 +62,7 @@ export default function SettingsPage() {
     if (!account || isRegisteringPush) return;
     if (!("serviceWorker" in navigator) || !("Notification" in window)) {
       setPushStatusMsg("Web Push notifications are not supported in this browser.");
+      toast.error("Web Push notifications are not supported in this browser.");
       return;
     }
 
@@ -72,6 +74,7 @@ export default function SettingsPage() {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           setPushStatusMsg("Notification permission was denied in your browser settings.");
+          toast.error("Notification permission was denied in your browser settings.");
           setIsRegisteringPush(false);
           return;
         }
@@ -80,6 +83,7 @@ export default function SettingsPage() {
         const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!publicVapidKey) {
           setPushStatusMsg("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
+          toast.error("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
           setIsRegisteringPush(false);
           return;
         }
@@ -116,6 +120,7 @@ export default function SettingsPage() {
 
         setPushEnabled(true);
         setPushStatusMsg("Real-time Push Notifications enabled successfully on this device!");
+        toast.success("Real-time Push Notifications enabled!");
       } else {
         const registration = await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
@@ -124,11 +129,13 @@ export default function SettingsPage() {
         }
         setPushEnabled(false);
         setPushStatusMsg("Push Notifications disabled for this device.");
+        toast.success("Push Notifications disabled.");
       }
     } catch (err: unknown) {
       console.error("Error toggling push notifications:", err);
       const errMsg = err instanceof Error ? err.message : "Unknown error";
       setPushStatusMsg(`Failed to update push notification preferences: ${errMsg}`);
+      toast.error(`Failed to update push notification preferences: ${errMsg}`);
     } finally {
       setIsRegisteringPush(false);
     }
@@ -151,12 +158,16 @@ export default function SettingsPage() {
 
     if (cleanedName.length === 0 || cleanedName.length > 50) {
       setProfileError("Full Name must be between 1 and 50 characters.");
+      toast.error("Full Name must be between 1 and 50 characters.");
       setIsSaving(false);
       return;
     }
 
     if (!/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
       setProfileError(
+        "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
+      );
+      toast.error(
         "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
       );
       setIsSaving(false);
@@ -166,6 +177,9 @@ export default function SettingsPage() {
     if (!cleanedPhone && !cleanedWhatsapp && !cleanedEmail) {
       setProfileError(
         "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required on your profile."
+      );
+      toast.error(
+        "At least one contact method (Phone, WhatsApp, or Email) is required on your profile."
       );
       setIsSaving(false);
       return;
@@ -192,10 +206,13 @@ export default function SettingsPage() {
 
       refetchProfile();
       setProfileSuccess(true);
+      toast.success("Profile settings updated successfully!");
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: unknown) {
       console.error(err);
-      setProfileError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setProfileError(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }

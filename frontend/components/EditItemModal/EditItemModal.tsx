@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 interface LocalItem {
   registrationId: string;
@@ -135,10 +136,13 @@ export default function EditItemModal({
       const data = await res.json();
       if (data.text) {
         setInstructions(data.text);
+        toast.success("AI instructions generated!");
       }
     } catch (err: unknown) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "AI failed to generate instructions.");
+      const msg = err instanceof Error ? err.message : "AI failed to generate instructions.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsGeneratingInstructions(false);
     }
@@ -173,11 +177,16 @@ export default function EditItemModal({
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.6));
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+          resolve(dataUrl);
         };
-        img.onerror = (err) => reject(err);
+        img.onerror = () => {
+          reject(new Error("Failed to load image for compression."));
+        };
       };
-      reader.onerror = (err) => reject(err);
+      reader.onerror = () => {
+        reject(new Error("Failed to read image file."));
+      };
     });
   };
 
@@ -192,6 +201,7 @@ export default function EditItemModal({
     } catch (err) {
       console.error("Failed to compress item photo:", err);
       setError("Failed to process item photo. Please try a different image.");
+      toast.error("Failed to process item photo. Please try a different image.");
     } finally {
       setIsCompressing(false);
     }
@@ -208,6 +218,7 @@ export default function EditItemModal({
     } catch (err) {
       console.error("Failed to compress receipt photo:", err);
       setError("Failed to process receipt image. Please try a different file.");
+      toast.error("Failed to process receipt image. Please try a different file.");
     } finally {
       setIsCompressing(false);
     }
@@ -219,16 +230,19 @@ export default function EditItemModal({
 
     if (!name.trim()) {
       setError("Item name is required.");
+      toast.error("Item name is required.");
       return;
     }
 
     if (category === "Phone" && !alternateContact.trim()) {
       setError("Alternate contact is required for phone registrations so finders can reach a trusted contact.");
+      toast.error("Alternate contact is required for phone registrations so finders can reach a trusted contact.");
       return;
     }
 
     if (showPublicContactState && !singleContactValue.trim()) {
       setError(`Please enter a valid ${contactMethod === "email" ? "email address" : "phone number"} to reveal to finders.`);
+      toast.error(`Please enter a valid ${contactMethod === "email" ? "email address" : "phone number"} to reveal to finders.`);
       return;
     }
 
@@ -267,11 +281,14 @@ export default function EditItemModal({
         throw new Error(errorData.error || "Failed to update item details.");
       }
 
+      toast.success("Item updated successfully!");
       onItemUpdated();
       onClose();
     } catch (err: unknown) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "An error occurred while saving changes.");
+      const msg = err instanceof Error ? err.message : "An error occurred while saving changes.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

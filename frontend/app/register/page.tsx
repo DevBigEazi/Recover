@@ -9,6 +9,7 @@ import ConfirmRegistrationModal from "@/components/RegistrationPage/ConfirmRegis
 import RegistrationSuccessCard from "@/components/RegistrationPage/RegistrationSuccessCard";
 import ContactPrivacySection from "@/components/RegistrationPage/ContactPrivacySection";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function RegisterPage() {
   const { account, isAuthLoading } = useAuthReady();
@@ -114,6 +115,7 @@ export default function RegisterPage() {
     reader.onerror = (err) => {
       console.error(err);
       setError("Failed to read receipt file.");
+      toast.error("Failed to read receipt file.");
       setIsReadingReceipt(false);
     };
   };
@@ -157,11 +159,13 @@ export default function RegisterPage() {
       };
       img.onerror = () => {
         setError("Failed to process image.");
+        toast.error("Failed to process image.");
         setIsReadingImage(false);
       };
     };
     reader.onerror = () => {
       setError("Failed to read image file.");
+      toast.error("Failed to read image file.");
       setIsReadingImage(false);
     };
   };
@@ -171,10 +175,12 @@ export default function RegisterPage() {
     if (!account) return;
     if (!name.trim()) {
       setError("Item Name is required.");
+      toast.error("Item Name is required.");
       return;
     }
     if (category === "Phone" && !alternateContact.trim()) {
       setError("Trusted alternate contact is required for mobile devices.");
+      toast.error("Trusted alternate contact is required for mobile devices.");
       return;
     }
     setError(null);
@@ -230,10 +236,12 @@ export default function RegisterPage() {
         qrUrl: qrDataUrl,
         itemHash: itemData.itemHash,
       });
+      toast.success("Item registered successfully!");
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred.";
       setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
