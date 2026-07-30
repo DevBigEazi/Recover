@@ -22,8 +22,8 @@ export default function AboutPage() {
     },
     {
       num: "04",
-      title: "Safe Drop-Off & Recovery",
-      desc: "Finders can use AI message templates to draft polite, clear coordination updates. Owners receive safe meetup locations and AI-generated coordinates context.",
+      title: "Flexible & Private Recovery",
+      desc: "Coordinate a safe public meetup, arrange a manual local courier offline, or request a secure, anonymous delivery via our integrated delivery partner service.",
     },
   ];
 
@@ -129,10 +129,10 @@ export default function AboutPage() {
               
               <div className="space-y-2 sm:space-y-3 bg-neutral-mist/35 p-5 sm:p-6 rounded-xl border border-neutral-mist">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  💡 Safety Meetup Recommendations:
+                  💡 Secure Recovery Options:
                 </h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  When coordinating item pickups with finders, always prioritize your safety. Arrange meetups in well-lit, busy public areas such as coffee shops, shopping centers, or near transit entrances. Bringing a friend or meeting during daylight hours is highly recommended.
+                  Always prioritize safety. You can coordinate a safe public meetup (such as in a busy coffee shop or transit center), self-organize a local delivery, or request an integrated courier dispatch to have your item delivered anonymously directly to your doorstep.
                 </p>
               </div>
             </div>

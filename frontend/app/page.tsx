@@ -24,7 +24,7 @@ export default function Home() {
               </h1>
               
               <p className="text-sm sm:text-lg text-neutral-slate leading-relaxed max-w-2xl mx-auto">
-                Recover is a smart, AI-powered lost and found platform. Attach printable, scannable QR stickers to your phone, laptop, keys, and bags, use AI to generate recovery instructions, and get secure AI-contextualized scan locations automatically.
+                Recover is a smart, AI-powered lost and found platform. Attach printable, scannable QR stickers to your valuables. Coordinate safe public meetups or arrange flexible courier delivery to get your items back safely.
               </p>
 
               <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
@@ -89,9 +89,9 @@ export default function Home() {
                 <div className="p-2.5 bg-accent/10 rounded-xl w-max text-xl sm:text-2xl">
                   💬
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-primary font-display">Direct & Safe Communication</h3>
+                <h3 className="text-base sm:text-lg font-bold text-primary font-display">Flexible Handover & Courier</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">
-                  Receive instant messages, view shared map locations, or let finders reach you via direct Call, WhatsApp, or Email action buttons.
+                  Retrieve items via safe public meetups, arrange manual courier drop-offs, or use automated integrated deliveries (coming soon).
                 </p>
               </div>
 

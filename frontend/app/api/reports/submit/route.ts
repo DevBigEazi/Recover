@@ -9,9 +9,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { registrationId, message, contactInfo, location, photo } = body;
 
-    if (!registrationId || !message) {
+    if (!registrationId || !message || !contactInfo || !contactInfo.trim()) {
       return NextResponse.json(
-        { error: "registrationId and message are required." },
+        { error: "registrationId, message, and contactInfo are required." },
         { status: 400 }
       );
     }

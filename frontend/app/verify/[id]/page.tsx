@@ -198,6 +198,11 @@ export default function VerifyPage({ params }: PageProps) {
       return;
     }
 
+    if (!finderContact.trim()) {
+      setReportError("Contact information is required.");
+      return;
+    }
+
     setIsSubmittingReport(true);
     setReportError(null);
 
@@ -770,7 +775,7 @@ export default function VerifyPage({ params }: PageProps) {
                       {/* Contact Information */}
                       <div>
                         <label htmlFor="finder_contact" className="block text-xs font-semibold text-primary">
-                          Your Contact Information (Optional)
+                          Your Contact Information
                         </label>
                         <input
                           type="text"
@@ -778,6 +783,7 @@ export default function VerifyPage({ params }: PageProps) {
                           value={finderContact}
                           onChange={(e) => setFinderContact(e.target.value)}
                           placeholder="e.g. email@address.com or phone number"
+                          required
                           className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-mist/30"
                           disabled={isSubmittingReport}
                         />
