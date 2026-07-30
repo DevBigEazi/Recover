@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/Header/Header";
-import { useActiveAccount } from "thirdweb/react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
 import BatchStickerStudioModal from "@/components/BatchStickerStudioModal/BatchStickerStudioModal";
 import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
+import { toast } from "react-hot-toast";
 
 interface LocalItem {
   registrationId: string;
@@ -34,12 +37,10 @@ interface LocalItem {
 }
 
 export default function DashboardPage() {
-  const account = useActiveAccount();
+  const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
   const { username } = useProfile();
 
-  const [items, setItems] = useState<LocalItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"All" | "Active" | "Lost" | "Recovered">("All");
 
   // Loading state per item ID during quick-actions
@@ -63,35 +64,23 @@ export default function DashboardPage() {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleteItemData, setDeleteItemData] = useState<{ registrationId: string; name: string } | null>(null);
 
-  const fetchItems = async () => {
-    if (!account) {
-      setIsLoading(false);
-      return;
-    }
+  const queryClient = useQueryClient();
 
-    setIsLoading(true);
-    setActionError(null);
-
-    try {
-      // Read item list from local DB — the backend keeps this in sync with the chain
-      const response = await fetch(`/api/items?ownerAddress=${account.address}`);
-      if (!response.ok) {
-        throw new Error("Failed to load your items. Please try again.");
-      }
+  // Fetch items — cached in memory so navigating back shows instant data, no spinner
+  const { data: rawItems = [], isLoading, error: itemsError } = useQuery<LocalItem[]>({
+    queryKey: ["items", account?.address],
+    queryFn: async () => {
+      const response = await fetch(`/api/items?ownerAddress=${account!.address}`);
+      if (!response.ok) throw new Error("Failed to load your items. Please try again.");
       const dbItems: LocalItem[] = await response.json();
-      setItems(dbItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load items.";
-      console.error("Error fetching items:", err);
-      setActionError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return dbItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    enabled: !!account,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetchItems();
-  }, [account?.address]);
+  const items = rawItems;
+  const fetchError = itemsError instanceof Error ? itemsError.message : null;
 
   const handleMarkLost = async (registrationId: string) => {
     if (!account) return;
@@ -116,11 +105,13 @@ export default function DashboardPage() {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
-      await fetchItems();
+      toast.success("Item marked as Lost.");
+      queryClient.invalidateQueries({ queryKey: ["items", account.address] });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark lost:", err);
       setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoadingId(null);
     }
@@ -149,11 +140,13 @@ export default function DashboardPage() {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
-      await fetchItems();
+      toast.success("Item marked as Recovered.");
+      queryClient.invalidateQueries({ queryKey: ["items", account.address] });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update item status.";
       console.error("Failed to mark recovered:", err);
       setActionError(message);
+      toast.error(message);
     } finally {
       setActionLoadingId(null);
     }
@@ -201,17 +194,21 @@ export default function DashboardPage() {
         </div>
 
         {/* Global Error Banner */}
-        {actionError && (
+        {(actionError || fetchError) && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2 max-w-3xl">
             <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{actionError}</span>
+            <span>{actionError ?? fetchError}</span>
           </div>
         )}
 
         {/* Not Connected Block */}
-        {!account ? (
+        {isAuthLoading ? (
+          <div className="flex justify-center items-center py-32">
+            <Loader2 className="animate-spin h-8 w-8 text-primary" />
+          </div>
+        ) : !account ? (
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xs p-12 text-center max-w-md mx-auto mt-12">
             <div className="flex justify-center mb-6">
               <div className="p-3 bg-[#1e2a4a0f] rounded-full">
@@ -303,10 +300,7 @@ export default function DashboardPage() {
             {/* List Loader */}
             {isLoading ? (
               <div className="py-24 flex flex-col items-center justify-center gap-3">
-                <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
+                <Loader2 className="animate-spin h-8 w-8 text-primary" />
                 <span className="text-sm text-neutral-slate font-medium">Loading your items...</span>
               </div>
             ) : filteredItems.length === 0 ? (
@@ -416,10 +410,7 @@ export default function DashboardPage() {
                           className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-2 px-3 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 col-span-2"
                         >
                           {actionLoadingId === item.registrationId ? (
-                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
+                            <Loader2 className="animate-spin h-4 w-4 text-white" />
                           ) : (
                             <span>✅ Mark Recovered</span>
                           )}
@@ -438,10 +429,7 @@ export default function DashboardPage() {
                           className="bg-warning hover:bg-warning/90 disabled:opacity-50 text-neutral-white font-semibold py-2 px-3 rounded-lg text-xs transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 col-span-2"
                         >
                           {actionLoadingId === item.registrationId ? (
-                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
+                            <Loader2 className="animate-spin h-4 w-4 text-white" />
                           ) : (
                             <span>⚠️ Report Lost</span>
                           )}
@@ -575,7 +563,7 @@ export default function DashboardPage() {
         item={deleteItemData}
         ownerAddress={account?.address || ""}
         onSuccess={() => {
-          fetchItems();
+          if (account) queryClient.invalidateQueries({ queryKey: ["items", account.address] });
         }}
       />
     </main>

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { ProfileSetupGate } from "@/components/ProfileSetupGate/ProfileSetupGate";
 import { client } from "@/lib/client";
+import { Toaster } from "react-hot-toast";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: ReactNode }) {
           </ProfileProvider>
         </AuthProvider>
       </ThirdwebProvider>
+      <Toaster position="top-center" reverseOrder={false} />
     </QueryClientProvider>
   );
 }

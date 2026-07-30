@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, Trash2, X, Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export interface DeleteItemModalProps {
   isOpen: boolean;
@@ -47,11 +48,13 @@ export default function DeleteItemModal({
   const handleDelete = async () => {
     if (!finalReason) {
       setError("Please specify a valid deletion reason.");
+      toast.error("Please specify a valid deletion reason.");
       return;
     }
 
     if (!isConfirmValid) {
       setError(`Please type "${item.registrationId}" to confirm deletion.`);
+      toast.error(`Please type "${item.registrationId}" to confirm deletion.`);
       return;
     }
 
@@ -77,11 +80,13 @@ export default function DeleteItemModal({
         throw new Error(data.error || "Failed to delete item on-chain.");
       }
 
+      toast.success("Item deleted successfully!");
       onSuccess();
       onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete item.";
       setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

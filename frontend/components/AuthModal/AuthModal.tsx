@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaFacebookF } from "react-icons/fa";
+import { toast } from "react-hot-toast";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         await wallet.connect({ client, strategy });
         return wallet;
       });
+      toast.success("Connected successfully!");
       handleClose();
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -68,6 +70,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       const message =
         err instanceof Error ? err.message : `Failed to sign in with ${strategy}.`;
       setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +89,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         email: email.trim(),
       });
       setOtpSent(true);
+      toast.success("Verification code sent to your email!");
     } catch (err: unknown) {
       console.error(err);
       const message =
@@ -93,6 +97,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           ? err.message
           : "Failed to send verification code. Please check your email.";
       setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -115,6 +120,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         });
         return wallet;
       });
+      toast.success("Connected successfully!");
       handleClose();
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -124,6 +130,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           ? err.message
           : "Invalid or expired verification code. Please try again.";
       setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

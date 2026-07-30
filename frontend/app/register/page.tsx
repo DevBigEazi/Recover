@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
-import { useActiveAccount } from "thirdweb/react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import ConfirmRegistrationModal from "@/components/RegistrationPage/ConfirmRegistrationModal";
 import RegistrationSuccessCard from "@/components/RegistrationPage/RegistrationSuccessCard";
 import ContactPrivacySection from "@/components/RegistrationPage/ContactPrivacySection";
+import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function RegisterPage() {
-  const account = useActiveAccount();
+  const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
   const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail } = useProfile();
 
@@ -113,6 +115,7 @@ export default function RegisterPage() {
     reader.onerror = (err) => {
       console.error(err);
       setError("Failed to read receipt file.");
+      toast.error("Failed to read receipt file.");
       setIsReadingReceipt(false);
     };
   };
@@ -156,11 +159,13 @@ export default function RegisterPage() {
       };
       img.onerror = () => {
         setError("Failed to process image.");
+        toast.error("Failed to process image.");
         setIsReadingImage(false);
       };
     };
     reader.onerror = () => {
       setError("Failed to read image file.");
+      toast.error("Failed to read image file.");
       setIsReadingImage(false);
     };
   };
@@ -170,10 +175,12 @@ export default function RegisterPage() {
     if (!account) return;
     if (!name.trim()) {
       setError("Item Name is required.");
+      toast.error("Item Name is required.");
       return;
     }
     if (category === "Phone" && !alternateContact.trim()) {
       setError("Trusted alternate contact is required for mobile devices.");
+      toast.error("Trusted alternate contact is required for mobile devices.");
       return;
     }
     setError(null);
@@ -229,10 +236,12 @@ export default function RegisterPage() {
         qrUrl: qrDataUrl,
         itemHash: itemData.itemHash,
       });
+      toast.success("Item registered successfully!");
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred.";
       setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -262,7 +271,11 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {!account ? (
+        {isAuthLoading ? (
+          <div className="flex justify-center items-center py-24">
+            <Loader2 className="animate-spin h-8 w-8 text-primary" />
+          </div>
+        ) : !account ? (
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xs p-8 text-center max-w-md mx-auto">
             <div className="flex justify-center mb-6">
               <div className="p-3 bg-[#1e2a4a0f] rounded-full">
@@ -429,7 +442,7 @@ export default function RegisterPage() {
                   >
                     {isGeneratingInstructions ? (
                       <>
-                        <span className="animate-spin text-[10px]">🌀</span>
+                        <Loader2 className="animate-spin text-[10px] w-3 h-3" />
                         <span>Generating...</span>
                       </>
                     ) : (
@@ -652,10 +665,7 @@ export default function RegisterPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <Loader2 className="animate-spin h-5 w-5 text-white" />
                     <span>Saving your item details...</span>
                   </>
                 ) : (

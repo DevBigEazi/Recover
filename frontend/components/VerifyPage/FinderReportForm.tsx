@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 interface FinderReportFormProps {
   itemId: string;
@@ -109,6 +111,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
     } catch (err) {
       console.error("Image compression failed:", err);
       setReportError("Failed to compress and upload photo. Try a smaller file.");
+      toast.error("Failed to compress and upload photo. Try a smaller file.");
     } finally {
       setIsCompressing(false);
     }
@@ -124,6 +127,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
 
     if (!navigator.geolocation) {
       setReportError("Geolocation is not supported by your browser.");
+      toast.error("Geolocation is not supported by your browser.");
       setShareLocation(false);
       return;
     }
@@ -141,6 +145,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       (err) => {
         console.error("Geolocation error:", err);
         setReportError("Location access denied or unavailable.");
+        toast.error("Location access denied or unavailable.");
         setShareLocation(false);
         setIsLocating(false);
       },
@@ -152,16 +157,19 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
     e.preventDefault();
     if (finderMessage.trim().length < 10) {
       setReportError("Message must be at least 10 characters long.");
+      toast.error("Message must be at least 10 characters long.");
       return;
     }
 
     if (!finderContact.trim()) {
       setReportError("Contact information is required.");
+      toast.error("Contact information is required.");
       return;
     }
 
     if (deliveryMethod === "courier" && (!courierCompany.trim() || !courierTracking.trim())) {
       setReportError("Courier service name and tracking/contact details are required.");
+      toast.error("Courier service name and tracking/contact details are required.");
       return;
     }
 
@@ -192,6 +200,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
         throw new Error(errorData.error || "Failed to submit report to backend database.");
       }
 
+      toast.success("Found report submitted successfully!");
       setReportSuccess(true);
       setFinderMessage("");
       setFinderContact("");
@@ -204,7 +213,9 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       setPhotoBase64("");
     } catch (err: unknown) {
       console.error(err);
-      setReportError(err instanceof Error ? err.message : "An unexpected error occurred while submitting.");
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred while submitting.";
+      setReportError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmittingReport(false);
     }
@@ -271,7 +282,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                 >
                   {isGeneratingMessage ? (
                     <>
-                      <span className="animate-spin text-[8px]">🌀</span>
+                      <Loader2 className="animate-spin text-[8px] w-3 h-3" />
                       <span>Generating...</span>
                     </>
                   ) : (
@@ -437,10 +448,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
               </div>
               <div className="flex items-center gap-2">
                 {isLocating && (
-                  <svg className="animate-spin h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-4 w-4 text-accent" />
                 )}
                 <input
                   type="checkbox"
@@ -478,10 +486,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
               />
               {isCompressing && (
                 <div className="text-[10px] text-neutral-slate mt-1 flex items-center gap-1">
-                  <svg className="animate-spin h-3 w-3 text-neutral-slate" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-3 w-3 text-neutral-slate" />
                   <span>Compressing image on client...</span>
                 </div>
               )}
@@ -515,10 +520,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
             >
               {isSubmittingReport ? (
                 <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-4 w-4 text-white" />
                   <span>Submitting Found Report...</span>
                 </>
               ) : (

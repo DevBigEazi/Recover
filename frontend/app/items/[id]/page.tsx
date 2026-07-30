@@ -1,11 +1,14 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
-import { useActiveAccount } from "thirdweb/react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
+import BatchStickerStudioModal from "@/components/BatchStickerStudioModal/BatchStickerStudioModal";
 import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
 import EditItemModal from "@/components/EditItemModal/EditItemModal";
 import ItemSecretsSection, { LocalItem } from "@/components/ItemDetailPage/ItemSecretsSection";
@@ -81,23 +84,19 @@ export default function ItemDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const itemId = resolvedParams.id;
 
-  const account = useActiveAccount();
+  const { account, isAuthLoading } = useAuthReady();
   const router = useRouter();
 
-  // Item & Reports states
-  const [item, setItem] = useState<LocalItem | null>(null);
-  const [reports, setReports] = useState<FinderReport[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Quick Action States
+  // Item & reports state
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
+  // Currency detection for reward display
   const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo>({
     currency: "USD",
     symbol: "$",
     phonePrice: 10,
-    otherPrice: 4
+    otherPrice: 4,
   });
 
   useEffect(() => {
@@ -108,12 +107,15 @@ export default function ItemDetailPage({ params }: PageProps) {
     runDetect();
   }, []);
 
-  // Confirm state
+  // Confirm status-change modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmType, setConfirmType] = useState<"Lost" | "Recovered" | null>(null);
-  
-  // Sticker creator modal states
+
+  // Sticker studio states
   const [showStickerModal, setShowStickerModal] = useState(false);
+  const [showBatchStickerModal, setShowBatchStickerModal] = useState(false);
+  const [allItems, setAllItems] = useState<{ registrationId: string; name: string; reward?: string | null; category?: string | null }[]>([]);
+  const [isFetchingAllItems, setIsFetchingAllItems] = useState(false);
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -121,29 +123,54 @@ export default function ItemDetailPage({ params }: PageProps) {
   // Edit item modal state
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const fetchItemAndReports = async () => {
-    setIsLoading(true);
-    setError(null);
+  const queryClient = useQueryClient();
 
+  // Opens batch sticker modal with all owner items fetched on demand.
+  // Uses the shared 'items' query cache if already populated.
+  const handleOpenBatchSticker = async () => {
+    if (!account) return;
+    setIsFetchingAllItems(true);
     try {
+      const res = await fetch(`/api/items?ownerAddress=${account.address}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllItems(
+          (data as { registrationId: string; name: string; reward?: string | null; category?: string | null }[]).map((i) => ({
+            registrationId: i.registrationId,
+            name: i.name,
+            reward: i.reward ?? null,
+            category: i.category ?? null,
+          }))
+        );
+      }
+    } catch (e) {
+      console.error("Failed to fetch all items for batch sticker:", e);
+      if (item) {
+        setAllItems([{ registrationId: item.registrationId, name: item.name, reward: item.reward, category: item.category }]);
+      }
+    } finally {
+      setIsFetchingAllItems(false);
+      setShowBatchStickerModal(true);
+    }
+  };
+
+
+
+  // --- Item query (cached — instant on re-navigation) ---
+  const {
+    data: item = null,
+    isLoading: isItemLoading,
+    error: itemError,
+  } = useQuery<LocalItem | null>({
+    queryKey: ["item", itemId, account?.address],
+    queryFn: async () => {
       const headers: Record<string, string> = {};
-      if (account) {
-        headers["x-owner-address"] = account.address;
-      }
-      
-      const response = await fetch(`/api/items/${itemId}`, { headers, cache: "no-store" });
-      if (!response.ok) {
-        if (response.status === 404) {
-          setItem(null);
-          setIsLoading(false);
-          return;
-        }
-        throw new Error("Failed to load item details from database.");
-      }
-      
+      if (account) headers["x-owner-address"] = account.address;
+      const response = await fetch(`/api/items/${itemId}`, { headers });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error("Failed to load item details from database.");
       const dbItem = await response.json();
-      
-      const localItem: LocalItem = {
+      return {
         registrationId: dbItem.registrationId,
         name: dbItem.name,
         brand: dbItem.brand || "",
@@ -170,62 +197,58 @@ export default function ItemDetailPage({ params }: PageProps) {
         email: dbItem.email || "",
         publicContactMethod: dbItem.publicContactMethod || "phone",
         unlockedForCurrentLostCycle: Boolean(dbItem.unlockedForCurrentLostCycle),
-      };
+      } satisfies LocalItem;
+    },
+    staleTime: 30_000,
+  });
 
-      setItem(localItem);
+  const isOwnerCheck = !!account && !!item && account.address.toLowerCase() === item.owner.toLowerCase();
 
-      if (account && account.address.toLowerCase() === localItem.owner.toLowerCase()) {
-        const repResponse = await fetch(`/api/reports/item/${itemId}`, {
-          headers: { "x-owner-address": account.address },
-          cache: "no-store",
-        });
-        if (repResponse.ok) {
-          const dbReports = await repResponse.json();
-          
-          interface DBReport {
-            reportId: string;
-            registrationId: string;
-            message: string;
-            contactInfo?: string | null;
-            location?: string | null;
-            locationContext?: string | null;
-            unlocked?: boolean;
-            deliveryMethod?: "meetup" | "courier";
-            courierDetails?: string | null;
-            createdAt: string;
-          }
-
-          const mappedReports: FinderReport[] = dbReports.map((r: DBReport) => ({
-            reportId: r.reportId,
-            itemId: r.registrationId,
-            message: r.message,
-            contactInfo: r.contactInfo || "",
-            location: r.location || "",
-            locationContext: r.locationContext || null,
-            unlocked: Boolean(r.unlocked),
-            deliveryMethod: r.deliveryMethod || "meetup",
-            courierDetails: r.courierDetails || null,
-            timestamp: new Date(r.createdAt).getTime(),
-          }));
-          setReports(mappedReports);
-        }
+  // --- Reports query (only fetched for item owners) ---
+  const { data: reports = [] } = useQuery<FinderReport[]>({
+    queryKey: ["reports", itemId, account?.address],
+    queryFn: async () => {
+      interface DBReport {
+        reportId: string;
+        registrationId: string;
+        message: string;
+        contactInfo?: string | null;
+        location?: string | null;
+        locationContext?: string | null;
+        unlocked?: boolean;
+        deliveryMethod?: "meetup" | "courier";
+        courierDetails?: string | null;
+        createdAt: string;
       }
-    } catch (err) {
-      console.error(err);
-      setError("An error occurred while loading the item details.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const repResponse = await fetch(`/api/reports/item/${itemId}`, {
+        headers: { "x-owner-address": account!.address },
+      });
+      if (!repResponse.ok) return [];
+      const dbReports: DBReport[] = await repResponse.json();
+      return dbReports.map((r) => ({
+        reportId: r.reportId,
+        itemId: r.registrationId,
+        message: r.message,
+        contactInfo: r.contactInfo || "",
+        location: r.location || "",
+        locationContext: r.locationContext || null,
+        unlocked: Boolean(r.unlocked),
+        deliveryMethod: r.deliveryMethod || "meetup",
+        courierDetails: r.courierDetails || null,
+        timestamp: new Date(r.createdAt).getTime(),
+      }));
+    },
+    enabled: !!account && isOwnerCheck,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetchItemAndReports();
-  }, [itemId, account?.address]);
+  const isLoading = isItemLoading || isAuthLoading;
+  const error = itemError instanceof Error ? itemError.message : actionError;
 
   const handleMarkLost = async () => {
     if (!item || !account) return;
     setIsActionLoading(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const response = await fetch("/api/items/status", {
@@ -245,11 +268,12 @@ export default function ItemDetailPage({ params }: PageProps) {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
-      await fetchItemAndReports();
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["reports", itemId] });
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Failed to update item status.";
-      setError(msg);
+      setActionError(msg);
     } finally {
       setIsActionLoading(false);
     }
@@ -258,7 +282,7 @@ export default function ItemDetailPage({ params }: PageProps) {
   const handleMarkRecovered = async () => {
     if (!item || !account) return;
     setIsActionLoading(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const response = await fetch("/api/items/status", {
@@ -278,25 +302,23 @@ export default function ItemDetailPage({ params }: PageProps) {
         throw new Error(errorData.error || "Failed to update item status.");
       }
 
-      await fetchItemAndReports();
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["reports", itemId] });
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Failed to update item status.";
-      setError(msg);
+      setActionError(msg);
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <main className="min-h-screen bg-neutral-mist">
         <Header />
         <div className="py-32 flex flex-col items-center justify-center gap-3">
-          <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
           <span className="text-sm text-neutral-slate font-medium">Loading item details...</span>
         </div>
       </main>
@@ -418,10 +440,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                       className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
                       {isActionLoading ? (
-                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
+                        <Loader2 className="animate-spin h-5 w-5 text-white" />
                       ) : (
                         <span>✅ Mark as Recovered</span>
                       )}
@@ -436,10 +455,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                       className="flex-1 bg-warning hover:bg-warning/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
                       {isActionLoading ? (
-                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
+                        <Loader2 className="animate-spin h-5 w-5 text-white" />
                       ) : (
                         <span>⚠️ Report Item Lost</span>
                       )}
@@ -447,13 +463,20 @@ export default function ItemDetailPage({ params }: PageProps) {
                   )}
                   
                   <button
-                    onClick={() => setShowStickerModal(true)}
-                    className="flex-1 bg-accent hover:bg-accent/90 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    onClick={handleOpenBatchSticker}
+                    disabled={isFetchingAllItems}
+                    className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-70 text-neutral-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                    </svg>
-                    <span>Sticker Studio</span>
+                    {isFetchingAllItems ? (
+                      <Loader2 className="animate-spin h-4 w-4 text-white" />
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        <span>Sticker Studio</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
@@ -484,7 +507,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <p>
-                  <strong>Access Denied:</strong> Only the wallet address that registered this item is authorized to perform status changes or access download files.
+                  <strong>Access Denied:</strong> Only the owner of this item is authorized to perform status changes or access download files.
                 </p>
               </div>
             )}
@@ -496,7 +519,10 @@ export default function ItemDetailPage({ params }: PageProps) {
               reports={reports}
               currencyInfo={currencyInfo}
               isOwner={isOwner}
-              onRefresh={fetchItemAndReports}
+              onRefresh={async () => {
+                await queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+                await queryClient.invalidateQueries({ queryKey: ["reports", itemId] });
+              }}
             />
           </div>
         </div>
@@ -506,6 +532,13 @@ export default function ItemDetailPage({ params }: PageProps) {
         isOpen={showStickerModal}
         onClose={() => setShowStickerModal(false)}
         item={item}
+      />
+
+      <BatchStickerStudioModal
+        isOpen={showBatchStickerModal}
+        onClose={() => setShowBatchStickerModal(false)}
+        items={allItems.length > 0 ? allItems : item ? [{ registrationId: item.registrationId, name: item.name, reward: item.reward, category: item.category }] : []}
+        defaultSelectedIds={item ? [item.registrationId] : []}
       />
 
       {showConfirmModal && confirmType && item && (
@@ -581,7 +614,9 @@ export default function ItemDetailPage({ params }: PageProps) {
           onClose={() => setShowEditModal(false)}
           item={item}
           ownerAddress={account.address}
-          onItemUpdated={fetchItemAndReports}
+          onItemUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+          }}
         />
       )}
 

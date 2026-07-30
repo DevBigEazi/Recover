@@ -5,6 +5,7 @@ import { useActiveAccount } from "thirdweb/react";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2, User, UserCheck } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 interface ProfileSetupGateProps {
   children: React.ReactNode;
@@ -164,6 +165,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         setError(
           "Username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens."
         );
+        toast.error(
+          "Username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens."
+        );
         setIsLoading(false);
         return;
       }
@@ -171,6 +175,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       if (!phone.trim() && !whatsapp.trim() && !email.trim()) {
         setError(
           "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required so finders can reach you."
+        );
+        toast.error(
+          "At least one contact method (Phone, WhatsApp, or Email) is required."
         );
         setIsLoading(false);
         return;
@@ -195,11 +202,14 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
           throw new Error(errorData.error || "Failed to save profile.");
         }
 
+        toast.success("Profile setup complete!");
         refetchProfile();
         closeProfileSetup();
       } catch (err: unknown) {
         console.error(err);
-        setError(err instanceof Error ? err.message : "Failed to update profile.");
+        const msg = err instanceof Error ? err.message : "Failed to update profile.";
+        setError(msg);
+        toast.error(msg);
       } finally {
         setIsLoading(false);
       }
