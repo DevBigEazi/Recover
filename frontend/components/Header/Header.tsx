@@ -6,6 +6,7 @@ import { Menu, X, ChevronDown, Bell, Home, LayoutDashboard, PlusCircle, Info, Se
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useActiveAccount, useActiveWallet, useDisconnect } from "thirdweb/react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,9 +18,11 @@ export default function Header() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
 
-  const account = useActiveAccount();
+  const { account, isAuthLoading } = useAuthReady();
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
+  // Keep useActiveAccount for wallet-specific hooks that need the raw account
+  const rawAccount = useActiveAccount();
   const { openLogin } = useAuth();
   const { fullName, username } = useProfile();
 
@@ -42,7 +45,6 @@ export default function Header() {
       return res.json();
     },
     enabled: !!account?.address,
-    refetchInterval: 5000,
   });
 
   // 2. Mutation to mark all notifications as read
@@ -118,7 +120,9 @@ export default function Header() {
             
             {/* Desktop Connect Wallet Button */}
             <div className="flex items-center">
-              {!account ? (
+              {isAuthLoading ? (
+                <div className="w-20 h-9 bg-neutral-mist animate-pulse rounded-lg" />
+              ) : !account ? (
                 <button
                   onClick={openLogin}
                   className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-5 py-2 text-sm transition-colors shadow-xs cursor-pointer"
@@ -426,7 +430,9 @@ export default function Header() {
 
               {/* Sidebar Footer Action */}
               <div className="border-t border-neutral-mist pt-4 mt-6">
-                {!account ? (
+                {isAuthLoading ? (
+                  <div className="w-full h-11 bg-neutral-mist animate-pulse rounded-xl" />
+                ) : !account ? (
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);

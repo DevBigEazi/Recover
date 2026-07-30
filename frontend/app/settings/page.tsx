@@ -3,14 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/Header/Header";
-import { useActiveAccount } from "thirdweb/react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useWalletDetailsModal } from "thirdweb/react";
+import { Loader2 } from "lucide-react";
 import { client } from "@/lib/client";
 
 export default function SettingsPage() {
-  const account = useActiveAccount();
+  const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
   const { fullName, username, phone, whatsapp, email, refetchProfile } = useProfile();
   const detailsModal = useWalletDetailsModal();
@@ -209,7 +210,19 @@ export default function SettingsPage() {
     });
   };
 
-  // 1. Not Connected State Gating
+  // 1. Auth loading — don't flash the "not signed in" UI while thirdweb restores the session
+  if (isAuthLoading) {
+    return (
+      <main className="min-h-screen bg-neutral-mist">
+        <Header />
+        <div className="flex justify-center items-center py-32">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      </main>
+    );
+  }
+
+  // 2. Not Connected State Gating
   if (!account) {
     return (
       <main className="min-h-screen bg-neutral-mist">

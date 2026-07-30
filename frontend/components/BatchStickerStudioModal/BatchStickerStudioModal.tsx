@@ -16,15 +16,18 @@ export interface BatchStickerStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: BatchItem[];
+  /** IDs to pre-check when the modal opens. Defaults to all items. */
+  defaultSelectedIds?: string[];
 }
 
 export default function BatchStickerStudioModal({
   isOpen,
   onClose,
   items,
+  defaultSelectedIds,
 }: BatchStickerStudioModalProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>(
-    items.map((i) => i.registrationId)
+    defaultSelectedIds ?? items.map((i) => i.registrationId)
   );
   const [selectedSize, setSelectedSize] = useState<StickerSizeKey>("mini");
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 interface FinderReportFormProps {
   itemId: string;
@@ -271,7 +272,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                 >
                   {isGeneratingMessage ? (
                     <>
-                      <span className="animate-spin text-[8px]">🌀</span>
+                      <Loader2 className="animate-spin text-[8px] w-3 h-3" />
                       <span>Generating...</span>
                     </>
                   ) : (
@@ -437,10 +438,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
               </div>
               <div className="flex items-center gap-2">
                 {isLocating && (
-                  <svg className="animate-spin h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-4 w-4 text-accent" />
                 )}
                 <input
                   type="checkbox"
@@ -478,10 +476,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
               />
               {isCompressing && (
                 <div className="text-[10px] text-neutral-slate mt-1 flex items-center gap-1">
-                  <svg className="animate-spin h-3 w-3 text-neutral-slate" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-3 w-3 text-neutral-slate" />
                   <span>Compressing image on client...</span>
                 </div>
               )}
@@ -515,10 +510,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
             >
               {isSubmittingReport ? (
                 <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="animate-spin h-4 w-4 text-white" />
                   <span>Submitting Found Report...</span>
                 </>
               ) : (

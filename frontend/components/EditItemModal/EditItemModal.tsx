@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useProfile } from "@/context/ProfileContext";
+import { Loader2 } from "lucide-react";
 
 interface LocalItem {
   registrationId: string;
@@ -416,7 +417,7 @@ export default function EditItemModal({
               >
                 {isGeneratingInstructions ? (
                   <>
-                    <span className="animate-spin text-[10px]">🌀</span>
+                    <Loader2 className="animate-spin text-[10px] w-3 h-3" />
                     <span>Generating...</span>
                   </>
                 ) : (
@@ -681,7 +682,7 @@ export default function EditItemModal({
             >
               {isSubmitting ? (
                 <>
-                  <span className="animate-spin">🌀</span>
+                  <Loader2 className="animate-spin h-4 w-4 text-white" />
                   <span>Saving Changes...</span>
                 </>
               ) : (
