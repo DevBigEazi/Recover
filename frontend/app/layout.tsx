@@ -33,8 +33,19 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Recover — Decentralized Lost & Found",
-  description: "Decentralized Lost & Found platform powered by Electroneum and thirdweb",
+  description: "Decentralized Lost & Found platform powered by Electroneum",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/logo-icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" }
+    ],
+    apple: [
+      { url: "/apple-icon-180x180.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

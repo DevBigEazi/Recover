@@ -351,6 +351,21 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                   />
                   📦 Send via Courier
                 </label>
+                <label className="flex items-center gap-1.5 text-xs text-neutral-slate font-medium cursor-not-allowed select-none group relative">
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    value="integrated"
+                    disabled={true}
+                    className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-not-allowed opacity-50"
+                  />
+                  <span className="opacity-50">🚚 Integrated Courier</span>
+                  <span className="bg-amber-100 text-amber-800 text-[8px] font-bold px-1 py-0.5 rounded-sm uppercase tracking-wide opacity-80">Coming Soon</span>
+                  <span className="cursor-help text-neutral-slate text-[11px] font-bold">ⓘ</span>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-56 p-3 bg-[#1e293b] text-[#f8fafc] text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50 leading-relaxed font-normal text-center border border-slate-700">
+                    Coming soon: Dispatches automated courier partners (Uber/DHL) to pick up items anonymously, protecting your home address privacy.
+                  </span>
+                </label>
               </div>
             </div>
 
