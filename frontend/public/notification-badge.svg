@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <mask id="badgeMask">
+    <!-- Solid white shield background -->
+    <rect width="256" height="256" fill="white"/>
+    <!-- Black paths represent holes (transparent cut-outs) -->
+    <!-- QR corner-finder brackets (top-left, top-right, bottom-left) -->
+    <g stroke="black" stroke-width="12" fill="none" stroke-linecap="round">
+      <path d="M84 78 V64 H98"/>
+      <path d="M172 78 V64 H158"/>
+      <path d="M84 158 V172 H98"/>
+    </g>
+    <!-- Location pin -->
+    <path d="M128 92 C112 92 100 104 100 120 C100 140 128 172 128 172 C128 172 156 140 156 120 C156 104 144 92 128 92 Z" fill="black"/>
+    <circle cx="128" cy="120" r="16" fill="white"/> <!-- Inverted circle inside pin -->
+    <circle cx="128" cy="120" r="8" fill="black"/>  <!-- Hole inside pin -->
+  </mask>
+
+  <path d="M128 20 L208 52 V116 C208 172 174 208 128 236 C82 208 48 172 48 116 V52 Z"
+        fill="#FFFFFF" mask="url(#badgeMask)"/>
+</svg>

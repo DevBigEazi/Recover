@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import Header from "@/components/Header/Header";
 import { useActiveAccount } from "thirdweb/react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
-import { STICKER_SIZES } from "@/constants/sticker";
+import ConfirmRegistrationModal from "@/components/RegistrationPage/ConfirmRegistrationModal";
+import RegistrationSuccessCard from "@/components/RegistrationPage/RegistrationSuccessCard";
+import ContactPrivacySection from "@/components/RegistrationPage/ContactPrivacySection";
 
 export default function RegisterPage() {
   const account = useActiveAccount();
@@ -24,8 +24,8 @@ export default function RegisterPage() {
   const [alternateContact, setAlternateContact] = useState("");
   const [secrets, setSecrets] = useState("");
   const [passphrase, setPassphrase] = useState("");
-  const [rewardType, setRewardType] = useState("none"); // none, undisclosed, custom
-  const [keepPrivate, setKeepPrivate] = useState(true); // Default to 100% private in-app relay
+  const [rewardType, setRewardType] = useState("none");
+  const [keepPrivate, setKeepPrivate] = useState(true);
   const [contactMethod, setContactMethod] = useState<"phone" | "whatsapp" | "email">("phone");
   const [singleContactValue, setSingleContactValue] = useState("");
 
@@ -39,8 +39,6 @@ export default function RegisterPage() {
       setSingleContactValue(profileEmail || "");
     }
   }, [contactMethod, profilePhone, profileWhatsapp, profileEmail]);
-
-
 
   // File Upload states
   const [receiptBase64, setReceiptBase64] = useState("");
@@ -58,10 +56,6 @@ export default function RegisterPage() {
     qrUrl: string;
     itemHash: string;
   } | null>(null);
-
-  // Sticker size selection state
-  const [selectedSize, setSelectedSize] = useState<"mini" | "standard">("mini");
-  const [isDownloadingLabel, setIsDownloadingLabel] = useState(false);
 
   // Confirm modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -193,7 +187,6 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      // 1. Submit metadata to backend relayer route
       const response = await fetch("/api/items/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,7 +196,6 @@ export default function RegisterPage() {
           brand: brand.trim(),
           serial: serial.trim(),
           reward: rewardType === "custom" ? reward.trim() : "",
-
           instructions: instructions.trim(),
           category,
           alternateContact: category === "Phone" || alternateContact.trim() ? alternateContact.trim() : "",
@@ -228,7 +220,6 @@ export default function RegisterPage() {
 
       const itemData = await response.json();
 
-      // 2. Set success details & generate QR URL
       const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
         window.location.origin + "/verify/" + itemData.registrationId
       )}`;
@@ -247,221 +238,11 @@ export default function RegisterPage() {
     }
   };
 
-  const handleDownloadQR = async () => {
-    if (!successData) return;
-    try {
-      const response = await fetch(successData.qrUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recover-qr-item-${successData.registrationId}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to download QR code:", err);
-      window.open(successData.qrUrl, "_blank");
-    }
-  };
-
-  // High-DPI Sticker Label download — matches StickerStudioModal canvas engine
-  const handleDownloadStickerLabel = async () => {
-    if (!successData) return;
-    setIsDownloadingLabel(true);
-    try {
-      const config = STICKER_SIZES[selectedSize as keyof typeof STICKER_SIZES];
-      const scale = 4; // High-DPI multiplier for crisp printing
-      const w = config.w * scale;
-      const h = config.h * scale;
-      const qrSize = config.qrSize * scale;
-
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&margin=10&data=${encodeURIComponent(
-        window.location.origin + "/verify/" + successData.registrationId
-      )}`;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Failed to resolve canvas 2d context.");
-
-      // Dynamic text sizing helper to prevent horizontal overflows
-      const fillTextFit = (
-        text: string,
-        x: number,
-        y: number,
-        maxW: number,
-        fontStyle: string,
-        baseSizePx: number,
-        fontFamily = "sans-serif"
-      ) => {
-        let sizePx = baseSizePx;
-        ctx.font = `${fontStyle} ${sizePx}px ${fontFamily}`;
-        while (ctx.measureText(text).width > maxW && sizePx > 6 * scale) {
-          sizePx -= 1;
-          ctx.font = `${fontStyle} ${sizePx}px ${fontFamily}`;
-        }
-        ctx.fillText(text, x, y);
-      };
-
-      // Background
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, w, h);
-
-      // Outer border (Indigo)
-      ctx.strokeStyle = "#1E2A4A";
-      ctx.lineWidth = Math.max(4, Math.round(config.w * 0.03)) * scale;
-      const outerPad = Math.max(2, Math.round(config.w * 0.015)) * scale;
-      ctx.strokeRect(outerPad, outerPad, w - outerPad * 2, h - outerPad * 2);
-
-      // Inner border (Teal)
-      ctx.strokeStyle = "#0EA394";
-      ctx.lineWidth = Math.max(1, Math.round(config.w * 0.0075)) * scale;
-      const innerPad = Math.max(6, Math.round(config.w * 0.045)) * scale;
-      ctx.strokeRect(innerPad, innerPad, w - innerPad * 2, h - innerPad * 2);
-
-      const maxSafeTextWidth = w - innerPad * 2 - 16 * scale;
-
-      // Header caption — amber warning
-      ctx.fillStyle = "#FF9500";
-      ctx.textAlign = "center";
-      const capLine1Size = Math.max(8, Math.round(config.w * 0.035)) * scale;
-      fillTextFit("This item might be lost.", w / 2, h * 0.1, maxSafeTextWidth, "bold", capLine1Size);
-
-      ctx.fillStyle = "#0EA394";
-      const capLine2Size = Math.max(7, Math.round(config.w * 0.026)) * scale;
-      fillTextFit("If found, please scan to contact the owner.", w / 2, h * 0.145, maxSafeTextWidth, "normal", capLine2Size);
-
-      // Load QR Code Image
-      const qrImg = new window.Image();
-      qrImg.crossOrigin = "anonymous";
-      qrImg.src = qrUrl;
-      await new Promise((resolve, reject) => {
-        qrImg.onload = resolve;
-        qrImg.onerror = reject;
-      });
-      const qrX = (w - qrSize) / 2;
-      ctx.drawImage(qrImg, qrX, config.qrY * scale, qrSize, qrSize);
-
-      // Registration ID
-      ctx.fillStyle = "#6B7280";
-      const idFontSize = Math.max(7, Math.round(config.w * 0.0375)) * scale;
-      fillTextFit(`ID: #${successData.registrationId}`, w / 2, config.idY * scale, maxSafeTextWidth, "bold", idFontSize, "monospace");
-
-      // Reward Banner or Secured text
-      if (reward && rewardType === "custom") {
-        ctx.fillStyle = "#F5A623";
-        ctx.fillRect((w - config.boxW * scale) / 2, config.boxY * scale, config.boxW * scale, config.boxH * scale);
-        ctx.fillStyle = "#FFFFFF";
-        const rewardFontSize = Math.max(8, Math.round(config.w * 0.04)) * scale;
-        fillTextFit(`🎁 REWARD: ${reward.toUpperCase()}`, w / 2, config.rewardTextY * scale, config.boxW * scale - 12 * scale, "bold", rewardFontSize);
-      } else {
-        ctx.fillStyle = "#1E2A4A";
-        const securedFontSize = Math.max(7, Math.round(config.w * 0.035)) * scale;
-        fillTextFit("Owner Identity Secured in Decentralized Registry", w / 2, config.securedTextY * scale, maxSafeTextWidth, "normal", securedFontSize);
-      }
-
-      // Footer
-      ctx.fillStyle = "#9CA3AF";
-      const footerFontSize = Math.max(6, Math.round(config.w * 0.0275)) * scale;
-      fillTextFit("RECOVER PROTOCOL", w / 2, config.footerY * scale, maxSafeTextWidth, "bold", footerFontSize);
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `recover-qr-sticker-${successData.registrationId}-${selectedSize}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error("Sticker generation failed, falling back to QR download:", err);
-      await handleDownloadQR();
-    } finally {
-      setIsDownloadingLabel(false);
-    }
-  };
-
-  // Print Sticker via hidden iframe — matches StickerStudioModal print engine
-  const handlePrintSticker = () => {
-    if (!successData) return;
-    const config = STICKER_SIZES[selectedSize as keyof typeof STICKER_SIZES];
-    const printW = config.printW;
-    const qrSize = config.printQrSize;
-
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&margin=10&data=${encodeURIComponent(
-      window.location.origin + "/verify/" + successData.registrationId
-    )}`;
-
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(`
-        <html>
-          <head>
-            <title>Print QR Sticker</title>
-            <style>
-              @page { size: ${printW}px auto; margin: 0; }
-              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; background: white; }
-              .sticker {
-                width: ${printW}px;
-                border: ${Math.max(4, Math.round(printW * 0.03))}px solid #1E2A4A;
-                outline: ${Math.max(1, Math.round(printW * 0.0075))}px solid #0EA394;
-                outline-offset: -${Math.max(6, Math.round(printW * 0.045))}px;
-                padding: ${Math.max(8, Math.round(printW * 0.06))}px;
-                box-sizing: border-box; text-align: center; background: white;
-                display: flex; flex-direction: column; align-items: center; gap: 10px;
-              }
-              .title { font-size: ${config.printTitleSize}px; font-weight: bold; color: #FF9500; margin: 0; line-height: 1.2; }
-              .subtitle { font-size: ${config.printSubSize}px; color: #0EA394; margin: 2px 0 0 0; line-height: 1.2; }
-              .qr { width: ${qrSize}px; height: ${qrSize}px; display: block; }
-              .meta { font-size: ${config.printIdSize}px; font-family: monospace; color: #6B7280; font-weight: bold; margin: 0; }
-              .reward-tag { background: #F5A623; color: white; padding: 4px 6px; font-weight: bold; font-size: ${config.printRewardSize}px; width: 90%; box-sizing: border-box; border-radius: 4px; margin: 0 auto; }
-              .info-sec { font-size: ${config.printSecuredSize}px; color: #1E2A4A; margin: 0; }
-              .footer { font-size: ${config.printFooterSize}px; font-weight: bold; color: #9CA3AF; letter-spacing: 0.5px; margin: 0; }
-            </style>
-          </head>
-          <body>
-            <div class="sticker">
-              <div>
-                <div class="title">This item might be lost.</div>
-                <div class="subtitle">If found, please scan to contact the owner.</div>
-              </div>
-              <img class="qr" src="${qrUrl}" />
-              <div class="meta">ID: #${successData.registrationId}</div>
-              ${reward && rewardType === "custom"
-                ? `<div class="reward-tag">&#127873; REWARD: ${reward.toUpperCase()}</div>`
-                : `<div class="info-sec">Owner Identity Secured in Decentralized Registry</div>`
-              }
-              <div class="footer">RECOVER PROTOCOL</div>
-            </div>
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500);
-              }
-            ${"<"}/script>
-          </body>
-        </html>
-      `);
-      doc.close();
-    }
-  };
-
   return (
     <main className="min-h-screen bg-neutral-mist pb-16">
       <Header />
 
       <div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        {/* Invite-Only Alpha-Testing Banner */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 flex items-start gap-3 text-amber-800 animate-fade-in shadow-xs">
           <span className="text-xl shrink-0 leading-none">⚠️</span>
           <div className="space-y-1 text-left">
@@ -472,7 +253,6 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Title */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-primary font-display sm:text-4xl">
             Register New Item
@@ -482,7 +262,6 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Not Connected State */}
         {!account ? (
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xs p-8 text-center max-w-md mx-auto">
             <div className="flex justify-center mb-6">
@@ -506,7 +285,6 @@ export default function RegisterPage() {
             </div>
           </div>
         ) : !successData ? (
-          /* Registration Form */
           <form onSubmit={handleSubmit} className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xs p-8 space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
@@ -518,7 +296,6 @@ export default function RegisterPage() {
             )}
 
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              {/* Item Name */}
               <div className="sm:col-span-4">
                 <label htmlFor="name" className="block text-sm font-semibold text-primary">
                   Item Name <span className="text-red-500">*</span>
@@ -535,7 +312,6 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Item Category */}
               <div className="sm:col-span-2">
                 <label htmlFor="category" className="block text-sm font-semibold text-primary">
                   Category <span className="text-red-500">*</span>
@@ -562,7 +338,6 @@ export default function RegisterPage() {
                 </select>
               </div>
 
-              {/* Brand / Model */}
               <div className="sm:col-span-3">
                 <label htmlFor="brand" className="block text-sm font-semibold text-primary">
                   Brand / Model
@@ -578,7 +353,6 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Serial Number */}
               <div className="sm:col-span-3">
                 <label htmlFor="serial" className="block text-sm font-semibold text-primary">
                   Serial Number (Optional)
@@ -594,9 +368,6 @@ export default function RegisterPage() {
                 />
               </div>
 
-
-
-              {/* Conditional Trusted Alternate Contact */}
               {category === "Phone" ? (
                 <div className="sm:col-span-6 bg-accent/5 border border-accent/20 p-5 rounded-xl space-y-2.5 animate-fade-in">
                   <label htmlFor="alternateContact" className="block text-sm font-semibold text-primary">
@@ -635,137 +406,16 @@ export default function RegisterPage() {
                   </p>
                 </div>
               )}
-              {/* Contact Privacy Mode Selection */}
-              <div className="sm:col-span-6 p-4 bg-neutral-mist/40 border border-neutral-mist rounded-xl space-y-3">
-                <label className="block font-bold text-sm text-primary">
-                  Contact Privacy Preference
-                </label>
 
-                <div className="space-y-2">
-                  {/* Option 1: Keep Private */}
-                  <div
-                    onClick={() => setKeepPrivate(true)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                      keepPrivate
-                        ? "bg-neutral-white border-accent shadow-xs"
-                        : "bg-neutral-mist/30 border-gray-200 hover:bg-neutral-mist/50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      id="reg_privacy_private"
-                      name="reg_privacy_mode"
-                      checked={keepPrivate}
-                      onChange={() => setKeepPrivate(true)}
-                      className="mt-0.5 text-accent focus:ring-accent cursor-pointer"
-                    />
-                    <label htmlFor="reg_privacy_private" className="cursor-pointer space-y-0.5">
-                      <span className="block font-semibold text-xs text-primary">
-                        🛡️ Keep Contact Details Private (Recommended)
-                      </span>
-                      <span className="block text-[11px] text-neutral-slate leading-relaxed">
-                        Finders send messages directly to your dashboard. Your phone and email are hidden from public QR scans.
-                      </span>
-                    </label>
-                  </div>
+              <ContactPrivacySection
+                keepPrivate={keepPrivate}
+                setKeepPrivate={setKeepPrivate}
+                contactMethod={contactMethod}
+                setContactMethod={setContactMethod}
+                singleContactValue={singleContactValue}
+                setSingleContactValue={setSingleContactValue}
+              />
 
-                  {/* Option 2: Reveal Direct Contact */}
-                  <div
-                    onClick={() => setKeepPrivate(false)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                      !keepPrivate
-                        ? "bg-neutral-white border-accent shadow-xs"
-                        : "bg-neutral-mist/30 border-gray-200 hover:bg-neutral-mist/50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      id="reg_privacy_public"
-                      name="reg_privacy_mode"
-                      checked={!keepPrivate}
-                      onChange={() => setKeepPrivate(false)}
-                      className="mt-0.5 text-accent focus:ring-accent cursor-pointer"
-                    />
-                    <label htmlFor="reg_privacy_public" className="cursor-pointer space-y-0.5">
-                      <span className="block font-semibold text-xs text-primary">
-                        📞 Reveal Direct Contact Button to Finders
-                      </span>
-                      <span className="block text-[11px] text-neutral-slate leading-relaxed">
-                        Finders scanning your item's QR sticker will see a direct Call, WhatsApp, or Email button.
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {!keepPrivate && (
-                  <div className="pt-3 border-t border-neutral-mist space-y-3 animate-fade-in">
-                    <div>
-                      <label className="block font-semibold text-primary mb-1.5 text-xs">
-                        Select Contact Method to Reveal (Only 1 Allowed)
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod("phone")}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
-                            contactMethod === "phone"
-                              ? "bg-primary text-white border-primary"
-                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
-                          }`}
-                        >
-                          <span>📞 Phone Call</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod("whatsapp")}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
-                            contactMethod === "whatsapp"
-                              ? "bg-[#25D366] text-white border-[#25D366]"
-                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
-                          }`}
-                        >
-                          <span>💬 WhatsApp</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod("email")}
-                          className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center justify-center gap-1 ${
-                            contactMethod === "email"
-                              ? "bg-primary text-white border-primary"
-                              : "bg-neutral-white text-primary border-gray-300 hover:bg-neutral-mist"
-                          }`}
-                        >
-                          <span>✉️ Email</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="reg_single_contact_input" className="block font-semibold text-primary mb-1 text-xs">
-                        {contactMethod === "phone" && "Public Phone Number (For Calls)"}
-                        {contactMethod === "whatsapp" && "Public WhatsApp Number"}
-                        {contactMethod === "email" && "Public Email Address"}
-                      </label>
-                      <input
-                        type={contactMethod === "email" ? "email" : "text"}
-                        id="reg_single_contact_input"
-                        value={singleContactValue}
-                        onChange={(e) => setSingleContactValue(e.target.value)}
-                        placeholder={
-                          contactMethod === "email"
-                            ? "e.g. owner@example.com"
-                            : "e.g. +234 814 599 1080"
-                        }
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-accent focus:outline-hidden bg-neutral-white font-mono"
-                      />
-                      <p className="text-[10px] text-neutral-slate mt-1">
-                        Finders scanning your QR sticker when lost will see only this selected contact button.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Recovery Instructions */}
               <div className="sm:col-span-6 space-y-1">
                 <div className="flex items-center justify-between">
                   <label htmlFor="instructions" className="block text-sm font-semibold text-primary">
@@ -807,7 +457,6 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* Reward Selection */}
               <div className="sm:col-span-6 space-y-3 pt-2">
                 <span className="block text-sm font-semibold text-primary">Recovery Reward Preferences</span>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -865,7 +514,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Item Photo / Image (Optional) */}
               <div className="sm:col-span-6 border-t border-neutral-mist pt-6">
                 <label htmlFor="item-photo" className="block text-sm font-semibold text-primary mb-1">
                   Item Photo / Image (Optional)
@@ -901,7 +549,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Private Security Details */}
               <div className="sm:col-span-6 border-t border-neutral-mist pt-6 space-y-4">
                 <div>
                   <h3 className="text-sm font-bold text-primary">Off-Chain Handover Verification (Optional)</h3>
@@ -988,7 +635,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Note on privacy */}
             <div className="p-4 bg-neutral-mist rounded-xl flex items-start gap-3">
               <svg className="w-5 h-5 text-neutral-slate shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -998,7 +644,6 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* Submit Button */}
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -1020,313 +665,37 @@ export default function RegisterPage() {
             </div>
           </form>
         ) : (
-          /* Success State (QR display & sticker presets) */
-          <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xs p-8 text-center space-y-6 max-w-xl mx-auto">
-            {/* Visual Success Accent */}
-            <div className="flex justify-center">
-              <div className="p-3 bg-green-50 rounded-full border border-green-100">
-                <svg className="w-8 h-8 text-accent animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-primary font-display">Item Registered Successfully!</h2>
-              <p className="text-sm text-neutral-slate">
-                Your item has been assigned a secure identity on the Electroneum registry.
-              </p>
-            </div>
-
-            {/* Sticker Studio */}
-            <div className="border border-neutral-mist rounded-2xl overflow-hidden">
-              {/* Studio Header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border-b border-neutral-mist">
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  <span className="text-xs font-bold text-primary uppercase tracking-wider">Sticker Label Studio</span>
-                </div>
-                <span className="text-[10px] text-neutral-slate font-mono break-all">
-                  Hash: {successData.itemHash.substring(0, 14)}…
-                </span>
-              </div>
-
-              <div className="p-5 space-y-5">
-                {/* Size Preset Tabs */}
-                <div className="space-y-2">
-                  <label className="block text-[11px] font-semibold text-neutral-slate uppercase tracking-wider">
-                    Select Sticker Print Size
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(Object.keys(STICKER_SIZES) as Array<keyof typeof STICKER_SIZES>).map((sizeKey) => {
-                      const sizeInfo = STICKER_SIZES[sizeKey];
-                      const isSelected = selectedSize === sizeKey;
-                      return (
-                        <button
-                          key={sizeKey}
-                          type="button"
-                          onClick={() => setSelectedSize(sizeKey)}
-                          className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                            isSelected
-                              ? "border-accent bg-accent/5 text-accent shadow-xs"
-                              : "border-neutral-mist hover:border-gray-300 text-neutral-slate bg-neutral-mist/20"
-                          }`}
-                        >
-                          <span className="text-[11px] font-bold font-display flex items-center gap-0.5">
-                            {sizeInfo.label}
-                            {sizeInfo.note && (
-                              <span className="text-[8px] bg-accent text-neutral-white px-0.5 rounded-xs font-sans">
-                                ★
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-[9px] mt-0.5 opacity-80">{sizeInfo.desc}</span>
-                          {sizeInfo.note && (
-                            <span className="text-[8px] mt-0.5 text-accent font-semibold uppercase tracking-wider">
-                              Recommended
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Live Sticker Preview */}
-                <div className="flex justify-center py-2">
-                  <div
-                    className={`border-8 border-primary outline-2 outline-accent outline-offset-[-9px] text-center bg-neutral-white flex flex-col items-center shadow-md select-none transition-all duration-200 ${
-                      selectedSize === "mini"
-                        ? "w-[180px] p-2 gap-2"
-                        : selectedSize === "standard"
-                        ? "w-[240px] p-3 pb-2.5 gap-3"
-                        : "w-[320px] p-4 pb-3 gap-4"
-                    }`}
-                  >
-                    <div className="space-y-0.5 mt-1">
-                      <div className={`font-extrabold text-[#FF9500] font-display leading-tight ${
-                        selectedSize === "mini" ? "text-[9px]" : selectedSize === "standard" ? "text-[11px]" : "text-[14px]"
-                      }`}>
-                        This item might be lost.
-                      </div>
-                      <div className={`text-accent leading-tight font-medium ${
-                        selectedSize === "mini" ? "text-[7px]" : selectedSize === "standard" ? "text-[8px]" : "text-[10px]"
-                      }`}>
-                        If found, please scan to contact the owner.
-                      </div>
-                    </div>
-                    <div className="p-1 rounded-sm border border-neutral-mist bg-neutral-white">
-                      <Image
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(
-                          (typeof window !== "undefined" ? window.location.origin : "") + "/verify/" + successData.registrationId
-                        )}`}
-                        alt={`QR code sticker for item ${successData.registrationId}`}
-                        width={selectedSize === "mini" ? 100 : selectedSize === "standard" ? 140 : 180}
-                        height={selectedSize === "mini" ? 100 : selectedSize === "standard" ? 140 : 180}
-                        unoptimized
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className={`font-mono font-bold text-neutral-slate leading-none ${
-                        selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[10px]" : "text-[12px]"
-                      }`}>
-                        ID: #{successData.registrationId}
-                      </div>
-                      {reward && rewardType === "custom" ? (
-                        <div className={`bg-warning text-neutral-white px-2 py-0.5 rounded-xs font-bold uppercase leading-none ${
-                          selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[10px]" : "text-[12px]"
-                        }`}>
-                          🎁 REWARD OFFERED
-                        </div>
-                      ) : (
-                        <div className={`text-primary leading-none font-medium ${
-                          selectedSize === "mini" ? "text-[8px]" : selectedSize === "standard" ? "text-[9px]" : "text-[11px]"
-                        }`}>
-                          Identity Secured in Decentralized Registry
-                        </div>
-                      )}
-                    </div>
-                    <div className={`font-extrabold text-gray-400 tracking-wider uppercase ${
-                      selectedSize === "mini" ? "text-[6px]" : selectedSize === "standard" ? "text-[7px]" : "text-[9px]"
-                    }`}>
-                      RECOVER PROTOCOL
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={handleDownloadStickerLabel}
-                    disabled={isDownloadingLabel}
-                    className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    {isDownloadingLabel ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span>Composing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        <span>Download PNG</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handlePrintSticker}
-                    className="bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    <span>Print Sticker</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Multi-Item Sticker Printing Tip Card */}
-            <div className="bg-gradient-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="bg-accent text-neutral-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  💡 Save Paper & Money
-                </span>
-                <span className="text-xs text-neutral-white/80 font-medium">Multi-Item Printing Tip</span>
-              </div>
-              <p className="text-xs text-neutral-white/90 leading-relaxed">
-                Real-world sticker press paper works best when printing a full sheet! Register your other valuables (laptop, keys, AirPods, backpack, etc) now so you can print up to 10-12 stickers together on a single A4 page.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuccessData(null);
-                    setName("");
-                    setCategory("Other");
-                    setSerial("");
-                    setBrand("");
-                    setReward("");
-                    setInstructions("");
-                  }}
-                  className="bg-neutral-white text-primary hover:bg-neutral-mist font-bold text-xs px-4 py-2.5 rounded-xl transition-colors text-center cursor-pointer shadow-xs"
-                >
-                  + Register Another Item (Recommended)
-                </button>
-                <Link
-                  href="/dashboard"
-                  className="bg-accent hover:bg-accent/90 text-neutral-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors text-center cursor-pointer shadow-xs"
-                >
-                  📄 Go to Dashboard & Print A4 Sheet
-                </Link>
-              </div>
-            </div>
-
-            {/* Go to Dashboard */}
-            <Link
-              href="/dashboard"
-              className="bg-neutral-white border border-gray-300 hover:bg-neutral-mist text-primary font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors duration-200 flex items-center justify-center gap-2"
-            >
-              <span>Go to Dashboard</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
+          <RegistrationSuccessCard
+            successData={successData}
+            reward={reward}
+            rewardType={rewardType}
+            onRegisterAnother={() => {
+              setSuccessData(null);
+              setName("");
+              setCategory("Other");
+              setSerial("");
+              setBrand("");
+              setReward("");
+              setInstructions("");
+            }}
+          />
         )}
       </div>
 
-      {/* Registration Review & Confirm Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827b3] backdrop-blur-xs animate-fade-in">
-          <div className="bg-neutral-white border border-neutral-mist rounded-2xl shadow-xl max-w-md w-full p-6 space-y-6 animate-scale-up">
-            <div className="space-y-2">
-              <h3 className="text-base font-bold text-primary font-display flex items-center gap-1.5">
-                📝 Review Registration Details
-              </h3>
-              <p className="text-xs text-neutral-slate leading-relaxed">
-                Please confirm the details of your item before saving it to your account.
-              </p>
-            </div>
-
-            {/* Review fields summary list */}
-            <div className="border border-neutral-mist/60 rounded-xl overflow-hidden divide-y divide-neutral-mist/50 bg-neutral-mist/10 text-xs text-primary font-sans">
-              <div className="flex justify-between p-3">
-                <span className="text-neutral-slate font-medium">Item Name:</span>
-                <span className="font-semibold">{name.trim()}</span>
-              </div>
-              <div className="flex justify-between p-3">
-                <span className="text-neutral-slate font-medium">Category:</span>
-                <span className="font-semibold">{category}</span>
-              </div>
-              {brand.trim() && (
-                <div className="flex justify-between p-3">
-                  <span className="text-neutral-slate font-medium">Brand:</span>
-                  <span className="font-semibold">{brand.trim()}</span>
-                </div>
-              )}
-              {serial.trim() && (
-                <div className="flex justify-between p-3">
-                  <span className="text-neutral-slate font-medium">Serial / Model:</span>
-                  <span className="font-semibold">{serial.trim()}</span>
-                </div>
-              )}
-              <div className="flex justify-between p-3">
-                <span className="text-neutral-slate font-medium">Verification PIN:</span>
-                <span className="font-mono font-bold text-accent">{passphrase}</span>
-              </div>
-              {category === "Phone" && (
-                <div className="flex justify-between p-3">
-                  <span className="text-neutral-slate font-medium">Alternate Contact:</span>
-                  <span className="font-semibold">{alternateContact.trim()}</span>
-                </div>
-              )}
-              <div className="flex justify-between p-3">
-                <span className="text-neutral-slate font-medium">Reward offered:</span>
-                <span className="font-semibold">
-                  {rewardType === "custom" 
-                    ? reward.trim() 
-                    : rewardType === "undisclosed" 
-                    ? "Undisclosed" 
-                    : "No reward"}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-neutral-slate leading-normal">
-              Upon confirmation, this item will be secured in our registry. Your private security details remain private and fully protected.
-            </p>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowConfirmModal(false)}
-                className="bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-gray-300 font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={executeRegistration}
-                className="bg-primary hover:bg-primary-light text-neutral-white font-semibold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <span>Confirm & Save</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmRegistrationModal
+          name={name}
+          category={category}
+          brand={brand}
+          serial={serial}
+          passphrase={passphrase}
+          alternateContact={alternateContact}
+          rewardType={rewardType}
+          reward={reward}
+          onCancel={() => setShowConfirmModal(false)}
+          onConfirm={executeRegistration}
+        />
       )}
     </main>
   );
 }
-
