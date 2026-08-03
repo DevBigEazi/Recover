@@ -36,22 +36,18 @@ sequenceDiagram
     App->>Chain: Reset item state to Active on-chain
 ```
 
-### 1. Simple Tag Registration
-* Owners sign in securely (using email or social credentials) without needing to handle crypto keys.
-* They register their physical items (e.g., Phone, Keys, Bag) in a secure catalog.
-* Category restriction: If a **Phone** is selected, the owner must provide a trusted alternate contact (Next of Kin or Close Friend) so they can be reached even if they lose their device.
-* On registration, a unique printed **QR code sticker** is generated with the caption:
-  > *"This item might be lost. If found, please scan to contact the owner."*
+### 1. Simple Tag & Package Registration
+* **Individuals**: Sign in securely via social or email credentials (no crypto keys or gas fees needed) to register personal valuables (e.g. Phone, Keys, Bag, Laptop). Category validation enforces a trusted alternate contact for Phone items.
+* **Logistics Merchants**: Register commercial dispatches and packages (`/shipments`) with weight, reference name, and dual-layer tamper-proof QR stickers.
 
-### 2. Loss & Real-time Tracking
-* If an item goes missing, the owner marks it as **Lost** on their dashboard.
-* When a finder scans the sticker with a phone camera, it loads the public verification landing page.
-* The landing page immediately triggers a scan event in the background, dispatching **real-time Web Push alerts** directly to the owner.
+### 2. Real-Time Tracking & Scan Notifications
+* **Lost Valuables (`/verify/[id]`)**: Scanning a lost item sticker opens a mobile verification page where finders submit location coordinates and notes without creating an account.
+* **Commercial Shipments (`/scan/[id]`)**: Scanning a package sticker displays real-time dispatch status (`InTransit`, `Delivered`, `Disputed`), carrier details, and interactive handover PIN verification.
+* **Web Push Protocol**: Scans trigger instant, real-time Web Push alerts to owners and merchant operations dashboards.
 
-### 3. Secure Handover Verification
-* The finder submits a report containing their contact info, location coordinates, and a message. Finders can use AI message templates to construct polite return updates.
-* This report appears instantly in the owner's dashboard inbox, accompanied by an AI-generated location context safety analysis of the finder's coordinates.
-* When meeting the finder physically, the owner enters their private verification PIN on the verification screen to match the handshake, resetting the status in the registry to **Recovered**.
+### 3. Secure Handover & Dual Monetization
+* **Personal Recovery Handover**: The owner inputs a private verification PIN to match the finder's handshake, resetting the state to `Recovered`. Monetized via Pay-As-You-Go report unlocks (5,000 NGN for phones, 2,000 NGN for other items).
+* **Enterprise Logistics SaaS**: Merchants access 3 Pro Tiers (Pro Starter ₦15k/mo, Pro Growth ₦45k/mo, Pro Scale ₦100k/mo) with 10% annual billing discounts and automatic quota rollover. Includes developer REST APIs (`/api/v1/shipments/*`) and webhooks for external logistics software integration.
 
 ---
 
