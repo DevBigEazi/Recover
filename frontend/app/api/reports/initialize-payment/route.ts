@@ -1,32 +1,16 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
-
-const PRICES: Record<string, { Phone: number; Other: number }> = {
-  NGN: { Phone: 5000, Other: 2000 },
-  GHS: { Phone: 150, Other: 60 },
-  KES: { Phone: 1500, Other: 600 },
-  ZAR: { Phone: 250, Other: 100 },
-  USD: { Phone: 10, Other: 4 }
-};
+import { stripe, getOrCreateStripeCustomer, STRIPE_PRICES } from "@/lib/stripe";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { reportId, currency = "USD" } = body;
+    const { reportId } = body;
 
     if (!reportId) {
       return NextResponse.json(
         { error: "reportId is a required parameter." },
         { status: 400 }
-      );
-    }
-
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    if (!paystackSecret) {
-      console.error("Missing PAYSTACK_SECRET_KEY in environment variables.");
-      return NextResponse.json(
-        { error: "Payment configuration is missing on the server." },
-        { status: 500 }
       );
     }
 
@@ -44,56 +28,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Associated item not found." }, { status: 404 });
     }
 
-    // 3. Determine expected price
-    const upperCurrency = String(currency).toUpperCase();
-    const pricing = PRICES[upperCurrency] || PRICES.USD;
-    const isPhone = item.category === "Phone";
-    const expectedAmount = isPhone ? pricing.Phone : pricing.Other;
-
-    // 4. Load owner/user details for email
     const ownerUser = await db.user.findOne({ _id: item.ownerAddress });
-    const userEmail = ownerUser?.email || `owner_${item.ownerAddress.substring(0, 8)}@recover.id`;
+    const userEmail = ownerUser?.email || undefined;
 
-    // 5. Call Paystack Initialize Transaction API
-    const response = await fetch("https://api.paystack.co/transaction/initialize", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${paystackSecret}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: userEmail,
-        amount: expectedAmount * 100, // Smallest unit
-        currency: upperCurrency,
-        metadata: {
-          reportId,
-          registrationId: item._id,
-          category: item.category
-        }
-      })
+    const customer = await getOrCreateStripeCustomer({
+      walletAddress: item.ownerAddress,
+      email: userEmail,
+      name: ownerUser?.fullName || undefined,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Paystack initialize API returned status ${response.status}: ${errorText}`);
-    }
+    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
 
-    const resData = await response.json();
-    if (!resData.status || !resData.data?.access_code) {
-      return NextResponse.json(
-        { error: "Failed to initialize payment transaction with Paystack." },
-        { status: 502 }
-      );
-    }
+    const isPhoneCategory = (item.category || "").toLowerCase() === "phone";
+    const unlockAmountCents = isPhoneCategory
+      ? STRIPE_PRICES.REPORT_UNLOCK_PHONE_USD_CENTS // $3.50 USD (~₦5,000)
+      : STRIPE_PRICES.REPORT_UNLOCK_OTHER_USD_CENTS; // $1.50 USD (~₦2,000)
+
+    // 3. Create Stripe Checkout session with USD base pricing & adaptive location currency
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      customer: customer.id,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Recover Finder Report Unlock (${isPhoneCategory ? "Phone Category" : "Standard Category"}) — ${item.name}`,
+              description: `Unlock contact details and return message for registered item (${item.registrationId})`,
+            },
+            unit_amount: unlockAmountCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${origin}/items/${item.registrationId}?session_id={CHECKOUT_SESSION_ID}&unlocked=true`,
+      cancel_url: `${origin}/items/${item.registrationId}`,
+      metadata: {
+        type: "report_unlock",
+        reportId,
+        registrationId: item._id,
+        ownerAddress: item.ownerAddress,
+      },
+    });
 
     return NextResponse.json({
-      access_code: resData.data.access_code,
-      reference: resData.data.reference
-    }, { status: 200 });
-
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
-    console.error("Failed to initialize payment:", err);
+    console.error("Failed to initialize Stripe report payment:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
