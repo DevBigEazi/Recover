@@ -137,7 +137,7 @@ export interface IShipment {
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   innerSecretHash: string;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   events: IShipmentEvent[];
   webhookUrl?: string | null;
   createdAt?: Date;
