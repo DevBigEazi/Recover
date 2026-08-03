@@ -122,6 +122,28 @@ export interface IPushSubscription {
   createdAt?: Date;
 }
 
+export interface IShipmentEvent {
+  event: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
+  operator: string;
+  location?: string | null;
+  locationContext?: string | null;
+  timestamp: Date;
+  onChainTxHash?: string | null;
+}
+
+export interface IShipment {
+  _id: string; // packageId
+  packageId?: string; // virtual
+  shipperAddress: string;
+  status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
+  innerSecretHash: string;
+  metadata?: Record<string, any> | null;
+  events: IShipmentEvent[];
+  webhookUrl?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 // Schemas
 const UserSchema = new Schema<IUser>(
   {
@@ -264,12 +286,47 @@ PushSubscriptionSchema.virtual("id")
     this._id = val;
   });
 
+const ShipmentEventSchema = new Schema<IShipmentEvent>({
+  event: { type: String, required: true },
+  operator: { type: String, required: true },
+  location: { type: String, default: null },
+  locationContext: { type: String, default: null },
+  timestamp: { type: Date, default: Date.now },
+  onChainTxHash: { type: String, default: null },
+});
+
+const ShipmentSchema = new Schema<IShipment>(
+  {
+    _id: { type: String, required: true },
+    shipperAddress: { type: String, required: true, index: true },
+    status: { type: String, required: true, enum: ["Created", "InTransit", "Delivered", "Verified", "Disputed"] },
+    innerSecretHash: { type: String, required: true },
+    metadata: { type: Schema.Types.Mixed, default: null },
+    events: [ShipmentEventSchema],
+    webhookUrl: { type: String, default: null },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+ShipmentSchema.virtual("packageId")
+  .get(function (this: { _id: string }) {
+    return this._id;
+  })
+  .set(function (this: { _id: string }, val: string) {
+    this._id = val;
+  });
+
 // Models
 const UserModel = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 const ItemModel = mongoose.models.Item || mongoose.model<IItem>("Item", ItemSchema);
 const FinderReportModel = mongoose.models.FinderReport || mongoose.model<IFinderReport>("FinderReport", FinderReportSchema);
 const NotificationModel = mongoose.models.Notification || mongoose.model<INotification>("Notification", NotificationSchema);
 const PushSubscriptionModel = mongoose.models.PushSubscription || mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
+const ShipmentModel = mongoose.models.Shipment || mongoose.model<IShipment>("Shipment", ShipmentSchema);
 
 // Export db object matching Prisma collection access patterns where possible
 export const db = {
@@ -278,4 +335,5 @@ export const db = {
   finderReport: FinderReportModel as Model<IFinderReport>,
   notification: NotificationModel as Model<INotification>,
   pushSubscription: PushSubscriptionModel as Model<IPushSubscription>,
+  shipment: ShipmentModel as Model<IShipment>,
 };
