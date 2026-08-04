@@ -13,8 +13,12 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { operatorAddress, nextHandlerAddress, nextHandler, location, locationContext } = body;
+    const { nextHandlerAddress, nextHandler, location, locationContext } = body;
     const targetNextHandler = nextHandlerAddress || nextHandler;
+
+    if (!targetNextHandler) {
+      return NextResponse.json({ error: "nextHandler address is required." }, { status: 400 });
+    }
 
     await connectDB();
 
@@ -23,19 +27,16 @@ export async function POST(
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    let effectiveOperatorAddress = operatorAddress;
-    if (apiKeyToken) {
-      const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
-      if (!apiKeyUser) {
-        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
-      }
-      effectiveOperatorAddress = effectiveOperatorAddress || apiKeyUser._id;
+    if (!apiKeyToken) {
+      return NextResponse.json({ error: "API key is required for authentication." }, { status: 401 });
     }
 
-    if (!effectiveOperatorAddress || !targetNextHandler) {
-      return NextResponse.json({ error: "Operator and nextHandler addresses are required." }, { status: 400 });
+    const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
+    if (!apiKeyUser) {
+      return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
     }
 
+    const effectiveOperatorAddress = (apiKeyUser._id as string).toLowerCase();
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
     const shipment = await db.shipment.findOne({
@@ -48,6 +49,23 @@ export async function POST(
 
     if (!shipment) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
+    }
+
+    if (shipment.status === "Verified" || shipment.status === "Disputed") {
+      return NextResponse.json(
+        { error: `Cannot log handover. Shipment status is '${shipment.status}'.` },
+        { status: 409 }
+      );
+    }
+
+    const lastEvent = shipment.events && shipment.events.length > 0 ? shipment.events[shipment.events.length - 1] : null;
+    const currentHandler = (lastEvent?.operator || shipment.shipperAddress || "").toLowerCase();
+
+    if (effectiveOperatorAddress !== currentHandler) {
+      return NextResponse.json(
+        { error: "Unauthorized. Authenticated operator is not the current handler of this shipment." },
+        { status: 403 }
+      );
     }
 
 
