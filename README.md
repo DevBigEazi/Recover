@@ -99,9 +99,13 @@ Recover includes an integrated **Printable QR Sticker Studio**:
 
 ## 🔒 Security, Privacy & Web3 Infrastructure
 
-* **Electroneum Mainnet (`52014`)**:
-  - **UUPS Upgradeable Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
-  - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2`
+* **Electroneum Mainnet Deployed Contracts (`52014`)**:
+  - **Recover Item Registry Contract (`Recover.sol`)**:
+    - **Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
+    - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2`
+  - **Recover Shipment Logistics Contract (`RecoverShipment.sol`)**:
+    - **Proxy Address:** `0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012`
+    - **Implementation:** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59`
 * **Gasless Backend Relayer Pattern**:
   - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
   - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
