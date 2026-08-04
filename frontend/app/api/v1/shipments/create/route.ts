@@ -11,7 +11,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      shipperAddress: bodyShipperAddress,
       webhookUrl,
       metadata,
       packageName,
@@ -33,34 +32,24 @@ export async function POST(request: Request) {
 
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
-    const xShipperHeader = request.headers.get("x-shipper-address");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
+    if (!apiKeyToken) {
+      return NextResponse.json(
+        { error: "API key is required for shipment creation." },
+        { status: 401 }
+      );
+    }
+
     await connectDB();
 
-    let shipper = null;
-    if (apiKeyToken) {
-      shipper = await db.user.findOne({ apiKey: apiKeyToken });
-      if (!shipper) {
-        return NextResponse.json(
-          { error: "Invalid or unauthorized API key provided." },
-          { status: 401 }
-        );
-      }
-    } else {
-      const targetAddress = bodyShipperAddress || xShipperHeader;
-      if (!targetAddress) {
-        return NextResponse.json({ error: "API key or shipperAddress parameter is required." }, { status: 400 });
-      }
-      const cleanAddress = targetAddress.trim();
-      shipper = await db.user.findOne({
-        $or: [
-          { _id: cleanAddress.toLowerCase() },
-          { _id: cleanAddress },
-          { _id: { $regex: new RegExp(`^${cleanAddress}$`, "i") } },
-        ],
-      });
+    const shipper = await db.user.findOne({ apiKey: apiKeyToken });
+    if (!shipper) {
+      return NextResponse.json(
+        { error: "Invalid or unauthorized API key provided." },
+        { status: 401 }
+      );
     }
 
 

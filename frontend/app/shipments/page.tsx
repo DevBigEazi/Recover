@@ -54,7 +54,7 @@ interface Shipment {
 export default function ShipmentsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { subscriptionActive, role, companyName, plan, billingCycle, shipmentsThisMonth, rolloverQuota, isProfileLoaded } = useProfile();
+  const { apiKey, subscriptionActive, role, companyName, plan, billingCycle, shipmentsThisMonth, rolloverQuota, isProfileLoaded } = useProfile();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -373,9 +373,30 @@ export default function ShipmentsPage() {
 
     setIsRegistering(true);
     try {
+      let activeApiKey = apiKey;
+      if (!activeApiKey && account?.address) {
+        try {
+          const keyRes = await fetch("/api/profile/api-key", {
+            method: "POST",
+            headers: { "x-owner-address": account.address },
+          });
+          if (keyRes.ok) {
+            const keyData = await keyRes.json();
+            activeApiKey = keyData.apiKey;
+          }
+        } catch (err) {
+          console.error("Failed to auto-provision API key:", err);
+        }
+      }
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (activeApiKey) {
+        headers["x-api-key"] = activeApiKey;
+      }
+
       const response = await fetch("/api/v1/shipments/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           shipperAddress: account.address,
           webhookUrl: webhookUrl || null,
