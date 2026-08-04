@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 import Header from "@/components/Header/Header";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import StickerStudioModal from "@/components/StickerStudioModal/StickerStudioModal";
@@ -13,68 +14,7 @@ import DeleteItemModal from "@/components/DeleteItemModal/DeleteItemModal";
 import EditItemModal from "@/components/EditItemModal/EditItemModal";
 import ItemSecretsSection, { LocalItem } from "@/components/ItemDetailPage/ItemSecretsSection";
 import ItemReportsInbox, { FinderReport } from "@/components/ItemDetailPage/ItemReportsInbox";
-
-interface CurrencyInfo {
-  currency: string;
-  symbol: string;
-  phonePrice: number;
-  otherPrice: number;
-}
-
-const detectCurrency = async (): Promise<CurrencyInfo> => {
-  const getFallback = (): CurrencyInfo => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz.includes("Lagos") || tz.includes("Abidjan")) {
-      return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
-    }
-    if (tz.includes("Accra")) {
-      return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
-    }
-    if (tz.includes("Nairobi")) {
-      return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
-    }
-    if (tz.includes("Johannesburg")) {
-      return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
-    }
-    return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
-  };
-
-  try {
-    const cfRes = await fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: AbortSignal.timeout(3000) });
-    if (cfRes.ok) {
-      const text = await cfRes.text();
-      const lines = text.split("\n");
-      const locLine = lines.find(l => l.startsWith("loc="));
-      if (locLine) {
-        const country = locLine.split("=")[1].trim().toUpperCase();
-        if (country === "NG") return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
-        if (country === "GH") return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
-        if (country === "KE") return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
-        if (country === "ZA") return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
-        return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
-      }
-    }
-  } catch (e) {
-    console.warn("Cloudflare trace geolocation failed, trying ipapi.co...", e);
-  }
-
-  try {
-    const ipRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
-    if (ipRes.ok) {
-      const data = await ipRes.json();
-      const country = data.country_code?.toUpperCase();
-      if (country === "NG") return { currency: "NGN", symbol: "₦", phonePrice: 5000, otherPrice: 2000 };
-      if (country === "GH") return { currency: "GHS", symbol: "GH₵", phonePrice: 150, otherPrice: 60 };
-      if (country === "KE") return { currency: "KES", symbol: "KSh", phonePrice: 1500, otherPrice: 600 };
-      if (country === "ZA") return { currency: "ZAR", symbol: "R", phonePrice: 250, otherPrice: 100 };
-      return { currency: "USD", symbol: "$", phonePrice: 10, otherPrice: 4 };
-    }
-  } catch (e) {
-    console.warn("ipapi.co failed, falling back to timezone...", e);
-  }
-
-  return getFallback();
-};
+import { detectUserCurrency, UserCurrencyInfo } from "@/lib/currency";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -86,26 +26,56 @@ export default function ItemDetailPage({ params }: PageProps) {
 
   const { account, isAuthLoading } = useAuthReady();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Item & reports state
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Currency detection for reward display
-  const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo>({
-    currency: "USD",
-    symbol: "$",
-    phonePrice: 10,
-    otherPrice: 4,
-  });
+  // Dynamic user currency info with live FX rates
+  const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
 
   useEffect(() => {
     const runDetect = async () => {
-      const info = await detectCurrency();
-      setCurrencyInfo(info);
+      const info = await detectUserCurrency();
+      setUserCurrency(info);
     };
     runDetect();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get("session_id") || urlParams.get("reference");
+    const unlocked = urlParams.get("unlocked");
+
+    if (sessionId || unlocked) {
+      const verifyUnlock = async () => {
+        try {
+          if (sessionId) {
+            toast.loading("Verifying report payment...");
+            const res = await fetch("/api/reports/unlock", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId }),
+            });
+            toast.dismiss();
+            if (res.ok) {
+              toast.success("Finder Details Unlocked!");
+            }
+          }
+          queryClient.invalidateQueries({ queryKey: ["reports", itemId] });
+          queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        } catch (err) {
+          toast.dismiss();
+          console.error("Failed to unlock report from return session:", err);
+        }
+      };
+      verifyUnlock();
+    }
+  }, [itemId, queryClient]);
 
   // Confirm status-change modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -122,8 +92,6 @@ export default function ItemDetailPage({ params }: PageProps) {
 
   // Edit item modal state
   const [showEditModal, setShowEditModal] = useState(false);
-
-  const queryClient = useQueryClient();
 
   // Opens batch sticker modal with all owner items fetched on demand.
   // Uses the shared 'items' query cache if already populated.
@@ -517,7 +485,7 @@ export default function ItemDetailPage({ params }: PageProps) {
             <ItemReportsInbox
               item={item}
               reports={reports}
-              currencyInfo={currencyInfo}
+              userCurrency={userCurrency}
               isOwner={isOwner}
               onRefresh={async () => {
                 await queryClient.invalidateQueries({ queryKey: ["item", itemId] });

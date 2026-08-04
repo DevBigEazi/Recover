@@ -27,6 +27,21 @@ export default function Footer() {
             </p>
           </div>
 
+          {/* Footer Navigation Links */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-neutral-slate">
+            <Link href="/pricing" className="hover:text-primary transition-colors">
+              Pricing
+            </Link>
+            <span className="text-neutral-mist">•</span>
+            <Link href="/developers" className="hover:text-primary transition-colors">
+              Developer API &amp; Webhooks
+            </Link>
+            <span className="text-neutral-mist">•</span>
+            <Link href="/about" className="hover:text-primary transition-colors">
+              About Recover
+            </Link>
+          </div>
+
           {/* Built on Electroneum Blockchain Badge */}
           <div className="flex items-center gap-2.5 bg-neutral-mist/60 border border-neutral-mist rounded-xl px-3.5 py-2 shadow-xs">
             <Image

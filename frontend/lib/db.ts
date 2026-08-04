@@ -47,12 +47,38 @@ export async function connectDB(): Promise<typeof mongoose> {
 export interface IUser {
   _id: string; // walletAddress (lowercase)
   walletAddress?: string; // virtual
+  /** Personal/contact name for individuals; primary contact person name for merchants. */
   fullName: string;
+  /**
+   * Company display name — merchants only. Always distinct from fullName.
+   * null for individual (role === "user") accounts.
+   */
+  companyName: string | null;
   username: string;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
   subscriptionActive: boolean;
+  role: "user" | "merchant";
+  /**
+   * Plan tiers:
+   * - "free": Bootstrap free plan (100 shipments/mo)
+   * - "pro_starter": Pro Starter (0-999 shipments/mo)
+   * - "pro_growth": Pro Growth (1,000-4,999 shipments/mo)
+   * - "pro_scale": Pro Scale (5,000+ shipments/mo)
+   * - "pro": Legacy Pro alias
+   * - "enterprise": Reserved future enterprise tier
+   */
+  plan: "free" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
+  billingCycle: "monthly" | "yearly";
+  billingCycleStart: Date;
+  shipmentsThisMonth: number;
+  rolloverQuota: number;
+  overageCharges: number;
+  apiKey?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripePriceId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -136,6 +162,7 @@ export interface IShipment {
   packageId?: string; // virtual
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
+  innerSecret?: string | null;
   innerSecretHash: string;
   metadata?: Record<string, unknown> | null;
   events: IShipmentEvent[];
@@ -148,12 +175,34 @@ export interface IShipment {
 const UserSchema = new Schema<IUser>(
   {
     _id: { type: String, required: true },
+    /** Personal/contact name for individuals; primary contact person name for merchants. */
     fullName: { type: String, required: true },
+    /**
+     * Company display name — merchants only. null for individual accounts.
+     * Always distinct from fullName so company identity is never mixed with personal identity.
+     */
+    companyName: { type: String, default: null },
     username: { type: String, required: true, unique: true, index: true },
     phone: { type: String, default: null },
     whatsapp: { type: String, default: null },
     email: { type: String, default: null },
     subscriptionActive: { type: Boolean, default: false },
+    // Index on role enables efficient merchant-only queries (e.g., shipment create guard)
+    role: { type: String, enum: ["user", "merchant"], default: "user", index: true },
+    plan: {
+      type: String,
+      enum: ["free", "pro_starter", "pro_growth", "pro_scale", "pro", "enterprise"],
+      default: "free",
+    },
+    billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
+    billingCycleStart: { type: Date, default: Date.now },
+    shipmentsThisMonth: { type: Number, default: 0 },
+    rolloverQuota: { type: Number, default: 0 },
+    overageCharges: { type: Number, default: 0 },
+    apiKey: { type: String, default: null, index: true },
+    stripeCustomerId: { type: String, default: null, index: true },
+    stripeSubscriptionId: { type: String, default: null, index: true },
+    stripePriceId: { type: String, default: null },
   },
   {
     timestamps: true,
@@ -300,6 +349,7 @@ const ShipmentSchema = new Schema<IShipment>(
     _id: { type: String, required: true },
     shipperAddress: { type: String, required: true, index: true },
     status: { type: String, required: true, enum: ["Created", "InTransit", "Delivered", "Verified", "Disputed"] },
+    innerSecret: { type: String, default: null },
     innerSecretHash: { type: String, required: true },
     metadata: { type: Schema.Types.Mixed, default: null },
     events: [ShipmentEventSchema],
@@ -319,6 +369,9 @@ ShipmentSchema.virtual("packageId")
   .set(function (this: { _id: string }, val: string) {
     this._id = val;
   });
+
+ShipmentSchema.index({ shipperAddress: 1, createdAt: -1 });
+ShipmentSchema.index({ status: 1 });
 
 // Models
 const UserModel = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

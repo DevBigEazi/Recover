@@ -23,7 +23,7 @@ export default function Header() {
   const { disconnect } = useDisconnect();
   // Keep useActiveAccount for wallet-specific hooks that need the raw account
   const { openLogin } = useAuth();
-  const { fullName, companyName, username, role } = useProfile();
+  const { fullName, companyName, username, role, plan, billingCycle } = useProfile();
 
   // 1. Fetch notifications via TanStack Query (polls every 5s for real-time alerts)
   const { data: notifications = [] } = useQuery<Array<{
@@ -69,6 +69,7 @@ export default function Header() {
         { name: "Home", href: "/" },
         { name: "Shipments", href: "/shipments" },
         { name: "Pricing", href: "/pricing" },
+        { name: "Developers", href: "/developers" },
         { name: "About", href: "/about" },
       ]
     : [
@@ -76,6 +77,7 @@ export default function Header() {
         { name: "Dashboard", href: "/dashboard" },
         { name: "Register Item", href: "/register" },
         { name: "Pricing", href: "/pricing" },
+        { name: "Developers", href: "/developers" },
         { name: "About", href: "/about" },
       ];
 
@@ -93,6 +95,8 @@ export default function Header() {
         return <Truck className="w-4 h-4 text-indigo-500" />;
       case "/pricing":
         return <Tag className="w-4 h-4 text-emerald-500" />;
+      case "/developers":
+        return <Info className="w-4 h-4 text-indigo-500" />;
       case "/about":
         return <Info className="w-4 h-4 text-amber-500" />;
       default:
@@ -248,9 +252,20 @@ export default function Header() {
                     </button>
 
                     {isUserMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                      <div className="absolute right-0 mt-2 w-52 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
                         {role === "merchant" ? (
                           <>
+                            <div className="px-4 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
+                              <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">Merchant Plan</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-xs font-bold text-primary">
+                                  {plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : plan === "pro" ? "Pro Tier" : "Free Tier"}
+                                </span>
+                                <span className="bg-blue-100 text-blue-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
+                                  {billingCycle === "yearly" ? "Annual" : "Monthly"}
+                                </span>
+                              </div>
+                            </div>
                             <Link
                               href="/shipments"
                               className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"

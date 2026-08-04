@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
@@ -39,7 +40,14 @@ interface LocalItem {
 export default function DashboardPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { username } = useProfile();
+  const { username, role, isProfileLoaded } = useProfile();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (account && role && role === "merchant") {
+      router.replace("/shipments");
+    }
+  }, [account, role, router]);
 
   const [activeTab, setActiveTab] = useState<"All" | "Active" | "Lost" | "Recovered">("All");
 
@@ -75,12 +83,36 @@ export default function DashboardPage() {
       const dbItems: LocalItem[] = await response.json();
       return dbItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
-    enabled: !!account,
+    // Never fetch items for merchant accounts — they use /shipments
+    enabled: !!account && role !== "merchant",
     staleTime: 30_000,
   });
 
   const items = rawItems;
   const fetchError = itemsError instanceof Error ? itemsError.message : null;
+
+  if (isAuthLoading || !isProfileLoaded) {
+    return (
+      <main className="min-h-screen bg-neutral-mist pb-12">
+        <Header />
+        <div className="flex justify-center items-center py-32">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      </main>
+    );
+  }
+
+  if (account && role === "merchant") {
+    return (
+      <main className="min-h-screen bg-neutral-mist pb-12">
+        <Header />
+        <div className="flex flex-col justify-center items-center py-32 gap-3">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+          <p className="text-xs font-medium text-neutral-slate">Redirecting to your logistics workspace...</p>
+        </div>
+      </main>
+    );
+  }
 
   const handleMarkLost = async (registrationId: string) => {
     if (!account) return;
