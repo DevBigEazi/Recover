@@ -57,9 +57,11 @@ export async function POST(
       );
     }
 
+    const targetPackageId = (shipment.packageId || shipment._id) as `0x${string}`;
+
     // Verify secret matches the package hash stored locally/on-chain
     const inputHash = keccak256(
-      encodePacked(["bytes32", "string"], [shipment.packageId as `0x${string}`, secretCode])
+      encodePacked(["bytes32", "string"], [targetPackageId, secretCode])
     );
     if (inputHash !== shipment.innerSecretHash) {
       return NextResponse.json({ error: "Invalid secret code. Package integrity verification failed." }, { status: 400 });
@@ -93,7 +95,7 @@ export async function POST(
         ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
         [
           relayerAccount.address as `0x${string}`,
-          id as `0x${string}`,
+          targetPackageId,
           keccak256(encodePacked(["string"], [secretCode])),
           BigInt(nonce),
           BigInt(deadline),
@@ -112,7 +114,7 @@ export async function POST(
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
       method: "function verifyDelivery(bytes32 packageId, string innerSecret, uint256 deadline, bytes signature)",
-      params: [id as `0x${string}`, innerSecret, BigInt(deadline), signature],
+      params: [targetPackageId, secretCode, BigInt(deadline), signature],
     });
 
     const txResult = await sendTransaction({
