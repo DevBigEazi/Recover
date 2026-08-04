@@ -30,10 +30,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const usableEmail = (email || user?.email || "").trim();
+    if (!usableEmail) {
+      return NextResponse.json(
+        { error: "Email is required to initialize subscription." },
+        { status: 400 }
+      );
+    }
+
     const customer = await getOrCreateStripeCustomer({
       walletAddress: cleanAddress,
-      email: email || user?.email || undefined,
+      email: usableEmail,
       name: user?.companyName || user?.fullName || undefined,
+      existingStripeCustomerId: user?.stripeCustomerId || undefined,
     });
 
     await db.user.findOneAndUpdate(

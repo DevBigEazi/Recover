@@ -23,22 +23,40 @@ export const STRIPE_PRICES = {
 
 /**
  * Finds or creates a Stripe Customer for a given user wallet address and email.
+ * Prioritizes existingStripeCustomerId, then exact metadata.walletAddress search,
+ * falling back to customer creation. Does NOT perform unfiltered email lookup.
  */
 export async function getOrCreateStripeCustomer(params: {
   walletAddress: string;
   email?: string | null;
   name?: string | null;
+  existingStripeCustomerId?: string | null;
 }): Promise<Stripe.Customer> {
-  const { walletAddress, email, name } = params;
+  const { walletAddress, email, name, existingStripeCustomerId } = params;
   const cleanAddress = walletAddress.toLowerCase();
 
-  const existing = await stripe.customers.list({
-    limit: 1,
-    email: email || undefined,
-  });
+  if (existingStripeCustomerId) {
+    try {
+      const customer = await stripe.customers.retrieve(existingStripeCustomerId);
+      if (customer && !customer.deleted) {
+        return customer as Stripe.Customer;
+      }
+    } catch {
+      // If retrieval fails, proceed to fallback search
+    }
+  }
 
-  if (existing.data.length > 0) {
-    return existing.data[0];
+  try {
+    const searchResult = await stripe.customers.search({
+      query: `metadata['walletAddress']:'${cleanAddress}'`,
+      limit: 1,
+    });
+
+    if (searchResult.data.length > 0) {
+      return searchResult.data[0];
+    }
+  } catch {
+    // If search is unavailable, proceed to customer creation
   }
 
   return await stripe.customers.create({

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       walletAddress: item.ownerAddress,
       email: userEmail,
       name: ownerUser?.fullName || undefined,
+      existingStripeCustomerId: ownerUser?.stripeCustomerId || undefined,
     });
 
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
