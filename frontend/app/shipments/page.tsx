@@ -54,7 +54,7 @@ interface Shipment {
 export default function ShipmentsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { apiKey, subscriptionActive, role, companyName, plan, billingCycle, shipmentsThisMonth, rolloverQuota, isProfileLoaded } = useProfile();
+  const { apiKey, subscriptionActive, role, companyName, plan, billingCycle, shipmentsThisMonth, rolloverQuota, isProfileLoaded, refetchProfile } = useProfile();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -1007,8 +1007,5 @@ export default function ShipmentsPage() {
       )}
     </div>
   );
-}
-function refetchProfile() {
-  throw new Error("Function not implemented.");
 }
 
