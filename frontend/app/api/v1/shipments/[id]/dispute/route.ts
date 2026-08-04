@@ -84,7 +84,7 @@ export async function POST(
         ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
         [
           relayerAccount.address as `0x${string}`,
-          id as `0x${string}`,
+          shipment._id as `0x${string}`,
           keccak256(encodePacked(["string"], [reason])),
           BigInt(nonce),
           BigInt(deadline),
@@ -103,7 +103,7 @@ export async function POST(
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
       method: "function disputeDelivery(bytes32 packageId, string reason, uint256 deadline, bytes signature)",
-      params: [id as `0x${string}`, reason, BigInt(deadline), signature],
+      params: [shipment._id as `0x${string}`, reason, BigInt(deadline), signature],
     });
 
     const txResult = await sendTransaction({

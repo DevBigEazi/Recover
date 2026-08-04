@@ -78,7 +78,7 @@ export async function POST(
         ["address", "bytes32", "address", "uint256", "uint256", "uint256", "address"],
         [
           relayerAccount.address as `0x${string}`,
-          id as `0x${string}`,
+          shipment._id as `0x${string}`,
           targetNextHandler,
           BigInt(nonce),
           BigInt(deadline),
@@ -97,7 +97,7 @@ export async function POST(
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
       method: "function logHandover(bytes32 packageId, address nextHandler, uint256 deadline, bytes signature)",
-      params: [id as `0x${string}`, nextHandlerAddress, BigInt(deadline), signature],
+      params: [shipment._id as `0x${string}`, targetNextHandler, BigInt(deadline), signature],
     });
 
     const txResult = await sendTransaction({
