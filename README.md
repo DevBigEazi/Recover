@@ -1,100 +1,149 @@
-# Recover — Decentralized Physical Item Recovery Protocol
+# Recover — Decentralized Physical Item & Logistics Tracking Protocol
 
-Recover is an AI-powered, privacy-first, secure physical item tracking and recovery protocol. By linking printed QR code stickers to an immutable decentralized ownership registry and leveraging AI helper utilities, it allows finders to contact owners instantly and coordinate returns securely—all without exposing the owner's private credentials or wallet address.
+**Recover** is a privacy-first, secure physical item tracking and logistics protocol built on the **Electroneum Mainnet** with AI-assisted messaging workflows. By pairing physical QR code stickers with an immutable decentralized registry and smart helper utilities, Recover serves two core use cases:
+
+1. **Personal Lost & Found Recovery**: Enables owners to protect everyday valuables (Phones, Keys, Laptops, Bags, Wallets) and allows finders to report found items instantly without exposing the owner's private credentials or wallet address.
+2. **Enterprise Logistics Package Tracking**: Empowers commercial merchants and shippers to dispatch tamper-proof packages (`PKG-XXXXXX`) backed by dual-layer scratch-off verification (`RCVR-XXXX`), real-time chain-of-custody event logging, and developer REST APIs.
 
 ---
 
-## 🔍 How Recover Works (The Core Flow)
+## 🔍 Core User Flows & Architecture
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Owner
-    actor Finder
+    actor Owner/Merchant
+    actor Finder/Carrier
     participant App as Next.js PWA
     participant Relayer as Gas Relayer Backend
     participant Chain as Electroneum Mainnet
 
-    Note over Owner, Chain: 1. Registration Phase
-    Owner->>App: Input item details & default contact
+    Note over Owner/Merchant, Chain: 1. Registration Phase
+    Owner/Merchant->>App: Input item/package details & contact info
     App->>Relayer: Request gasless registry signature
     Relayer-->>App: Return signature authorization
     App->>Chain: Register item on-chain via Relayer
-    App-->>Owner: Download printable QR Sticker & PIN
+    App-->>Owner/Merchant: Download printable QR Sticker & PIN/Secret
 
-    Note over Owner, Chain: 2. Loss & Scanning Phase
-    Owner->>App: Mark item status as "Lost"
-    Finder->>App: Scans QR sticker on physical item
-    App->>Relayer: Log QR scan event
-    Relayer-->>Owner: Dispatch real-time Web Push alerts
+    Note over Owner/Merchant, Chain: 2. Loss & Scanning Phase
+    Owner/Merchant->>App: Mark item "Lost" or dispatch shipment
+    Finder/Carrier->>App: Scans QR sticker on physical item/package
+    App->>Relayer: Log QR scan event & location coordinates
+    Relayer-->>Owner/Merchant: Dispatch real-time Web Push alerts & AI insights
 
-    Note over Owner, Chain: 3. Recovery Phase
-    Finder->>App: Submits report (Coordinates + Message)
-    App->>Owner: Deliver coordinates to Recovery Inbox
-    Owner->>Finder: Meets Finder, matches handshake PIN
-    Owner->>App: Input PIN & mark "Recovered"
-    App->>Chain: Reset item state to Active on-chain
+    Note over Owner/Merchant, Chain: 3. Handover & Recovery Phase
+    Finder/Carrier->>App: Submit report or scratch-off handover PIN
+    App->>Owner/Merchant: Deliver report/verification log to Inbox
+    Owner/Merchant->>Finder/Carrier: Verify physical handshake PIN
+    Owner/Merchant->>Chain: Reset state to Recovered/Delivered on-chain
 ```
 
-### 1. Simple Tag & Package Registration
-* **Individuals**: Sign in securely via social or email credentials (no crypto keys or gas fees needed) to register personal valuables (e.g. Phone, Keys, Bag, Laptop). Category validation enforces a trusted alternate contact for Phone items.
-* **Logistics Merchants**: Register commercial dispatches and packages (`/shipments`) with weight, reference name, and dual-layer tamper-proof QR stickers.
+---
 
-### 2. Real-Time Tracking & Scan Notifications
-* **Lost Valuables (`/verify/[id]`)**: Scanning a lost item sticker opens a mobile verification page where finders submit location coordinates and notes without creating an account.
-* **Commercial Shipments (`/scan/[id]`)**: Scanning a package sticker displays real-time dispatch status (`InTransit`, `Delivered`, `Disputed`), carrier details, and interactive handover PIN verification.
-* **Web Push Protocol**: Scans trigger instant, real-time Web Push alerts to owners and merchant operations dashboards.
+## 🚀 Application Pages & Feature Matrix
 
-### 3. Secure Handover & Dual Monetization
-* **Personal Recovery Handover**: The owner inputs a private verification PIN to match the finder's handshake, resetting the state to `Recovered`. Monetized via Pay-As-You-Go report unlocks (5,000 NGN for phones, 2,000 NGN for other items).
-* **Enterprise Logistics SaaS**: Merchants access 3 Pro Tiers (Pro Starter ₦15k/mo, Pro Growth ₦45k/mo, Pro Scale ₦100k/mo) with 10% annual billing discounts and automatic quota rollover. Includes developer REST APIs (`/api/v1/shipments/*`) and webhooks for external logistics software integration.
+| Page Route | Purpose & Key Features |
+| :--- | :--- |
+| **`/`** | **Landing Page**: Product overview, dual-value proposition, live feature showcases, and getting started CTAs. |
+| **`/register`** | **Item Registration**: Register personal items with category validation (Phone, Electronics, Keys, Wallets, Bags, Vehicles, Pets, Other). Enforces trusted alternate contacts for Phones and leverages Google Gemini 2.0 to draft item descriptions. |
+| **`/dashboard`** | **Owner Dashboard**: Central hub displaying registered items, loss status toggles, active QR limits, subscription status, and Sticker Studio quick links. |
+| **`/items/[id]`** | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other). |
+| **`/verify/[id]`** | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/courier report submission form. |
+| **`/shipments`** | **Logistics Merchant Dashboard**: Commercial dispatch portal for creating tamper-proof package shipments (`PKG-XXXXXX`), scratch-off inner secret generation (`RCVR-XXXX`), subscription plan paywall cards, and dispatch logs. |
+| **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Public & carrier tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), carrier operator notes, Google Maps location tracking, and interactive PIN verification. |
+| **`/scan/[id]`** | **Carrier Handover Scan Entrypoint**: Quick scan interface for logistics operators to verify physical scratch-off codes and record custody transitions. |
+| **`/developers`** | **Logistics Developer Portal**: Comprehensive REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization headers (`x-api-key`), and webhook payload formats. |
+| **`/settings`** | **Account & Merchant Settings**: Profile management, API key generation & rolling, and Logistics Subscription Upgrade Modal with live FX currency conversion and downgrade protection. |
+| **`/pricing`** | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Logistics Pro Tiers (Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees. |
+| **`/about`** | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless blockchain architecture, privacy standards, and common user questions. |
+| **`/notifications`** | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions. |
+
+---
+
+## 💳 Stripe Integration & Multi-Currency Engine
+
+Recover features a seamless payment engine powered by **Stripe Checkout & Stripe Adaptive Pricing**:
+
+* **Personal Item Report Detail Unlocks**:
+  - **Phone Category**: **$3.50 USD** base price
+  - **Other Categories**: **$1.50 USD** base price
+* **Enterprise Logistics SaaS Subscriptions**:
+  - **Pro Starter**: **$15 / month** (or **$162 / year** — Save 10%) · Up to 10,000 dispatches/mo
+  - **Pro Growth**: **$45 / month** (or **$486 / year** — Save 10%) · Up to 100,000 dispatches/mo
+  - **Pro Scale**: **$100 / month** (or **$1,080 / year** — Save 10%) · Up to 500,000 dispatches/mo
+* **Dynamic FX Currency Converter (`lib/currency.ts`)**:
+  - Automatically detects the user's country and local currency via IP geolocation and browser locale.
+  - Converts base USD prices dynamically into local currency displays (e.g., `₦5,000 NGN ($3.50 USD)`, `€3.20 EUR`, `£2.75 GBP`).
+* **Subscription Rules & Quota Protection**:
+  - **10% Discount** on all annual billing cycles with explicit mode labeling (`Annual Billing` vs `Monthly Billing`).
+  - **Unused Quota Rollover**: Remaining unused shipment quota automatically rolls over to the next month upon renewal.
+  - **Uninterrupted Metered Overage**: When a paid plan quota is exhausted, service is **never cut off**; additional shipments transition to low-cost overage billing ($0.02, $0.015, or $0.01 USD per package).
+  - **Accidental Downgrade Protection**: Selecting lower tiers than the user's active plan is strictly disabled to protect existing paid capacity.
+
+---
+
+## 🖨️ QR Sticker Studio
+
+Recover includes an integrated **Printable QR Sticker Studio**:
+
+* **Standardized Sizes**:
+  - **Mini (~10mm x 10mm)** — *(Recommended, equivalent to medical drug carton code)*
+  - **Standard (~25mm x 25mm)**
+  - **Large (~50mm x 50mm)**
+* **Top-Aligned Sticker Caption**:
+  All generated QR stickers include the clear caption printed above the code:
+  > *"This item might be lost. If found, please scan to contact the owner."*
+* **Batch Printing**: Logistics merchants can export bulk high-resolution vector PDF/PNG sticker sheets for commercial packaging.
+
+---
+
+## 🔒 Security, Privacy & Web3 Infrastructure
+
+* **Electroneum Mainnet (`52014`)**:
+  - **UUPS Upgradeable Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
+  - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2`
+* **Gasless Backend Relayer Pattern**:
+  - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
+  - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
+* **Consumer-Friendly Copy & Privacy Default**:
+  - Raw EVM hashes (`0x...`) are formatted into consumer tracking codes (`PKG-8F912A`).
+  - User wallet addresses are hidden behind Display Names and Company Names.
+  - Private key exports require explicit client-side "Click to Reveal" actions and are never cached or logged.
+  - Alternate contact details for phones are stored securely off-chain and only revealed to verified finders.
+* **AI Location Insights (Google Gemini 2.0 Flash)**:
+  - Generates real-time contextual location summaries when finders submit coordinates.
 
 ---
 
 ## 📁 Repository Structure
 
-* **`frontend/`**: Web application (Next.js + TS + thirdweb SDK v5 + Tailwind CSS v4)
-* **`smart-contract/`**: Foundry workspace for contract development and deployment
+```
+recover/
+├── frontend/                  # Next.js 16 PWA Frontend & Node.js API Routes
+│   ├── app/                   # App Router pages and API endpoints
+│   ├── components/            # UI components (Header, Modals, Inbox, etc.)
+│   ├── context/               # Auth & Profile context providers
+│   ├── lib/                   # Database (MongoDB), Stripe, Currency FX, Thirdweb SDK
+│   └── public/                # Static assets, PWA manifest, service worker (sw.js)
+├── smart-contract/            # Foundry Solidity Workspace
+│   ├── src/                   # RecoverRegistry & RecoverShipment UUPS Contracts
+│   ├── test/                  # Comprehensive Foundry test suites
+│   └── script/                # Deployment and upgrade scripts
+├── README.md                  # Project Documentation
+└── AGENTS.md                  # Repository Engineering Guidelines
+```
 
 ---
 
-## 🛠 Tech Stack & Architecture
-
-### Frontend (Next.js PWA)
-* Built using **Next.js** and styled with **Tailwind CSS**.
-* **Progressive Web App (PWA)** compliance with an active service worker (`sw.js`) to support standalone home-screen installation on iOS and Android.
-* **TanStack Query** handles real-time UI status polling and alerts synchronization.
-* Direct RPC reads on the client-side are prohibited; all frontend pages query local database APIs.
-
-### Backend (Next.js API Routes & MongoDB/Mongoose)
-* Database layer: **MongoDB** (hosted via Atlas or locally) managed with **Mongoose ODM**.
-* **AI Engine**: Connects to the **Google Gemini 2.0 Flash** API with exponential backoff retry resilience, drafting registration guidelines and coordinate context summaries.
-* **Web Push Protocol**: Signs and broadcasts native mobile push alerts to clients.
-
-### Smart Contract Layer (Electroneum Mainnet)
-* Developed using **Foundry** (`forge`, `cast`) and deployed directly to Electroneum Mainnet.
-* **Universal Upgradeable Proxy Standard (UUPS)**: Inherits from OpenZeppelin's UUPS Upgradeable contracts to allow future feature expansions.
-* **Gasless Relayer Pattern**: Uses a cryptographic signer witness on the backend. When users register or transition item statuses, the relayer submits write transactions to the blockchain on their behalf, sponsoring gas fees to provide a seamless Web2-like user experience.
-
-#### Deployed Contracts:
-- **Electroneum Mainnet (`52014`)**:
-  - **Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
-  - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2` (Verified)
-- **Electroneum Testnet (`5201420`)**:
-  - **Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
-  - **Implementation v2 (Item Deletion):** `0x0a637c959cAc325b8a422d4E17EE0f1b7F57Af3b`
-
----
-
-## 🚀 Workspace Commands
+## 🛠 Workspace Commands
 
 Run these commands from the root directory:
 
-* **`npm run dev`**: Start the frontend development server
-* **`npm run build`**: Build the frontend for production
-* **`npm run start`**: Start the production server for the frontend
-* **`npm run compile`**: Compile smart contracts (Forge build)
-* **`npm run test`**: Run smart contract tests (Forge test)
+* **`npm run dev`**: Start the Next.js development server
+* **`npm run build`**: Lint and compile the production Next.js build
+* **`npm run lint`**: Run ESLint analysis
+* **`npm run compile`**: Compile smart contracts (`forge build`)
+* **`npm run test`**: Run smart contract test suite (`forge test`)
 
 ### Database Setup
-Ensure you configure the `MONGODB_URI` environment variable in your `frontend/.env.local` file pointing to a MongoDB instance. Indexes are dynamically registered via Mongoose on connection.
+Configure `MONGODB_URI` in `frontend/.env.local` pointing to your MongoDB instance. Mongoose automatically initializes collection indexes on connection.
