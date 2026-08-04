@@ -188,7 +188,7 @@ export async function PUT(request: Request, { params }: Props) {
     const updatedItem = await db.item.findOneAndUpdate(
       { _id: id },
       { $set: updateFields },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updatedItem) {

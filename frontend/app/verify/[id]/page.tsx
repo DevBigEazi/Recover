@@ -84,7 +84,7 @@ export default function VerifyPage({ params }: PageProps) {
           const profileRes = await fetch(`/api/profile?walletAddress=${localItem.owner}`, { cache: "no-store" });
           if (profileRes.ok) {
             const profileData = await profileRes.json();
-            setOwnerName(profileData.fullName);
+            setOwnerName(profileData.companyName || profileData.fullName);
           }
         } catch (err) {
           console.error("Failed to fetch owner display name:", err);

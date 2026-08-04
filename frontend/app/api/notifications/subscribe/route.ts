@@ -36,7 +36,7 @@ export async function POST(request: Request) {
           _id: crypto.randomUUID(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
 
     return NextResponse.json(savedSub, { status: 201 });

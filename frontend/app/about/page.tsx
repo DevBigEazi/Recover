@@ -2,28 +2,30 @@
 
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
+import Link from "next/link";
+import { ArrowRight, Truck, Lock, Smartphone, Bot, CheckCircle2 } from "lucide-react";
 
 export default function AboutPage() {
   const steps = [
     {
       num: "01",
-      title: "Register Your Valuables",
-      desc: "Log in with Google, Email, or Social account and register your items in our decentralized blockchain registry. Leverage AI to automatically generate personalized recovery instructions.",
+      title: "Register Your Valuables or Commercial Packages",
+      desc: "Sign in with Google, Email, or Social account. Register personal items (phones, laptops, keys) or commercial logistics packages (`/shipments`). Leverage AI to automatically generate context-specific recovery instructions.",
     },
     {
       num: "02",
-      title: "Print & Attach Sticker",
-      desc: "Download and print your sticker in your preferred size preset (Mini or Standard). Attach it securely to your physical item where finders can easily see and scan it.",
+      title: "Print & Attach Scannable QR Sticker",
+      desc: "Download and print your sticker in preferred size presets: Mini (~10mm for keychains & chargers), Standard (~25mm for phones & wallets), or Large (~50mm for laptops & luggage dispatches).",
     },
     {
       num: "03",
-      title: "Instant Mobile Scan",
-      desc: "If an item goes missing, flag it as 'Lost' on your dashboard. When a finder scans the sticker with their phone camera, they land on a mobile verification page with no app download required.",
+      title: "Instant Mobile QR Scan & Real-Time Alerts",
+      desc: "When an item is lost or package scanned in transit, anyone with a phone camera lands on a mobile verification page (`/verify/[id]` or `/scan/[id]`). Real-time Web Push alerts immediately notify the owner/merchant.",
     },
     {
       num: "04",
-      title: "Flexible & Private Recovery",
-      desc: "Coordinate a safe public meetup, arrange a manual local courier offline, or request a secure, anonymous delivery via our integrated delivery partner service.",
+      title: "Private Handover & Handshake PIN Verification",
+      desc: "Coordinate a safe public meetup, arrange a local courier, or verify package delivery. Complete the return by matching secret verification PINs to update the state to Recovered or Delivered.",
     },
   ];
 
@@ -32,15 +34,15 @@ export default function AboutPage() {
       <div>
         <Header />
 
-        <div className="max-w-5xl mx-auto px-4 py-6 sm:py-12 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
+        <div className="max-w-5xl mx-auto px-4 py-8 sm:py-16 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
           
           {/* Banner Section */}
           <div className="text-center space-y-3 sm:space-y-4 max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold tracking-tight text-primary font-display sm:text-5xl">
               How Recover Works
             </h1>
-            <p className="text-sm sm:text-md text-neutral-slate leading-relaxed">
-              Recover bridges physical items with smart digital protection. Protect your everyday valuables with printable QR stickers that allow finders to contact you safely and privately.
+            <p className="text-sm sm:text-base text-neutral-slate leading-relaxed">
+              Recover bridges physical items with smart digital protection. Protect personal valuables with scannable QR stickers and power commercial logistics dispatches with tamper-proof package tracking.
             </p>
           </div>
 
@@ -65,7 +67,7 @@ export default function AboutPage() {
           {/* Privacy & Security Safeguards Section */}
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-10 shadow-xs space-y-4 sm:space-y-6">
             <div className="border-b border-neutral-mist pb-3 sm:pb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">Built-In Privacy Safeguards</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">Built-In Security &amp; Privacy Safeguards</h2>
               <p className="text-xs text-neutral-slate mt-1">
                 Your security and personal privacy are protected by design at every step.
               </p>
@@ -74,34 +76,34 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 text-xs leading-relaxed">
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">🔒</span> Privacy-First Protection
+                  <Lock className="w-4 h-4 text-accent" /> Privacy-First Protection
                 </h4>
                 <p className="text-neutral-slate">
-                  We never expose plain-text personal details (such as home address or primary phone numbers) on the public internet. Your identity remains private until you choose to share it.
+                  We never expose plain-text personal details (such as home address or primary phone numbers) on the public internet. Your identity remains private.
                 </p>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">📱</span> No App Required
+                  <Smartphone className="w-4 h-4 text-accent" /> No App Required
                 </h4>
                 <p className="text-neutral-slate">
-                  Finders do not need to install an app, create an account, or complete a technical setup. They scan and communicate instantly from any mobile browser.
+                  Finders and package handlers do not need to install an app, create an account, or complete a technical setup. They scan and communicate instantly from any mobile browser.
                 </p>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">💬</span> Safe Communication
+                  <Truck className="w-4 h-4 text-indigo-600" /> Commercial Logistics API
                 </h4>
                 <p className="text-neutral-slate">
-                  Communicate with finders safely via instant in-app messages or direct Call, WhatsApp, and Email action buttons without putting your privacy at risk.
+                  Merchants can programmatically create dispatches, track chain of custody, and receive instant webhooks via `/api/v1/shipments`.
                 </p>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <span className="text-accent text-base sm:text-lg">🤖</span> AI Safety Insights
+                  <Bot className="w-4 h-4 text-accent" /> AI Safety Insights
                 </h4>
                 <p className="text-neutral-slate">
-                  Our system automatically analyzes report coordinates and translates them into semantic context to give you clear guidance on coordinates security.
+                  Our system automatically analyzes report coordinates and translates them into semantic context to give you clear safety guidance.
                 </p>
               </div>
             </div>
@@ -112,7 +114,7 @@ export default function AboutPage() {
             <div className="border-b border-neutral-mist pb-3 sm:pb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">QR Code Sticker Guidelines</h2>
               <p className="text-xs text-neutral-slate mt-1">
-                Maximize the chances of your lost items being safely recovered.
+                Maximize the chances of your lost items being safely recovered or commercial packages verified.
               </p>
             </div>
 
@@ -120,23 +122,32 @@ export default function AboutPage() {
               <div className="space-y-2 sm:space-y-3">
                 <h4 className="font-bold text-primary">Best Placement Spots:</h4>
                 <ul className="space-y-1.5 sm:space-y-2 text-neutral-slate list-disc pl-5 leading-relaxed">
-                  <li><strong>Wallets & Purses:</strong> Place the sticker on the inside cover or a prominent card slot.</li>
+                  <li><strong>Wallets &amp; Purses:</strong> Place the sticker on the inside cover or a prominent card slot.</li>
                   <li><strong>Electronics:</strong> Back of laptops, tablets, or under phone cases.</li>
-                  <li><strong>Keys & Bags:</strong> Attach to keychains, luggage tags, or backpack strap tags.</li>
-                  <li><strong>Passports & Documents:</strong> Inside the back cover of travel documents.</li>
+                  <li><strong>Keys &amp; Bags:</strong> Attach to keychains, luggage tags, or backpack strap tags.</li>
+                  <li><strong>Commercial Shipping Containers:</strong> Top-right corner of package boxes or tamper seals.</li>
                 </ul>
               </div>
               
               <div className="space-y-2 sm:space-y-3 bg-neutral-mist/35 p-5 sm:p-6 rounded-xl border border-neutral-mist">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  💡 Secure Recovery Options:
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Ready to Protect Your Valuables?
                 </h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  Always prioritize safety. You can coordinate a safe public meetup (such as in a busy coffee shop or transit center), self-organize a local delivery, or request an integrated courier dispatch to have your item delivered anonymously directly to your doorstep.
+                  Start protecting your belongings with scannable QR stickers today, or check out our transparent pricing plans.
                 </p>
+                <div className="pt-2 flex flex-wrap gap-3">
+                  <Link href="/register" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+                    Register Personal Item <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link href="/pricing" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                    View Pricing Tiers <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
+
         </div>
       </div>
 

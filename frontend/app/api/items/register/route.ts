@@ -123,7 +123,7 @@ export async function POST(request: Request) {
           publicContactMethod: publicContactMethod || "phone",
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
 
     try {

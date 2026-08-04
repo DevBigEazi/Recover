@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Bell, Home, LayoutDashboard, PlusCircle, Info, Settings, LogOut, User as UserIcon } from "lucide-react";
+import { Menu, X, ChevronDown, Bell, Home, LayoutDashboard, PlusCircle, Truck, Info, Settings, LogOut, User as UserIcon, Tag } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useActiveAccount, useActiveWallet, useDisconnect } from "thirdweb/react";
+import { useActiveWallet, useDisconnect } from "thirdweb/react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -22,9 +22,8 @@ export default function Header() {
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
   // Keep useActiveAccount for wallet-specific hooks that need the raw account
-  const rawAccount = useActiveAccount();
   const { openLogin } = useAuth();
-  const { fullName, username } = useProfile();
+  const { fullName, companyName, username, role, plan, billingCycle } = useProfile();
 
   // 1. Fetch notifications via TanStack Query (polls every 5s for real-time alerts)
   const { data: notifications = [] } = useQuery<Array<{
@@ -65,14 +64,45 @@ export default function Header() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Register Item", href: "/register" },
-    { name: "About", href: "/about" },
-  ];
+  const navLinks = role === "merchant"
+    ? [
+        { name: "Home", href: "/" },
+        { name: "Shipments", href: "/shipments" },
+        { name: "Pricing", href: "/pricing" },
+        { name: "Developers", href: "/developers" },
+        { name: "About", href: "/about" },
+      ]
+    : [
+        { name: "Home", href: "/" },
+        { name: "Dashboard", href: "/dashboard" },
+        { name: "Register Item", href: "/register" },
+        { name: "Pricing", href: "/pricing" },
+        { name: "Developers", href: "/developers" },
+        { name: "About", href: "/about" },
+      ];
 
   const isActive = (href: string) => pathname === href;
+
+  const getNavLinkIcon = (href: string) => {
+    switch (href) {
+      case "/":
+        return <Home className="w-4 h-4 text-accent" />;
+      case "/dashboard":
+        return <LayoutDashboard className="w-4 h-4 text-blue-500" />;
+      case "/register":
+        return <PlusCircle className="w-4 h-4 text-emerald-500" />;
+      case "/shipments":
+        return <Truck className="w-4 h-4 text-indigo-500" />;
+      case "/pricing":
+        return <Tag className="w-4 h-4 text-emerald-500" />;
+      case "/developers":
+        return <Info className="w-4 h-4 text-indigo-500" />;
+      case "/about":
+        return <Info className="w-4 h-4 text-amber-500" />;
+      default:
+        return null;
+    }
+  };
 
   const handleDisconnect = () => {
     if (activeWallet) {
@@ -88,7 +118,10 @@ export default function Header() {
           
           {/* Logo / Wordmark lockup */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link
+              href={role === "merchant" ? "/shipments" : account ? "/dashboard" : "/"}
+              className="flex items-center space-x-2"
+            >
               <Image 
                 src="/logo-full.svg" 
                 alt="Recover Logo" 
@@ -208,38 +241,72 @@ export default function Header() {
                       className="flex items-center space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer"
                     >
                       <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200">
-                        👤
+                        {role === "merchant" ? "🏢" : "👤"}
                       </div>
-                      <span className={`${fullName || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
-                        {fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
+                      <span className={`${(role === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
+                        {role === "merchant"
+                          ? (companyName || fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)
+                          : (fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)}
                       </span>
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isUserMenuOpen && (
-                     <div className="absolute right-0 mt-2 w-48 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
-                      <Link
-                        href="/dashboard"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                      <Link
-                        href="/register"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Register Item
-                      </Link>
-                      <Link
-                        href="/settings"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Settings
-                      </Link>
-                      <div className="border-t border-neutral-mist my-1.5" />
+                      <div className="absolute right-0 mt-2 w-52 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                        {role === "merchant" ? (
+                          <>
+                            <div className="px-4 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
+                              <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">Merchant Plan</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-xs font-bold text-primary">
+                                  {plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : plan === "pro" ? "Pro Tier" : "Free Tier"}
+                                </span>
+                                <span className="bg-blue-100 text-blue-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
+                                  {billingCycle === "yearly" ? "Annual" : "Monthly"}
+                                </span>
+                              </div>
+                            </div>
+                            <Link
+                              href="/shipments"
+                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              Shipments Workspace
+                            </Link>
+                            <Link
+                              href="/settings"
+                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              Company Settings
+                            </Link>
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              href="/dashboard"
+                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              Dashboard
+                            </Link>
+                            <Link
+                              href="/register"
+                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              Register Item
+                            </Link>
+                            <Link
+                              href="/settings"
+                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              Settings
+                            </Link>
+                          </>
+                        )}
+                        <div className="border-t border-neutral-mist my-1.5" />
                       <button
                         onClick={handleDisconnect}
                         className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
@@ -337,44 +404,21 @@ export default function Header() {
 
                 {/* Navigation Items */}
                 <nav className="space-y-1.5">
-                  <Link
-                    href="/"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                      isActive("/")
-                        ? "text-primary bg-neutral-mist font-semibold"
-                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                    }`}
-                  >
-                    <Home className="w-4 h-4 text-accent" />
-                    <span>Home</span>
-                  </Link>
-
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                      isActive("/dashboard")
-                        ? "text-primary bg-neutral-mist font-semibold"
-                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                    }`}
-                  >
-                    <LayoutDashboard className="w-4 h-4 text-accent" />
-                    <span>Dashboard</span>
-                  </Link>
-
-                  <Link
-                    href="/register"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                      isActive("/register")
-                        ? "text-primary bg-neutral-mist font-semibold"
-                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                    }`}
-                  >
-                    <PlusCircle className="w-4 h-4 text-accent" />
-                    <span>Register Item</span>
-                  </Link>
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
+                        isActive(link.href)
+                          ? "text-primary bg-neutral-mist font-semibold"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                      }`}
+                    >
+                      {getNavLinkIcon(link.href)}
+                      <span>{link.name}</span>
+                    </Link>
+                  ))}
 
                   {account && (
                     <Link
@@ -409,22 +453,9 @@ export default function Header() {
                       }`}
                     >
                       <Settings className="w-4 h-4 text-accent" />
-                      <span>Settings</span>
+                      <span>{role === "merchant" ? "Company Settings" : "Settings"}</span>
                     </Link>
                   )}
-
-                  <Link
-                    href="/about"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                      isActive("/about")
-                        ? "text-primary bg-neutral-mist font-semibold"
-                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                    }`}
-                  >
-                    <Info className="w-4 h-4 text-accent" />
-                    <span>About</span>
-                  </Link>
                 </nav>
               </div>
 

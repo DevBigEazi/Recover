@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
+import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -14,7 +15,14 @@ import { toast } from "react-hot-toast";
 export default function RegisterPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail } = useProfile();
+  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail, role, isProfileLoaded } = useProfile();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (account && role && role === "merchant") {
+      router.replace("/shipments");
+    }
+  }, [account, role, router]);
 
   // Form states
   const [name, setName] = useState("");
@@ -66,6 +74,21 @@ export default function RegisterPage() {
   useEffect(() => {
     setPassphrase(Math.floor(100000 + Math.random() * 900000).toString());
   }, []);
+
+  if (isAuthLoading || !isProfileLoaded) {
+    return (
+      <main className="min-h-screen bg-neutral-mist pb-12">
+        <Header />
+        <div className="flex justify-center items-center py-32">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      </main>
+    );
+  }
+
+  if (account && role === "merchant") {
+    return null;
+  }
 
   const handleGenerateAiInstructions = async () => {
     if (!name.trim()) return;
