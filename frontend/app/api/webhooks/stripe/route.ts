@@ -4,19 +4,21 @@ import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 
 export async function POST(request: Request) {
-  const body = await request.text();
   const sig = request.headers.get("stripe-signature");
-
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!sig || !webhookSecret) {
+    return NextResponse.json(
+      { error: "Missing stripe-signature header or webhook secret configuration." },
+      { status: 400 }
+    );
+  }
+
+  const body = await request.text();
   let event: Stripe.Event;
 
   try {
-    if (!sig || !webhookSecret) {
-      // Fallback parse if signature secret not configured yet in local test
-      event = JSON.parse(body) as Stripe.Event;
-    } else {
-      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-    }
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Webhook Error";
     console.error("Stripe Webhook signature verification failed:", message);
