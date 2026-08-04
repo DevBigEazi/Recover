@@ -8,34 +8,44 @@ export async function POST(request: Request) {
     const { reportId: bodyReportId, sessionId, reference } = body;
 
     const sessionIdentifier = sessionId || reference;
-    if (!sessionIdentifier && !bodyReportId) {
+    if (!sessionIdentifier) {
       return NextResponse.json(
-        { error: "sessionId, reference, or reportId is required." },
+        { error: "sessionId or reference is required." },
         { status: 400 }
       );
     }
 
     await connectDB();
 
-    let targetReportId = bodyReportId;
+    const session = await stripe.checkout.sessions.retrieve(sessionIdentifier);
 
-    if (sessionIdentifier) {
-      const session = await stripe.checkout.sessions.retrieve(sessionIdentifier);
-
-      if (session.payment_status !== "paid" && session.status !== "complete") {
-        return NextResponse.json(
-          { error: "Payment verification failed. Checkout session is incomplete." },
-          { status: 400 }
-        );
-      }
-
-      if (!targetReportId && session.metadata?.reportId) {
-        targetReportId = session.metadata.reportId;
-      }
+    if (session.payment_status !== "paid" && session.status !== "complete") {
+      return NextResponse.json(
+        { error: "Payment verification failed. Checkout session is incomplete." },
+        { status: 400 }
+      );
     }
 
+    if (session.metadata?.type !== "report_unlock") {
+      return NextResponse.json(
+        { error: "Invalid session type for report unlock." },
+        { status: 400 }
+      );
+    }
+
+    const targetReportId = session.metadata?.reportId;
     if (!targetReportId) {
-      return NextResponse.json({ error: "Could not identify reportId to unlock." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Could not identify reportId from checkout session." },
+        { status: 400 }
+      );
+    }
+
+    if (bodyReportId && bodyReportId !== targetReportId) {
+      return NextResponse.json(
+        { error: "Report ID mismatch between request and session metadata." },
+        { status: 400 }
+      );
     }
 
     const updatedReport = await db.finderReport.findOneAndUpdate(
