@@ -1,39 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
 import { Check, HelpCircle, ArrowRight, ShieldCheck, Zap, Sparkles, Truck } from "lucide-react";
+import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
 
 export default function PricingPage() {
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
   const [proQuota, setProQuota] = useState<"pro_starter" | "pro_growth" | "pro_scale">("pro_growth");
+  const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+
+  useEffect(() => {
+    detectUserCurrency().then(setUserCurrency);
+  }, []);
 
   const proOptions = {
     pro_starter: {
       name: "Pro Starter",
-      quota: "1,000 dispatches / mo",
-      monthlyPrice: "₦15,000",
-      yearlyPrice: "₦162,000",
-      effectiveMonthly: "₦13,500",
-      overage: "₦25 per excess shipment",
+      quota: "10,000 dispatches / mo",
+      usdMonthly: 15,
+      usdYearly: 162,
+      usdEffective: 13.5,
+      overage: "$0.02 per excess shipment",
     },
     pro_growth: {
       name: "Pro Growth",
-      quota: "5,000 dispatches / mo",
-      monthlyPrice: "₦45,000",
-      yearlyPrice: "₦486,000",
-      effectiveMonthly: "₦40,500",
-      overage: "₦25 per excess shipment",
+      quota: "100,000 dispatches / mo",
+      usdMonthly: 45,
+      usdYearly: 486,
+      usdEffective: 40.5,
+      overage: "$0.015 per excess shipment",
     },
     pro_scale: {
       name: "Pro Scale",
-      quota: "15,000 dispatches / mo",
-      monthlyPrice: "₦100,000",
-      yearlyPrice: "₦1,080,000",
-      effectiveMonthly: "₦90,000",
-      overage: "₦25 per excess shipment",
+      quota: "500,000 dispatches / mo",
+      usdMonthly: 100,
+      usdYearly: 1080,
+      usdEffective: 90,
+      overage: "$0.01 per excess shipment",
     },
   };
 
@@ -86,7 +92,7 @@ export default function PricingPage() {
                 </div>
                 <h3 className="text-sm font-bold text-primary">Item Registration &amp; Sticker Export</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">
-                  <strong>Free (₦0)</strong>. Register unlimited items (phones, keys, laptops, pets) and export printable QR stickers in Mini (~10mm), Standard (~25mm), or Large (~50mm) sizes.
+                  <strong>Free ($0)</strong>. Register unlimited items (phones, keys, laptops, pets) and export printable QR stickers in Mini (~10mm), Standard (~25mm), or Large (~50mm) sizes.
                 </p>
               </div>
 
@@ -96,7 +102,7 @@ export default function PricingPage() {
                 </div>
                 <h3 className="text-sm font-bold text-primary">Finder Report &amp; Location Alert</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">
-                  <strong>Free (₦0)</strong>. When a lost item is scanned, finders submit location coordinates and notes. You receive instant Web Push alerts.
+                  <strong>Free ($0)</strong>. When a lost item is scanned, finders submit location coordinates and notes. You receive instant Web Push alerts.
                 </p>
               </div>
 
@@ -108,9 +114,11 @@ export default function PricingPage() {
                 <p className="text-xs text-neutral-slate leading-relaxed">
                   Pay only when your item is found to unmask finder contact details:
                   <br />
-                  • <strong>Phone Category:</strong> ₦5,000 / report
+                  • <strong>Phone Category:</strong> $3.50 USD (equivalent to ~₦5,000)
                   <br />
-                  • <strong>Other Categories:</strong> ₦2,000 / report
+                  • <strong>Other Categories:</strong> $1.50 USD (equivalent to ~₦2,000)
+                  <br />
+                  <span className="text-[10px] text-neutral-slate font-medium">Stripe Adaptive Pricing presents converted rates in your local currency automatically.</span>
                 </p>
               </div>
             </div>
@@ -159,8 +167,8 @@ export default function PricingPage() {
               </div>
             </div>
 
-            {/* Merchant Pricing Grid - 3 Clean Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {/* Merchant Pricing Grid - 2 Clean Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-5xl mx-auto">
               
               {/* Card 1: Free Bootstrap Tier */}
               <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-xs hover:shadow-md transition-shadow">
@@ -175,7 +183,7 @@ export default function PricingPage() {
 
                   <div className="border-t border-b border-neutral-mist/60 py-4 space-y-1">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold font-display text-primary">₦0</span>
+                      <span className="text-3xl font-extrabold font-display text-primary">$0</span>
                       <span className="text-xs text-neutral-slate font-medium">/ forever</span>
                     </div>
                     <div className="pt-2 text-xs font-bold text-primary flex items-center gap-1.5">
@@ -221,7 +229,7 @@ export default function PricingPage() {
               {/* Card 2: Pro Logistics Tier (Interactive Quota Selector) */}
               <div className="bg-neutral-white border-2 border-primary rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-md relative ring-4 ring-primary/10">
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-neutral-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full tracking-wider shadow-xs flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Most Popular
+                  <Sparkles className="w-3 h-3" /> Recommended for Businesses
                 </div>
 
                 <div className="space-y-4">
@@ -248,7 +256,7 @@ export default function PricingPage() {
                             : "text-neutral-slate hover:text-primary"
                         }`}
                       >
-                        1,000 / mo
+                        10,000 / mo
                       </button>
                       <button
                         type="button"
@@ -259,7 +267,7 @@ export default function PricingPage() {
                             : "text-neutral-slate hover:text-primary"
                         }`}
                       >
-                        5,000 / mo
+                        100,000 / mo
                       </button>
                       <button
                         type="button"
@@ -270,23 +278,22 @@ export default function PricingPage() {
                             : "text-neutral-slate hover:text-primary"
                         }`}
                       >
-                        15,000 / mo
+                        500,000 / mo
                       </button>
                     </div>
                   </div>
 
                   <div className="border-t border-b border-neutral-mist/60 py-4 space-y-1">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold font-display text-primary">
-                        {cycle === "yearly" ? selectedPro.yearlyPrice : selectedPro.monthlyPrice}
-                      </span>
-                      <span className="text-xs text-neutral-slate font-medium">
-                        {cycle === "yearly" ? "/ yr" : "/ mo"}
+                      <span className="text-xl sm:text-2xl font-extrabold font-display text-primary">
+                        {cycle === "yearly"
+                          ? `${convertUsdPrice(selectedPro.usdYearly, userCurrency).formattedLocal} / yr (Annual Billing)`
+                          : `${convertUsdPrice(selectedPro.usdMonthly, userCurrency).formattedLocal} / mo (Monthly Billing)`}
                       </span>
                     </div>
                     {cycle === "yearly" && (
                       <p className="text-[11px] font-bold text-emerald-600">
-                        Equivalent to {selectedPro.effectiveMonthly} / month (10% Saved)
+                        Equivalent to {convertUsdPrice(selectedPro.usdEffective, userCurrency).formattedLocal} / month (10% Saved)
                       </p>
                     )}
                     <div className="pt-2 text-xs font-extrabold text-primary flex items-center gap-1.5">
@@ -308,7 +315,7 @@ export default function PricingPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Metered Overage Protection (₦25 / excess package)</span>
+                      <span>Metered Auto-Billing Overage ({selectedPro.overage})</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
@@ -327,62 +334,6 @@ export default function PricingPage() {
                 >
                   Subscribe to {selectedPro.name}
                 </Link>
-              </div>
-
-              {/* Card 3: Enterprise Custom Tier */}
-              <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-xs hover:shadow-md transition-shadow">
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">Enterprise Custom</span>
-                    <h3 className="text-xl font-extrabold text-primary">Enterprise Tier</h3>
-                    <p className="text-xs text-neutral-slate mt-1 leading-relaxed">
-                      For high-volume couriers, nationwide fleets &amp; custom ERP integrations.
-                    </p>
-                  </div>
-
-                  <div className="border-t border-b border-neutral-mist/60 py-4 space-y-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold font-display text-primary">Custom</span>
-                      <span className="text-xs text-neutral-slate font-medium">/ SLA contract</span>
-                    </div>
-                    <div className="pt-2 text-xs font-bold text-primary flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-purple-600" /> Unlimited / Custom Quota
-                    </div>
-                    <p className="text-[11px] text-neutral-slate">
-                      Overage: Volume-discounted custom rates
-                    </p>
-                  </div>
-
-                  <ul className="space-y-2.5 text-xs text-neutral-slate">
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <span>Unlimited Monthly Package Dispatch Volume</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <span>Dedicated Relayer Infrastructure &amp; High Throughput</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <span>Custom ERP &amp; On-Prem Webhooks (Shopify, WooCommerce)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <span>Dedicated Technical Account Manager &amp; 24/7 SLA</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <span>Custom Net-30 Invoicing &amp; Enterprise Compliance</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <a
-                  href="mailto:support@recover.protocol?subject=Enterprise%20Logistics%20Inquiry"
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-all cursor-pointer bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-neutral-mist"
-                >
-                  Contact Enterprise Sales
-                </a>
               </div>
 
             </div>
@@ -428,7 +379,7 @@ export default function PricingPage() {
               <div className="space-y-2">
                 <h4 className="font-bold text-primary">What happens if a merchant exceeds their monthly shipment quota?</h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  On paid Pro tiers (Pro Starter, Pro Growth, Pro Scale), your dispatch features remain 100% uninterrupted! Excess shipments accrue a metered fee of ₦25 per package. On the Free Bootstrap Tier, package creation pauses until upgraded.
+                  On paid Pro tiers (Pro Starter, Pro Growth, Pro Scale), your dispatch features remain 100% uninterrupted! Excess shipments accrue a metered auto-billing overage of $0.02–$0.01 per package. On the Free Bootstrap Tier, package creation pauses until upgraded.
                 </p>
               </div>
 
