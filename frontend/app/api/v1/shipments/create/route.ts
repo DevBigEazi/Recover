@@ -10,26 +10,115 @@ import crypto from "node:crypto";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shipperAddress, webhookUrl, metadata } = body;
+    const {
+      shipperAddress: bodyShipperAddress,
+      webhookUrl,
+      metadata,
+      packageName,
+      weight,
+      receiverPhone,
+      receiverName,
+      destination,
+    } = body;
 
-    if (!shipperAddress) {
-      return NextResponse.json({ error: "Shipper address is required." }, { status: 400 });
-    }
+    const finalMetadata = {
+      name: packageName || metadata?.name || "General Package",
+      weight: weight || metadata?.weight || "unknown",
+      receiverPhone: receiverPhone || metadata?.receiverPhone || null,
+      receiverName: receiverName || metadata?.receiverName || null,
+      destination: destination || metadata?.destination || null,
+      ...(metadata || {}),
+    };
+
+
+    const authHeader = request.headers.get("authorization");
+    const xApiKeyHeader = request.headers.get("x-api-key");
+    const xShipperHeader = request.headers.get("x-shipper-address");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
+    const apiKeyToken = bearerToken || xApiKeyHeader;
 
     await connectDB();
 
-    // 1. Monetization check: Validate shipper's subscription status
-    const shipper = await db.user.findById(shipperAddress.toLowerCase());
-    const isSubscriptionActive = shipper?.subscriptionActive === true;
+    let shipper = null;
+    if (apiKeyToken) {
+      shipper = await db.user.findOne({ apiKey: apiKeyToken });
+      if (!shipper) {
+        return NextResponse.json(
+          { error: "Invalid or unauthorized API key provided." },
+          { status: 401 }
+        );
+      }
+    } else {
+      const targetAddress = bodyShipperAddress || xShipperHeader;
+      if (!targetAddress) {
+        return NextResponse.json({ error: "API key or shipperAddress parameter is required." }, { status: 400 });
+      }
+      const cleanAddress = targetAddress.trim();
+      shipper = await db.user.findOne({
+        $or: [
+          { _id: cleanAddress.toLowerCase() },
+          { _id: cleanAddress },
+          { _id: { $regex: new RegExp(`^${cleanAddress}$`, "i") } },
+        ],
+      });
+    }
 
-    if (!isSubscriptionActive) {
+
+    if (!shipper || shipper.role !== "merchant") {
       return NextResponse.json(
         {
-          error: "Active subscription required. Please upgrade to Pro/Enterprise to track packages.",
+          error: "To use shipment features, please configure a logistics profile first.",
           upgradeUrl: "/settings",
+        },
+        { status: 403 }
+      );
+    }
+
+    const shipperAddress = shipper._id.toLowerCase();
+
+    const billingStart = shipper.billingCycleStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const shipmentCount = await db.shipment.countDocuments({
+      shipperAddress: shipperAddress,
+      createdAt: { $gte: billingStart },
+    });
+
+    const TIER_LIMITS: Record<string, number> = {
+      free: 100,
+      pro_starter: 10000,
+      pro_growth: 100000,
+      pro_scale: 500000,
+      pro: 100000,
+    };
+
+    const baseLimit = TIER_LIMITS[shipper.plan] || 100;
+    const totalAllowed = baseLimit + (shipper.rolloverQuota || 0);
+
+    if (shipper.plan === "free" && shipmentCount >= totalAllowed) {
+      return NextResponse.json(
+        {
+          error: `Monthly limit reached (${totalAllowed} packages). Upgrade your plan to increase shipment capacity.`,
+          upgradeUrl: "/shipments",
         },
         { status: 402 } // Payment Required
       );
+    }
+
+    // Increment shipment usage counter or apply pay-as-you-go metered overage in USD
+    if (shipmentCount >= totalAllowed) {
+      const OVERAGE_RATES_USD: Record<string, number> = {
+        pro_starter: 0.02,
+        pro_growth: 0.015,
+        pro_scale: 0.01,
+        pro: 0.015,
+      };
+      const overageRate = OVERAGE_RATES_USD[shipper.plan] || 0.02;
+      await db.user.findByIdAndUpdate(shipperAddress, {
+        $inc: { overageCharges: overageRate, shipmentsThisMonth: 1 },
+      });
+    } else {
+      await db.user.findByIdAndUpdate(shipperAddress, {
+        $inc: { shipmentsThisMonth: 1 },
+      });
     }
 
     // 2. Generate cryptographically secure package credentials
@@ -48,23 +137,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Backend relayer configuration is missing." }, { status: 500 });
     }
 
-    // 3. Obtain current nonce from contract
+    const relayerAccount = privateKeyToAccount({
+      client,
+      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
+    });
+
+    // 3. Obtain current nonce from contract for the relayer (msg.sender)
     const nonce = await readContract({
       contract: recoverShipmentContract,
       method: "function userNonces(address user) view returns (uint256)",
-      params: [shipperAddress],
+      params: [relayerAccount.address as `0x${string}`],
     });
 
     const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes deadline
     const chainId = 52014;
     const contractAddress = process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as `0x${string}`;
 
-    // 4. Generate backend signature
+    // 4. Generate backend witness signature (msg.sender in contract is relayerAccount.address)
     const messageHash = keccak256(
       encodePacked(
         ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
         [
-          shipperAddress,
+          relayerAccount.address as `0x${string}`,
           packageId as `0x${string}`,
           packageHash,
           BigInt(nonce),
@@ -75,14 +169,10 @@ export async function POST(request: Request) {
       )
     );
 
-    const relayerAccount = privateKeyToAccount({
-      client,
-      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
-    });
-
     const signature = await relayerAccount.signMessage({
       message: { raw: messageHash },
     });
+
 
     // 5. Send transaction to contract
     const transaction = prepareContractCall({
@@ -107,8 +197,9 @@ export async function POST(request: Request) {
       _id: packageId,
       shipperAddress: shipperAddress.toLowerCase(),
       status: "Created",
+      innerSecret: innerSecret,
       innerSecretHash: packageHash,
-      metadata: metadata || null,
+      metadata: finalMetadata,
       webhookUrl: webhookUrl || null,
       events: [
         {
@@ -120,9 +211,13 @@ export async function POST(request: Request) {
       ],
     });
 
+    const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
+    const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
+
     return NextResponse.json({
       success: true,
       packageId,
+      trackingCode,
       innerSecret,
       shipment: newShipment,
     });

@@ -1,0 +1,411 @@
+"use client";
+
+import { useState, use } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Loader2,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  CheckCircle,
+  MapPin,
+  Globe,
+  FileText,
+  User,
+  Calendar,
+  Package,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import Link from "next/link";
+import { formatTrackingCode, formatOperatorName, formatWeight } from "@/lib/format";
+
+interface ShipmentEvent {
+  event: string;
+  operator: string;
+  locationContext?: string | null;
+  timestamp: string;
+  onChainTxHash?: string | null;
+}
+
+interface Shipment {
+  packageId: string;
+  shipperAddress: string;
+  shipperCompanyName?: string;
+  status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
+  metadata?: Record<string, unknown> | null;
+  events: ShipmentEvent[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function PackageScanPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const queryClient = useQueryClient();
+
+  const [innerSecret, setInnerSecret] = useState("");
+  const [recipientAddress, setRecipientAddress] = useState("");
+  const [disputeReason, setDisputeReason] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isDisputing, setIsDisputing] = useState(false);
+  const [verifiedSuccess, setVerifiedSuccess] = useState(false);
+
+  // Public fetch — no auth required
+  const { data: shipment, isLoading, error } = useQuery<Shipment>({
+    queryKey: ["scan-tracking", id],
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/shipments/${id}/history`);
+      if (!response.ok) throw new Error("Package not found");
+      return response.json();
+    },
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+
+  const getCoordinates = (): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000 }
+      );
+    });
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipientAddress || !innerSecret) {
+      toast.error("Please provide your account ID and the scratch-off code.");
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const coords = await getCoordinates();
+      const response = await fetch(`/api/v1/shipments/${id}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientAddress,
+          innerSecret,
+          location: coords,
+          locationContext: coords ? "Browser Geolocation" : "Unknown",
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Verification failed.");
+      }
+
+      setVerifiedSuccess(true);
+      toast.success("Package delivery verified successfully!");
+      queryClient.invalidateQueries({ queryKey: ["scan-tracking", id] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Verification error";
+      toast.error(msg);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleDispute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipientAddress || !disputeReason) {
+      toast.error("Please provide your account ID and describe the issue.");
+      return;
+    }
+
+    setIsDisputing(true);
+    try {
+      const coords = await getCoordinates();
+      const response = await fetch(`/api/v1/shipments/${id}/dispute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientAddress,
+          reason: disputeReason,
+          location: coords,
+          locationContext: coords ? "Browser Geolocation" : "Unknown",
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Dispute registration failed.");
+      }
+
+      toast.success("Damage or tampering report submitted successfully.");
+      setDisputeReason("");
+      queryClient.invalidateQueries({ queryKey: ["scan-tracking", id] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Dispute error";
+      toast.error(msg);
+    } finally {
+      setIsDisputing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500 selection:text-white">
+      {/* Minimal public header */}
+      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-blue-400" />
+            <span className="font-extrabold text-sm tracking-tight text-white">Recover</span>
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">· Shipment Verification</span>
+          </Link>
+          <span className="text-[10px] text-slate-500 font-mono">Public Scan</span>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-8 pb-16 space-y-6">
+        {/* Security Disclaimer */}
+        <div className="bg-amber-950/20 border border-amber-900/30 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-300 leading-relaxed">
+            <span className="font-bold">Physical Verification Disclaimer:</span> Any reward mentioned is display-only and subject to final agreement between the sender and recipient upon physical delivery. Recover does not escrow, guarantee, or facilitate reward payments.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center py-24">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : error || !shipment ? (
+          <div className="bg-red-950/20 border border-red-900/50 p-8 rounded-2xl text-center space-y-3">
+            <ShieldAlert className="w-10 h-10 text-red-500 mx-auto" />
+            <h1 className="text-lg font-bold">Package Not Found</h1>
+            <p className="text-slate-400 text-xs">The tracking ID in this QR code could not be found. Please contact the sender.</p>
+          </div>
+        ) : (
+          <>
+            {/* Package Status Card */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-extrabold text-slate-500 tracking-wider">Package</p>
+                  <h1 className="text-lg font-extrabold tracking-tight">
+                    {(shipment.metadata?.name as string) || "General Package"}
+                  </h1>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(shipment.createdAt).toLocaleDateString()}</span>
+                    {!!shipment.metadata?.weight && (
+                      <span>Weight: {formatWeight(shipment.metadata.weight as string)}</span>
+                    )}
+                  </div>
+                </div>
+
+                <span
+                  className={`shrink-0 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
+                    shipment.status === "Verified"
+                      ? "bg-emerald-950/80 text-emerald-400 border border-emerald-900/50"
+                      : shipment.status === "Disputed"
+                      ? "bg-rose-950/80 text-rose-400 border border-rose-900/50"
+                      : shipment.status === "InTransit"
+                      ? "bg-blue-950/80 text-blue-400 border border-blue-900/50"
+                      : "bg-slate-800 text-slate-300 border border-slate-700"
+                  }`}
+                >
+                  {shipment.status}
+                </span>
+              </div>
+
+              <div className="border-t border-slate-800/60 pt-3">
+                <p className="text-[10px] text-slate-400 font-mono font-bold">Tracking Code: {formatTrackingCode(shipment.packageId)}</p>
+              </div>
+            </div>
+
+            {/* Verified Success State */}
+            {(shipment.status === "Verified" || verifiedSuccess) && (
+              <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-2xl p-8 text-center space-y-3">
+                <ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto" />
+                <h2 className="text-lg font-bold text-emerald-300">Delivery Verified ✓</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  This package has been successfully delivered and its integrity verified. The tamper-proof seal was intact at the time of delivery.
+                </p>
+              </div>
+            )}
+
+            {/* Disputed State */}
+            {shipment.status === "Disputed" && (
+              <div className="bg-rose-950/20 border border-rose-900/50 rounded-2xl p-6 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                  <h2 className="font-bold text-rose-300">Delivery Disputed</h2>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  A tampering or damage dispute has been filed for this package. Please contact the sender for resolution.
+                </p>
+              </div>
+            )}
+
+            {/* Recipient Verification & Dispute Forms — shown only when InTransit */}
+            {shipment.status === "InTransit" && !verifiedSuccess && (
+              <div className="space-y-4">
+                {/* Instructions for couriers */}
+                <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 space-y-1.5">
+                  <h3 className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
+                    🔒 Tamper-Proof Delivery Checkpoint
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    This package is sealed with a tamper-evident holographic label. The <span className="font-semibold text-white">outer QR code</span> (this scan) logs handover checkpoints. The <span className="font-semibold text-white">inner scratch-off code</span> is revealed only by the recipient to confirm delivery integrity.
+                  </p>
+                  <p className="text-[10px] text-rose-400 font-semibold">
+                    Do not accept this package if the holographic label is broken or shows "VOID".
+                  </p>
+                </div>
+
+                {/* Common recipient ID field */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5">
+                      Your Account ID
+                    </label>
+                    <input
+                      type="text"
+                      value={recipientAddress}
+                      onChange={(e) => setRecipientAddress(e.target.value)}
+                      placeholder="Enter your account identifier"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg px-3 py-2.5 text-xs text-white outline-hidden font-mono placeholder-slate-600 transition-colors"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Enter the account ID of the person receiving this package.</p>
+                  </div>
+
+                  {/* Verify Delivery */}
+                  <div className="border-t border-slate-800/60 pt-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase text-slate-300 tracking-wider">
+                      ✓ Verify Delivery (Recipients Only)
+                    </h4>
+                    <form onSubmit={handleVerify} className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                          Scratch-Off Secret Code
+                        </label>
+                        <input
+                          type="password"
+                          value={innerSecret}
+                          onChange={(e) => setInnerSecret(e.target.value)}
+                          placeholder="Enter the code revealed under the scratch-off layer"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2.5 text-xs text-white outline-hidden placeholder-slate-600 transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isVerifying || isDisputing || !recipientAddress.trim() || !innerSecret.trim()}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2"
+                      >
+                        {isVerifying ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
+                        ) : (
+                          <><CheckCircle className="w-4 h-4" /> Confirm Delivery &amp; Verify</>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Dispute */}
+                  <div className="border-t border-slate-800/60 pt-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase text-rose-400 tracking-wider">
+                      ⚠ Report Tampering or Damage
+                    </h4>
+                    <form onSubmit={handleDispute} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={disputeReason}
+                        onChange={(e) => setDisputeReason(e.target.value)}
+                        placeholder="Describe the issue (e.g. seal broken, label shows VOID)"
+                        className="flex-1 bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-lg px-3 py-2 text-xs text-white outline-hidden placeholder-slate-600 transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isDisputing || isVerifying || !recipientAddress.trim() || !disputeReason.trim()}
+                        className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-800/50 transition-colors px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                      >
+                        {isDisputing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Dispute"}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chain of Custody Timeline */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl space-y-5">
+              <h2 className="text-sm font-bold tracking-tight">Delivery History</h2>
+
+              {shipment.events.length === 0 ? (
+                <p className="text-slate-500 text-xs text-center py-4">No events recorded yet.</p>
+              ) : (
+                <div className="relative border-l border-slate-800 pl-5 space-y-6 ml-2">
+                  {shipment.events.map((evt, idx) => (
+                    <div key={idx} className="relative">
+                      <span className={`absolute -left-7 top-0.5 rounded-full p-1 border ${
+                        evt.event === "Verified"
+                          ? "bg-emerald-950 text-emerald-400 border-emerald-900/50"
+                          : evt.event === "Disputed"
+                          ? "bg-rose-950 text-rose-400 border-rose-900/50"
+                          : evt.event === "InTransit"
+                          ? "bg-blue-950 text-blue-400 border-blue-900/50"
+                          : "bg-slate-800 text-slate-300 border-slate-700"
+                      }`}>
+                        {evt.event === "Verified" ? (
+                          <CheckCircle className="w-3 h-3" />
+                        ) : evt.event === "Disputed" ? (
+                          <AlertTriangle className="w-3 h-3" />
+                        ) : evt.event === "InTransit" ? (
+                          <Globe className="w-3 h-3" />
+                        ) : (
+                          <MapPin className="w-3 h-3" />
+                        )}
+                      </span>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="font-bold text-xs text-white capitalize">{evt.event}</h4>
+                          <span className="text-[9px] text-slate-500 shrink-0">
+                            {new Date(evt.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <User className="w-3 h-3 text-slate-500 shrink-0" />
+                          <span>{formatOperatorName(evt.operator, { shipperAddress: shipment?.shipperAddress, companyName: shipment?.shipperCompanyName })}</span>
+                        </p>
+                        {evt.locationContext && (
+                          <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                            {evt.locationContext}
+                          </p>
+                        )}
+                        {evt.onChainTxHash && (
+                          <a
+                            href={`https://blockexplorer.electroneum.com/tx/${evt.onChainTxHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            <FileText className="w-2.5 h-2.5" /> View Record
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <p className="text-center text-[10px] text-slate-600 leading-relaxed px-4">
+              Powered by <span className="text-slate-500 font-semibold">Recover</span> · Tamper-Proof Delivery Verification ·{" "}
+              <Link href="/" className="text-slate-500 hover:text-slate-400 underline">userecover.xyz</Link>
+            </p>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}

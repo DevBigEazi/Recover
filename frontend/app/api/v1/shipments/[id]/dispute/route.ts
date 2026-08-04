@@ -15,15 +15,46 @@ export async function POST(
     const body = await request.json();
     const { recipientAddress, reason, location, locationContext } = body;
 
-    if (!recipientAddress || !reason) {
+    await connectDB();
+
+    const authHeader = request.headers.get("authorization");
+    const xApiKeyHeader = request.headers.get("x-api-key");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
+    const apiKeyToken = bearerToken || xApiKeyHeader;
+
+    let effectiveRecipientAddress = recipientAddress;
+    if (apiKeyToken) {
+      const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
+      if (!apiKeyUser) {
+        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      }
+      effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
+    }
+
+    if (!effectiveRecipientAddress || !reason) {
       return NextResponse.json({ error: "Recipient address and reason are required." }, { status: 400 });
     }
 
-    await connectDB();
+    const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
+    const shipment = await db.shipment.findOne({
+      $or: [
+        { _id: id },
+        { _id: id.toLowerCase() },
+        { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
+      ],
+    });
 
-    const shipment = await db.shipment.findById(id);
     if (!shipment) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
+    }
+
+
+    // Idempotency guard: cannot dispute a package that is already resolved
+    if (shipment.status === "Verified" || shipment.status === "Disputed") {
+      return NextResponse.json(
+        { error: `Cannot file a dispute. Package status is already '${shipment.status}'.` },
+        { status: 409 }
+      );
     }
 
     const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
@@ -31,23 +62,28 @@ export async function POST(
       return NextResponse.json({ error: "Backend signer configuration missing." }, { status: 500 });
     }
 
-    // 1. Fetch current nonce from contract
+    const relayerAccount = privateKeyToAccount({
+      client,
+      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
+    });
+
+    // 1. Fetch current nonce from contract for the relayer (msg.sender)
     const nonce = await readContract({
       contract: recoverShipmentContract,
       method: "function userNonces(address user) view returns (uint256)",
-      params: [recipientAddress],
+      params: [relayerAccount.address as `0x${string}`],
     });
 
     const deadline = Math.floor(Date.now() / 1000) + 600;
     const chainId = 52014;
     const contractAddress = process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as `0x${string}`;
 
-    // 2. Generate backend witness signature
+    // 2. Generate backend witness signature (msg.sender in contract is relayerAccount.address)
     const messageHash = keccak256(
       encodePacked(
         ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
         [
-          recipientAddress,
+          relayerAccount.address as `0x${string}`,
           id as `0x${string}`,
           keccak256(encodePacked(["string"], [reason])),
           BigInt(nonce),
@@ -58,14 +94,10 @@ export async function POST(
       )
     );
 
-    const relayerAccount = privateKeyToAccount({
-      client,
-      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
-    });
-
     const signature = await relayerAccount.signMessage({
       message: { raw: messageHash },
     });
+
 
     // 3. Prepare and send transaction
     const transaction = prepareContractCall({
@@ -89,7 +121,7 @@ export async function POST(
     shipment.status = "Disputed";
     shipment.events.push({
       event: "Disputed",
-      operator: recipientAddress,
+      operator: effectiveRecipientAddress,
       location: location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
@@ -108,7 +140,7 @@ export async function POST(
             event: "shipment.disputed",
             packageId: id,
             status: "Disputed",
-            recipient: recipientAddress,
+            recipient: effectiveRecipientAddress,
             reason,
             location,
             timestamp: new Date(),

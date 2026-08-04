@@ -13,51 +13,88 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { recipientAddress, innerSecret, location, locationContext } = body;
-
-    if (!recipientAddress || !innerSecret) {
-      return NextResponse.json({ error: "Recipient address and secret are required." }, { status: 400 });
-    }
+    const { recipientAddress, innerSecret, passcode, secret, location, locationContext } = body;
+    const secretCode = innerSecret || passcode || secret;
 
     await connectDB();
 
-    const shipment = await db.shipment.findById(id);
+    const authHeader = request.headers.get("authorization");
+    const xApiKeyHeader = request.headers.get("x-api-key");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
+    const apiKeyToken = bearerToken || xApiKeyHeader;
+
+    let effectiveRecipientAddress = recipientAddress;
+    if (apiKeyToken) {
+      const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
+      if (!apiKeyUser) {
+        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      }
+      effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
+    }
+
+    if (!effectiveRecipientAddress || !secretCode) {
+      return NextResponse.json({ error: "Recipient address and innerSecret (or passcode) are required." }, { status: 400 });
+    }
+
+    const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
+    const shipment = await db.shipment.findOne({
+      $or: [
+        { _id: id },
+        { _id: id.toLowerCase() },
+        { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
+      ],
+    });
+
     if (!shipment) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
+    // Idempotency guard: only allow verification when the package is actively in transit
+    if (shipment.status !== "InTransit") {
+      return NextResponse.json(
+        { error: `Cannot verify delivery. Package status is '${shipment.status}' — expected 'InTransit'.` },
+        { status: 409 }
+      );
+    }
+
     // Verify secret matches the package hash stored locally/on-chain
     const inputHash = keccak256(
-      encodePacked(["bytes32", "string"], [id as `0x${string}`, innerSecret])
+      encodePacked(["bytes32", "string"], [shipment.packageId as `0x${string}`, secretCode])
     );
     if (inputHash !== shipment.innerSecretHash) {
       return NextResponse.json({ error: "Invalid secret code. Package integrity verification failed." }, { status: 400 });
     }
+
 
     const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
     if (!signerPrivateKey) {
       return NextResponse.json({ error: "Backend signer configuration missing." }, { status: 500 });
     }
 
-    // 1. Fetch current nonce from contract
+    const relayerAccount = privateKeyToAccount({
+      client,
+      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
+    });
+
+    // 1. Fetch current nonce from contract for the relayer (msg.sender)
     const nonce = await readContract({
       contract: recoverShipmentContract,
       method: "function userNonces(address user) view returns (uint256)",
-      params: [recipientAddress],
+      params: [relayerAccount.address as `0x${string}`],
     });
 
     const deadline = Math.floor(Date.now() / 1000) + 600;
     const chainId = 52014;
     const contractAddress = process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as `0x${string}`;
 
-    // 2. Generate backend witness signature
+    // 2. Generate backend witness signature (msg.sender in contract is relayerAccount.address)
     const messageHash = keccak256(
       encodePacked(
         ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
         [
-          recipientAddress,
+          relayerAccount.address as `0x${string}`,
           id as `0x${string}`,
-          keccak256(encodePacked(["string"], [innerSecret])),
+          keccak256(encodePacked(["string"], [secretCode])),
           BigInt(nonce),
           BigInt(deadline),
           BigInt(chainId),
@@ -66,14 +103,10 @@ export async function POST(
       )
     );
 
-    const relayerAccount = privateKeyToAccount({
-      client,
-      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
-    });
-
     const signature = await relayerAccount.signMessage({
       message: { raw: messageHash },
     });
+
 
     // 3. Prepare and send transaction
     const transaction = prepareContractCall({
@@ -97,7 +130,7 @@ export async function POST(
     shipment.status = "Verified";
     shipment.events.push({
       event: "Verified",
-      operator: recipientAddress,
+      operator: effectiveRecipientAddress,
       location: location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
@@ -109,22 +142,36 @@ export async function POST(
     // 5. Fire webhook if configured
     if (shipment.webhookUrl) {
       try {
+        const shipperUser = await db.user.findOne({
+          $or: [
+            { _id: shipment.shipperAddress },
+            { _id: shipment.shipperAddress.toLowerCase() },
+            { _id: { $regex: new RegExp(`^${shipment.shipperAddress}$`, "i") } },
+          ],
+        });
         await fetch(shipment.webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event: "shipment.verified",
-            packageId: id,
-            status: "Verified",
-            recipient: recipientAddress,
-            location,
-            timestamp: new Date(),
+            event: "package.delivered",
+            timestamp: new Date().toISOString(),
+            data: {
+              packageId: id,
+              companyName: shipperUser?.companyName || shipperUser?.fullName || "Merchant",
+              shipperAddress: shipment.shipperAddress,
+              packageName: shipment.metadata?.name || "Package",
+              status: "Verified",
+              recipient: effectiveRecipientAddress,
+              location: location || null,
+              onChainTxHash: receipt.transactionHash,
+            },
           }),
         });
       } catch (err) {
         console.error("Webhook notification failed:", err);
       }
     }
+
 
     return NextResponse.json({ success: true, shipment });
   } catch (error: unknown) {
@@ -133,3 +180,31 @@ export async function POST(
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await connectDB();
+
+    const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
+    const shipment = await db.shipment.findOne({
+      $or: [
+        { _id: id },
+        { _id: id.toLowerCase() },
+        { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
+      ],
+    });
+    if (!shipment) {
+      return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(shipment);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch shipment";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
