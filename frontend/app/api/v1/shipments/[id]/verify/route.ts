@@ -5,6 +5,8 @@ import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
+import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(
   request: Request,
@@ -212,6 +214,30 @@ export async function POST(
       }
     }
 
+
+    // 6. Dispatch in-app notification in DB & Web Push alert
+    try {
+      const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
+      const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
+      const pkgName = (shipment.metadata?.name as string) || "Package";
+      const notifMsg = `Package "${pkgName}" (${trackingCode}) was successfully verified & delivered!`;
+
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipment.shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_verified",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipment.shipperAddress.toLowerCase(),
+        "Package Delivered ✓",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_verified notification:", err);
+    }
 
     return NextResponse.json({ success: true, shipment });
   } catch (error: unknown) {

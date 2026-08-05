@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -62,6 +62,16 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDisputing, setIsDisputing] = useState(false);
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetch("/api/verify/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registrationId: id }),
+      }).catch((err) => console.error("Failed to log package scan:", err));
+    }
+  }, [id]);
 
   // Public fetch — no auth required, accepts optional courier PIN in URL or manual input
   const { data: shipment, isLoading, error } = useQuery<Shipment>({

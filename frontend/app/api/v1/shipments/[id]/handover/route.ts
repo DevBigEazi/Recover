@@ -5,6 +5,8 @@ import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
+import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(
   request: Request,
@@ -245,6 +247,27 @@ export async function POST(
     const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
     const riderLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
     const recipientLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
+
+    // 7. Dispatch in-app notification in DB & Web Push alert
+    try {
+      const pkgName = (shipment.metadata?.name as string) || "Package";
+      const notifMsg = `Package "${pkgName}" (${trackingCode}) was handed over to ${riderName ? riderName.trim() : "Dispatch Rider"}.`;
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipment.shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_intransit",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipment.shipperAddress.toLowerCase(),
+        "Package In Transit 🛵",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_intransit notification:", err);
+    }
 
     return NextResponse.json({
       success: true,

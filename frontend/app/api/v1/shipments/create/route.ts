@@ -6,6 +6,7 @@ import { readContract, prepareContractCall, sendTransaction, waitForReceipt } fr
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
 import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(request: Request) {
   try {
@@ -201,6 +202,26 @@ export async function POST(request: Request) {
 
     const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
     const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
+
+    // 8. Create in-app notification in DB & send Web Push alert
+    try {
+      const notifMsg = `Package "${packageName || "Package"}" (${trackingCode}) has been registered.`;
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_created",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipperAddress.toLowerCase(),
+        "Package Registered 📦",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_created notification:", err);
+    }
 
     return NextResponse.json({
       success: true,
