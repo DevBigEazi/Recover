@@ -90,6 +90,7 @@ export default function ShipmentsPage() {
   const [handoverLocation, setHandoverLocation] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [isSubmittingHandover, setIsSubmittingHandover] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "Created" | "InTransit" | "Verified" | "Disputed">("all");
 
   const [lastHandoverResult, setLastHandoverResult] = useState<{
     riderLink: string;
@@ -554,27 +555,129 @@ export default function ShipmentsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left/Middle Column: Shipment List */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold tracking-tight">Active Shipments ({shipments.length})</h2>
-              </div>
+              {(() => {
+                const filteredShipments = shipments.filter((s) => {
+                  if (statusFilter === "all") return true;
+                  return s.status === statusFilter;
+                });
 
-              {isLoading ? (
-                <div className="flex justify-center items-center py-16">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                </div>
-              ) : error ? (
-                <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-lg flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <p className="text-red-300 text-sm">Failed to load shipments. Please try reloading.</p>
-                </div>
-              ) : shipments.length === 0 ? (
-                <div className="text-center py-16 bg-slate-900/20 border border-slate-800/80 rounded-xl">
-                  <Globe className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400 text-sm">No shipments registered yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {shipments.map((shipment) => (
+                const createdCount = shipments.filter((s) => s.status === "Created").length;
+                const inTransitCount = shipments.filter((s) => s.status === "InTransit").length;
+                const verifiedCount = shipments.filter((s) => s.status === "Verified").length;
+                const disputedCount = shipments.filter((s) => s.status === "Disputed").length;
+
+                return (
+                  <>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold tracking-tight">
+                          Shipments Log ({filteredShipments.length} / {shipments.length})
+                        </h2>
+                      </div>
+
+                      {/* Delivery Status Filter Tabs */}
+                      {shipments.length > 0 && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-800/80">
+                          <button
+                            onClick={() => setStatusFilter("all")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                              statusFilter === "all"
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800"
+                            }`}
+                          >
+                            All Packages
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${statusFilter === "all" ? "bg-blue-800 text-blue-100" : "bg-slate-800 text-slate-400"}`}>
+                              {shipments.length}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => setStatusFilter("Created")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                              statusFilter === "Created"
+                                ? "bg-slate-700 text-white shadow-sm"
+                                : "text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800"
+                            }`}
+                          >
+                            Registered
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${statusFilter === "Created" ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400"}`}>
+                              {createdCount}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => setStatusFilter("InTransit")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                              statusFilter === "InTransit"
+                                ? "bg-blue-950 text-blue-300 border border-blue-800 shadow-sm"
+                                : "text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800"
+                            }`}
+                          >
+                            In Transit 🛵
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${statusFilter === "InTransit" ? "bg-blue-900 text-blue-200" : "bg-slate-800 text-slate-400"}`}>
+                              {inTransitCount}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => setStatusFilter("Verified")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                              statusFilter === "Verified"
+                                ? "bg-emerald-950 text-emerald-300 border border-emerald-800 shadow-sm"
+                                : "text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800"
+                            }`}
+                          >
+                            Delivered (Verified) ✓
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${statusFilter === "Verified" ? "bg-emerald-800 text-emerald-100" : "bg-slate-800 text-slate-400"}`}>
+                              {verifiedCount}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => setStatusFilter("Disputed")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                              statusFilter === "Disputed"
+                                ? "bg-rose-950 text-rose-300 border border-rose-800 shadow-sm"
+                                : "text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800"
+                            }`}
+                          >
+                            Disputed ⚠
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${statusFilter === "Disputed" ? "bg-rose-800 text-rose-100" : "bg-slate-800 text-slate-400"}`}>
+                              {disputedCount}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {isLoading ? (
+                      <div className="flex justify-center items-center py-16">
+                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                      </div>
+                    ) : error ? (
+                      <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-lg flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-400" />
+                        <p className="text-red-300 text-sm">Failed to load shipments. Please try reloading.</p>
+                      </div>
+                    ) : filteredShipments.length === 0 ? (
+                      <div className="text-center py-16 bg-slate-900/20 border border-slate-800/80 rounded-xl space-y-3">
+                        <Globe className="w-12 h-12 text-slate-600 mx-auto" />
+                        <p className="text-slate-400 text-sm">
+                          {statusFilter === "all" ? "No shipments registered yet." : `No packages found under '${statusFilter}' status.`}
+                        </p>
+                        {statusFilter !== "all" && (
+                          <button
+                            onClick={() => setStatusFilter("all")}
+                            className="text-xs font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                          >
+                            View All Packages ({shipments.length})
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {filteredShipments.map((shipment) => (
                     <div
                       key={shipment._id}
                       className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all rounded-xl p-5 backdrop-blur-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -608,37 +711,41 @@ export default function ShipmentsPage() {
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        {shipment.status !== "Verified" && shipment.status !== "Disputed" && (
-                          <button
-                            onClick={() => setSelectedHandoverShipment(shipment)}
-                            className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
-                          >
-                            <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
-                          </button>
+                        {shipment.status !== "Verified" && shipment.status !== "Delivered" && (
+                          <>
+                            {shipment.status !== "Disputed" && (
+                              <button
+                                onClick={() => setSelectedHandoverShipment(shipment)}
+                                className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                const trackingCode = formatTrackingCode(shipment.packageId);
+                                const pin = (shipment.metadata?.courierPin as string) || "";
+                                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                setLastHandoverResult({
+                                  riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                                  recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                                  courierPin: pin || "Not Generated",
+                                  riderPhone: (shipment.metadata?.riderPhone as string) || null,
+                                  riderName: (shipment.metadata?.riderName as string) || null,
+                                });
+                              }}
+                              className="bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-indigo-800/60 cursor-pointer"
+                            >
+                              <Share2 className="w-3.5 h-3.5" /> Links
+                            </button>
+                            <button
+                              onClick={() => setShowStickerDownload(shipment)}
+                              className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Label
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={() => {
-                            const trackingCode = formatTrackingCode(shipment.packageId);
-                            const pin = (shipment.metadata?.courierPin as string) || "";
-                            const origin = typeof window !== "undefined" ? window.location.origin : "";
-                            setLastHandoverResult({
-                              riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                              recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                              courierPin: pin || "Not Generated",
-                              riderPhone: (shipment.metadata?.riderPhone as string) || null,
-                              riderName: (shipment.metadata?.riderName as string) || null,
-                            });
-                          }}
-                          className="bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-indigo-800/60 cursor-pointer"
-                        >
-                          <Share2 className="w-3.5 h-3.5" /> Links
-                        </button>
-                        <button
-                          onClick={() => setShowStickerDownload(shipment)}
-                          className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5" /> Label
-                        </button>
                         <Link
                           href={`/shipments/${formatTrackingCode(shipment.packageId)}`}
                           className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
@@ -650,7 +757,10 @@ export default function ShipmentsPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </>
+          );
+        })()}
+      </div>
 
             {/* Right Column: Register Form or Subscription Paywall */}
             <div className="space-y-6">
