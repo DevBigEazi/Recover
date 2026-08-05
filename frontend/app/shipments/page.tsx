@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Download, Globe, ShieldAlert, ChevronRight, AlertCircle, AlertTriangle, ArrowRightLeft, X, Share2, CheckCircle } from "lucide-react";
+import { Loader2, Plus, Download, Globe, ShieldAlert, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, AlertCircle, AlertTriangle, ArrowRightLeft, X, Share2, CheckCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
@@ -91,6 +91,10 @@ export default function ShipmentsPage() {
   const [handoverNotes, setHandoverNotes] = useState("");
   const [isSubmittingHandover, setIsSubmittingHandover] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "Created" | "InTransit" | "Verified" | "Disputed">("all");
+  const [isMobileRegisterOpen, setIsMobileRegisterOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [lastHandoverResult, setLastHandoverResult] = useState<{
     riderLink: string;
@@ -553,13 +557,25 @@ export default function ShipmentsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left/Middle Column: Shipment List */}
-            <div className="lg:col-span-2 space-y-6">
+            {/* Left/Middle Column: Shipment List (Appears 2nd on mobile, 1st on desktop) */}
+            <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
               {(() => {
                 const filteredShipments = shipments.filter((s) => {
-                  if (statusFilter === "all") return true;
-                  return s.status === statusFilter;
+                  if (statusFilter !== "all" && s.status !== statusFilter) return false;
+
+                  if (searchQuery.trim()) {
+                    const q = searchQuery.trim().toLowerCase();
+                    const nameMatch = ((s.metadata?.name as string) || "").toLowerCase().includes(q);
+                    const codeMatch = formatTrackingCode(s.packageId).toLowerCase().includes(q);
+                    const idMatch = s.packageId.toLowerCase().includes(q);
+                    return nameMatch || codeMatch || idMatch;
+                  }
+
+                  return true;
                 });
+
+                const totalPages = Math.max(1, Math.ceil(filteredShipments.length / ITEMS_PER_PAGE));
+                const paginatedShipments = filteredShipments.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
                 const createdCount = shipments.filter((s) => s.status === "Created").length;
                 const inTransitCount = shipments.filter((s) => s.status === "InTransit").length;
@@ -575,11 +591,42 @@ export default function ShipmentsPage() {
                         </h2>
                       </div>
 
+                      {/* Instant Search Bar */}
+                      {shipments.length > 0 && (
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => {
+                              setSearchQuery(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            placeholder="Search packages by reference name or tracking code (e.g. RCV-AF791413)..."
+                            className="w-full bg-slate-900/80 border border-slate-800 focus:border-blue-500 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition-colors"
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={() => {
+                                setSearchQuery("");
+                                setCurrentPage(1);
+                              }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs p-1 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {/* Delivery Status Filter Tabs */}
                       {shipments.length > 0 && (
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-800/80">
                           <button
-                            onClick={() => setStatusFilter("all")}
+                            onClick={() => {
+                              setStatusFilter("all");
+                              setCurrentPage(1);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                               statusFilter === "all"
                                 ? "bg-blue-600 text-white shadow-sm"
@@ -593,7 +640,10 @@ export default function ShipmentsPage() {
                           </button>
 
                           <button
-                            onClick={() => setStatusFilter("Created")}
+                            onClick={() => {
+                              setStatusFilter("Created");
+                              setCurrentPage(1);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                               statusFilter === "Created"
                                 ? "bg-slate-700 text-white shadow-sm"
@@ -607,7 +657,10 @@ export default function ShipmentsPage() {
                           </button>
 
                           <button
-                            onClick={() => setStatusFilter("InTransit")}
+                            onClick={() => {
+                              setStatusFilter("InTransit");
+                              setCurrentPage(1);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                               statusFilter === "InTransit"
                                 ? "bg-blue-950 text-blue-300 border border-blue-800 shadow-sm"
@@ -621,7 +674,10 @@ export default function ShipmentsPage() {
                           </button>
 
                           <button
-                            onClick={() => setStatusFilter("Verified")}
+                            onClick={() => {
+                              setStatusFilter("Verified");
+                              setCurrentPage(1);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                               statusFilter === "Verified"
                                 ? "bg-emerald-950 text-emerald-300 border border-emerald-800 shadow-sm"
@@ -635,7 +691,10 @@ export default function ShipmentsPage() {
                           </button>
 
                           <button
-                            onClick={() => setStatusFilter("Disputed")}
+                            onClick={() => {
+                              setStatusFilter("Disputed");
+                              setCurrentPage(1);
+                            }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                               statusFilter === "Disputed"
                                 ? "bg-rose-950 text-rose-300 border border-rose-800 shadow-sm"
@@ -677,88 +736,131 @@ export default function ShipmentsPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {filteredShipments.map((shipment) => (
-                    <div
-                      key={shipment._id}
-                      className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all rounded-xl p-5 backdrop-blur-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h3 className="font-bold text-sm">
-                            {(shipment.metadata?.name as string) || "General Package"}
-                          </h3>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              shipment.status === "Verified"
-                                ? "bg-emerald-950/80 text-emerald-400 border border-emerald-900/50"
-                                : shipment.status === "Disputed"
-                                ? "bg-rose-950/80 text-rose-400 border border-rose-900/50"
-                                : shipment.status === "InTransit"
-                                ? "bg-blue-950/80 text-blue-400 border border-blue-900/50"
-                                : "bg-slate-800 text-slate-300"
-                            }`}
-                          >
-                            {shipment.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                          <span className="font-mono bg-slate-800/80 px-1.5 py-0.5 rounded select-all">
-                            {formatTrackingCode(shipment.packageId)}
-                          </span>
-                          <span>·</span>
-                          <span>Registered: {new Date(shipment.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
+                        <div className="space-y-4">
+                          {paginatedShipments.map((shipment) => (
+                            <div
+                              key={shipment._id}
+                              className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all rounded-xl p-5 backdrop-blur-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <h3 className="font-bold text-sm">
+                                    {(shipment.metadata?.name as string) || "General Package"}
+                                  </h3>
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                      shipment.status === "Verified"
+                                        ? "bg-emerald-950/80 text-emerald-400 border border-emerald-900/50"
+                                        : shipment.status === "Disputed"
+                                        ? "bg-rose-950/80 text-rose-400 border border-rose-900/50"
+                                        : shipment.status === "InTransit"
+                                        ? "bg-blue-950/80 text-blue-400 border border-blue-900/50"
+                                        : "bg-slate-800 text-slate-300"
+                                    }`}
+                                  >
+                                    {shipment.status}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                  <span className="font-mono bg-slate-800/80 px-1.5 py-0.5 rounded select-all">
+                                    {formatTrackingCode(shipment.packageId)}
+                                  </span>
+                                  <span>·</span>
+                                  <span>Registered: {new Date(shipment.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
 
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {shipment.status !== "Verified" && shipment.status !== "Delivered" && shipment.status !== "Disputed" && (
-                          <>
-                            <button
-                              onClick={() => setSelectedHandoverShipment(shipment)}
-                              className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
-                            >
-                              <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
-                            </button>
-                            <button
-                              onClick={() => {
-                                const trackingCode = formatTrackingCode(shipment.packageId);
-                                const pin = (shipment.metadata?.courierPin as string) || "";
-                                const origin = typeof window !== "undefined" ? window.location.origin : "";
-                                setLastHandoverResult({
-                                  riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                                  recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                                  courierPin: pin || "Not Generated",
-                                  riderPhone: (shipment.metadata?.riderPhone as string) || null,
-                                  riderName: (shipment.metadata?.riderName as string) || null,
-                                });
-                              }}
-                              className="bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-indigo-800/60 cursor-pointer"
-                            >
-                              <Share2 className="w-3.5 h-3.5" /> Links
-                            </button>
-                            <button
-                              onClick={() => setShowStickerDownload(shipment)}
-                              className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
-                            >
-                              <Download className="w-3.5 h-3.5" /> Label
-                            </button>
-                          </>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {shipment.status !== "Verified" && shipment.status !== "Delivered" && shipment.status !== "Disputed" && (
+                                  <>
+                                    <button
+                                      onClick={() => setSelectedHandoverShipment(shipment)}
+                                      className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
+                                    >
+                                      <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const trackingCode = formatTrackingCode(shipment.packageId);
+                                        const pin = (shipment.metadata?.courierPin as string) || "";
+                                        const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                        setLastHandoverResult({
+                                          riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                                          recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                                          courierPin: pin || "Not Generated",
+                                          riderPhone: (shipment.metadata?.riderPhone as string) || null,
+                                          riderName: (shipment.metadata?.riderName as string) || null,
+                                        });
+                                      }}
+                                      className="bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-indigo-800/60 cursor-pointer"
+                                    >
+                                      <Share2 className="w-3.5 h-3.5" /> Links
+                                    </button>
+                                    <button
+                                      onClick={() => setShowStickerDownload(shipment)}
+                                      className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
+                                    >
+                                      <Download className="w-3.5 h-3.5" /> Label
+                                    </button>
+                                  </>
+                                )}
+                                <Link
+                                  href={`/shipments/${formatTrackingCode(shipment.packageId)}`}
+                                  className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                                >
+                                  Track <ChevronRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Pagination Bar */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between gap-2 pt-4 border-t border-slate-800/80 flex-wrap">
+                            <p className="text-xs text-slate-400 font-medium">
+                              Showing <span className="font-bold text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>–<span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredShipments.length)}</span> of <span className="font-bold text-white">{filteredShipments.length}</span> packages
+                            </p>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                              </button>
+
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    currentPage === pageNum
+                                      ? "bg-blue-600 text-white shadow-sm"
+                                      : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              ))}
+
+                              <button
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                Next <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         )}
-                        <Link
-                          href={`/shipments/${formatTrackingCode(shipment.packageId)}`}
-                          className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
-                        >
-                          Track <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          );
-        })()}
-      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
 
             {/* Right Column: Register Form or Subscription Paywall */}
             <div className="space-y-6">
@@ -941,25 +1043,38 @@ export default function ShipmentsPage() {
                   </div>
                 );
               })() : (
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md shadow-lg">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-blue-400" /> Register Package
-                  </h3>
-                  {(() => {
-                    const baseLimit = plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
-                    const totalCap = baseLimit + (rolloverQuota || 0);
-                    return (
-                      <div className="mb-4 p-3 bg-blue-950/50 border border-blue-800/40 rounded-xl text-xs flex items-center justify-between text-blue-200">
-                        <span>
-                          🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used {billingCycleStart ? `(Since ${new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : ""}
-                        </span>
-                        <Link href="/settings" className="text-[11px] font-bold text-blue-400 hover:text-blue-300 underline">
-                          Manage →
-                        </Link>
-                      </div>
-                    );
-                  })()}
-                  <form onSubmit={handleRegisterShipment} className="space-y-4">
+                <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 md:p-6 backdrop-blur-md shadow-lg">
+                  {/* Card Header — Interactive toggle on mobile (< lg), static on desktop (≥ lg) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileRegisterOpen(!isMobileRegisterOpen)}
+                    className="w-full flex items-center justify-between text-left lg:pointer-events-none mb-1 lg:mb-4 group cursor-pointer lg:cursor-default select-none"
+                  >
+                    <h3 className="text-base md:text-lg font-bold flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-blue-400" /> Register Package
+                    </h3>
+                    <span className="lg:hidden p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-400 group-hover:text-white transition-colors flex items-center shrink-0">
+                      {isMobileRegisterOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </span>
+                  </button>
+
+                  {/* Form Body — Collapsible on mobile, always visible on desktop (lg:block) */}
+                  <div className={`mt-3 lg:mt-0 space-y-4 ${isMobileRegisterOpen ? "block" : "hidden lg:block"}`}>
+                    {(() => {
+                      const baseLimit = plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
+                      const totalCap = baseLimit + (rolloverQuota || 0);
+                      return (
+                        <div className="mb-4 p-3 bg-blue-950/50 border border-blue-800/40 rounded-xl text-xs flex items-center justify-between text-blue-200">
+                          <span>
+                            🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used {billingCycleStart ? `(Since ${new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : ""}
+                          </span>
+                          <Link href="/settings" className="text-[11px] font-bold text-blue-400 hover:text-blue-300 underline">
+                            Manage →
+                          </Link>
+                        </div>
+                      );
+                    })()}
+                    <form onSubmit={handleRegisterShipment} className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1.5">Package Reference Name *</label>
                       <input
@@ -1036,8 +1151,9 @@ export default function ShipmentsPage() {
                     </button>
                   </form>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
           </div>
         )}
       </main>
