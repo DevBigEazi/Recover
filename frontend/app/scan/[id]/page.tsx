@@ -366,7 +366,9 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
 
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-3">
-                          <h4 className="font-bold text-xs text-white capitalize">{evt.event}</h4>
+                          <h4 className="font-bold text-xs text-white capitalize">
+                            {evt.event === "InTransit" ? "In Transit (Handover)" : evt.event}
+                          </h4>
                           <span className="text-[9px] text-slate-500 shrink-0">
                             {new Date(evt.timestamp).toLocaleString()}
                           </span>

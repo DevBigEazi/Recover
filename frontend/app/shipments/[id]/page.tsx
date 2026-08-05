@@ -58,8 +58,11 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const { role, companyName, isProfileLoaded } = useProfile();
 
   const [showHandoverModal, setShowHandoverModal] = useState(false);
-  const [nextHandlerAddress, setNextHandlerAddress] = useState("");
+  const [riderName, setRiderName] = useState("");
+  const [riderPhone, setRiderPhone] = useState("");
+  const [riderPlateNumber, setRiderPlateNumber] = useState("");
   const [handoverLocation, setHandoverLocation] = useState("");
+  const [handoverNotes, setHandoverNotes] = useState("");
   const [isSubmittingHandover, setIsSubmittingHandover] = useState(false);
 
   // Redirect individual users immediately
@@ -84,8 +87,9 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
   const handleLogHandover = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!account || !nextHandlerAddress.trim()) {
-      toast.error("Please provide the next handler or rider's account identifier.");
+    if (!account) return;
+    if (!riderPhone.trim()) {
+      toast.error("Please provide the rider's contact phone number.");
       return;
     }
 
@@ -96,8 +100,11 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           operatorAddress: account.address,
-          nextHandlerAddress: nextHandlerAddress.trim(),
-          locationContext: handoverLocation.trim() || "Courier Station",
+          riderName: riderName.trim() || undefined,
+          riderPhone: riderPhone.trim(),
+          riderPlateNumber: riderPlateNumber.trim() || undefined,
+          locationContext: handoverLocation.trim() || undefined,
+          notes: handoverNotes.trim() || undefined,
         }),
       });
 
@@ -108,8 +115,11 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
       toast.success("Custody handover logged successfully!");
       setShowHandoverModal(false);
-      setNextHandlerAddress("");
+      setRiderName("");
+      setRiderPhone("");
+      setRiderPlateNumber("");
       setHandoverLocation("");
+      setHandoverNotes("");
       queryClient.invalidateQueries({ queryKey: ["shipment-tracking", id] });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Handover error";
@@ -368,33 +378,74 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Record a transfer of package custody to a dispatch rider or logistics partner. The event will be logged on-chain.
+              Record custody transfer to a dispatch rider or courier driver. The event will be logged onto the tamper-proof ledger.
             </p>
 
             <form onSubmit={handleLogHandover} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                  Next Handler / Rider Account ID
+                  Rider Contact Phone Number *
                 </label>
                 <input
-                  type="text"
-                  value={nextHandlerAddress}
-                  onChange={(e) => setNextHandlerAddress(e.target.value)}
-                  placeholder="Enter handler account identifier"
+                  type="tel"
+                  value={riderPhone}
+                  onChange={(e) => setRiderPhone(e.target.value)}
+                  placeholder="e.g. +234 802 123 4567"
                   required
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none font-mono placeholder-slate-600 transition-colors"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    Rider Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={riderName}
+                    onChange={(e) => setRiderName(e.target.value)}
+                    placeholder="e.g. Abubakar Sanusi"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    Ride / Vehicle Plate No. (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={riderPlateNumber}
+                    onChange={(e) => setRiderPlateNumber(e.target.value)}
+                    placeholder="e.g. KJA-492-XY"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                  Location / Checkpoint Description (Optional)
+                  Delivery Location / Checkpoint (Optional)
                 </label>
                 <input
                   type="text"
                   value={handoverLocation}
                   onChange={(e) => setHandoverLocation(e.target.value)}
-                  placeholder="e.g. Ikeja Hub, Sorting Facility #3"
+                  placeholder="e.g. Lekki Phase 1 Hub, Lagos"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Handover Notes / Instructions (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={handoverNotes}
+                  onChange={(e) => setHandoverNotes(e.target.value)}
+                  placeholder="e.g. Handle with care, fragile items enclosed"
                   className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
                 />
               </div>
@@ -403,14 +454,14 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                 <button
                   type="button"
                   onClick={() => setShowHandoverModal(false)}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2.5 rounded-lg border border-slate-700 transition-colors"
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2.5 rounded-lg border border-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingHandover || !nextHandlerAddress.trim()}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-xs font-bold py-2.5 rounded-lg transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  disabled={isSubmittingHandover || !riderPhone.trim()}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-xs font-bold py-2.5 rounded-lg transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isSubmittingHandover ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Logging...</>

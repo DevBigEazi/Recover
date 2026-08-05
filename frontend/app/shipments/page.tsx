@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Download, Globe, ShieldAlert, ChevronRight, AlertCircle, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Download, Globe, ShieldAlert, ChevronRight, AlertCircle, AlertTriangle, ArrowRightLeft, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
@@ -82,6 +82,58 @@ export default function ShipmentsPage() {
   const [stickerSize, setStickerSize] = useState<"mini" | "standard" | "large">("mini");
   const [showStickerDownload, setShowStickerDownload] = useState<Shipment | null>(null);
   const [createdInnerSecret, setCreatedInnerSecret] = useState<string | null>(null);
+
+  const [selectedHandoverShipment, setSelectedHandoverShipment] = useState<Shipment | null>(null);
+  const [handoverRiderName, setHandoverRiderName] = useState("");
+  const [handoverRiderPhone, setHandoverRiderPhone] = useState("");
+  const [handoverRiderPlateNumber, setHandoverRiderPlateNumber] = useState("");
+  const [handoverLocation, setHandoverLocation] = useState("");
+  const [handoverNotes, setHandoverNotes] = useState("");
+  const [isSubmittingHandover, setIsSubmittingHandover] = useState(false);
+
+  const handleLogHandoverMain = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!account || !selectedHandoverShipment) return;
+    if (!handoverRiderPhone.trim()) {
+      toast.error("Please provide the rider's contact phone number.");
+      return;
+    }
+
+    setIsSubmittingHandover(true);
+    try {
+      const response = await fetch(`/api/v1/shipments/${selectedHandoverShipment.packageId}/handover`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operatorAddress: account.address,
+          riderName: handoverRiderName.trim() || undefined,
+          riderPhone: handoverRiderPhone.trim(),
+          riderPlateNumber: handoverRiderPlateNumber.trim() || undefined,
+          locationContext: handoverLocation.trim() || undefined,
+          notes: handoverNotes.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to record custody handover.");
+      }
+
+      toast.success("Custody handover logged successfully!");
+      setSelectedHandoverShipment(null);
+      setHandoverRiderName("");
+      setHandoverRiderPhone("");
+      setHandoverRiderPlateNumber("");
+      setHandoverLocation("");
+      setHandoverNotes("");
+      queryClient.invalidateQueries({ queryKey: ["shipments"] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Handover error";
+      toast.error(msg);
+    } finally {
+      setIsSubmittingHandover(false);
+    }
+  };
 
   const handlePrintSticker = (shipment: Shipment) => {
     const scanUrl = `${window.location.origin}/scan/${formatTrackingCode(shipment.packageId)}`;
@@ -538,16 +590,24 @@ export default function ShipmentsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {shipment.status !== "Verified" && shipment.status !== "Disputed" && (
+                          <button
+                            onClick={() => setSelectedHandoverShipment(shipment)}
+                            className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
+                          </button>
+                        )}
                         <button
                           onClick={() => setShowStickerDownload(shipment)}
-                          className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700"
+                          className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5" /> Label
                         </button>
                         <Link
                           href={`/shipments/${formatTrackingCode(shipment.packageId)}`}
-                          className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-4 rounded-lg flex items-center gap-1 transition-colors shadow-sm"
+                          className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
                         >
                           Track <ChevronRight className="w-3.5 h-3.5" />
                         </Link>
@@ -999,6 +1059,125 @@ export default function ShipmentsPage() {
                 Print Label
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Log Custody Handover Modal */}
+      {selectedHandoverShipment && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <ArrowRightLeft className="w-5 h-5 text-blue-400" /> Log Custody Handover
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Package: <span className="font-mono text-slate-300 font-bold">{formatTrackingCode(selectedHandoverShipment.packageId)}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedHandoverShipment(null)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Record custody transfer to a dispatch rider or courier driver. The event will be logged onto the tamper-proof ledger.
+            </p>
+
+            <form onSubmit={handleLogHandoverMain} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Rider Contact Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  value={handoverRiderPhone}
+                  onChange={(e) => setHandoverRiderPhone(e.target.value)}
+                  placeholder="e.g. +234 802 123 4567"
+                  required
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    Rider Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={handoverRiderName}
+                    onChange={(e) => setHandoverRiderName(e.target.value)}
+                    placeholder="e.g. Abubakar Sanusi"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    Ride / Vehicle Plate No. (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={handoverRiderPlateNumber}
+                    onChange={(e) => setHandoverRiderPlateNumber(e.target.value)}
+                    placeholder="e.g. KJA-492-XY"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Delivery Location / Checkpoint (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={handoverLocation}
+                  onChange={(e) => setHandoverLocation(e.target.value)}
+                  placeholder="e.g. Lekki Phase 1 Hub, Lagos"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Handover Notes / Instructions (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={handoverNotes}
+                  onChange={(e) => setHandoverNotes(e.target.value)}
+                  placeholder="e.g. Handle with care, fragile items enclosed"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg p-2.5 text-xs text-white outline-none placeholder-slate-600 transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedHandoverShipment(null)}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-2.5 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingHandover || !handoverRiderPhone.trim()}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-xs font-bold py-2.5 rounded-lg transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isSubmittingHandover ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Logging...</>
+                  ) : (
+                    "Record Handover"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

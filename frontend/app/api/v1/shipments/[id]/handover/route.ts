@@ -13,12 +13,17 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { nextHandlerAddress, nextHandler, location, locationContext } = body;
-    const targetNextHandler = nextHandlerAddress || nextHandler;
-
-    if (!targetNextHandler) {
-      return NextResponse.json({ error: "nextHandler address is required." }, { status: 400 });
-    }
+    const {
+      nextHandlerAddress,
+      nextHandler,
+      riderName,
+      riderPhone,
+      riderPlateNumber,
+      location,
+      locationContext,
+      notes,
+      operatorAddress,
+    } = body;
 
     await connectDB();
 
@@ -27,16 +32,30 @@ export async function POST(
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    if (!apiKeyToken) {
-      return NextResponse.json({ error: "API key is required for authentication." }, { status: 401 });
+    let authenticatedUser = null;
+    if (apiKeyToken) {
+      authenticatedUser = await db.user.findOne({ apiKey: apiKeyToken });
+    } else if (operatorAddress) {
+      const cleanOp = operatorAddress.toLowerCase();
+      authenticatedUser = await db.user.findOne({
+        $or: [{ _id: cleanOp }, { _id: operatorAddress }],
+      });
     }
 
-    const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
-    if (!apiKeyUser) {
+    if (!authenticatedUser && apiKeyToken) {
       return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
     }
 
-    const effectiveOperatorAddress = (apiKeyUser._id as string).toLowerCase();
+    const effectiveOperatorAddress = authenticatedUser
+      ? (authenticatedUser._id as string).toLowerCase()
+      : (operatorAddress || "").toLowerCase();
+
+    if (!effectiveOperatorAddress) {
+      return NextResponse.json(
+        { error: "Authentication required (provide x-api-key or operatorAddress)." },
+        { status: 401 }
+      );
+    }
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
     const shipment = await db.shipment.findOne({
@@ -61,13 +80,27 @@ export async function POST(
     const lastEvent = shipment.events && shipment.events.length > 0 ? shipment.events[shipment.events.length - 1] : null;
     const currentHandler = (lastEvent?.operator || shipment.shipperAddress || "").toLowerCase();
 
-    if (effectiveOperatorAddress !== currentHandler) {
+    if (
+      effectiveOperatorAddress !== currentHandler &&
+      effectiveOperatorAddress !== (shipment.shipperAddress || "").toLowerCase()
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized. Authenticated operator is not the current handler of this shipment." },
+        { error: "Unauthorized. Authenticated operator is not the owner or current handler of this shipment." },
         { status: 403 }
       );
     }
 
+    // Determine target EVM address for smart contract logHandover
+    let targetNextHandler: `0x${string}`;
+    const rawNext = nextHandlerAddress || nextHandler;
+    if (typeof rawNext === "string" && rawNext.startsWith("0x") && rawNext.length === 42) {
+      targetNextHandler = rawNext as `0x${string}`;
+    } else {
+      // Deterministically derive fallback address from rider identity hash (non-zero)
+      const seed = riderPhone || riderPlateNumber || riderName || `RIDER_${id}_${Date.now()}`;
+      const rawHash = keccak256(encodePacked(["string"], [seed]));
+      targetNextHandler = ("0x" + rawHash.slice(26)) as `0x${string}`;
+    }
 
     const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
     if (!signerPrivateKey) {
@@ -110,7 +143,6 @@ export async function POST(
       message: { raw: messageHash },
     });
 
-
     // 3. Prepare and send transaction
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
@@ -129,20 +161,39 @@ export async function POST(
       transactionHash: txResult.transactionHash,
     });
 
-    // 4. Update MongoDB shipment record
+    // 4. Construct human-friendly rider operator label & location description
+    let riderOperatorLabel = "";
+    if (riderName && riderName.trim()) {
+      riderOperatorLabel += riderName.trim();
+    } else {
+      riderOperatorLabel += "Dispatch Rider";
+    }
+    if (riderPlateNumber && riderPlateNumber.trim()) {
+      riderOperatorLabel += ` (Plate: ${riderPlateNumber.trim()})`;
+    }
+    if (riderPhone && riderPhone.trim()) {
+      riderOperatorLabel += ` · ${riderPhone.trim()}`;
+    }
+
+    let fullLocationContext = locationContext?.trim() || "";
+    if (notes && notes.trim()) {
+      fullLocationContext = fullLocationContext ? `${fullLocationContext} · Note: ${notes.trim()}` : `Note: ${notes.trim()}`;
+    }
+
+    // 5. Update MongoDB shipment record
     shipment.status = "InTransit";
     shipment.events.push({
       event: "InTransit",
-      operator: nextHandlerAddress,
+      operator: riderOperatorLabel,
       location: location || null,
-      locationContext: locationContext || null,
+      locationContext: fullLocationContext || null,
       timestamp: new Date(),
       onChainTxHash: receipt.transactionHash,
     });
 
     await shipment.save();
 
-    // 5. Fire webhook if configured
+    // 6. Fire webhook if configured
     if (shipment.webhookUrl) {
       try {
         const shipperUser = await db.user.findOne({
@@ -164,8 +215,12 @@ export async function POST(
               shipperAddress: shipment.shipperAddress,
               packageName: shipment.metadata?.name || "Package",
               status: "InTransit",
-              operator: nextHandlerAddress,
+              operator: riderOperatorLabel,
+              riderName: riderName || null,
+              riderPhone: riderPhone || null,
+              riderPlateNumber: riderPlateNumber || null,
               location: location || null,
+              locationContext: fullLocationContext || null,
               onChainTxHash: receipt.transactionHash,
             },
           }),
@@ -174,7 +229,6 @@ export async function POST(
         console.error("Webhook notification failed:", err);
       }
     }
-
 
     return NextResponse.json({ success: true, shipment });
   } catch (error: unknown) {
