@@ -16,6 +16,7 @@ interface ProfileContextType {
   role: "user" | "merchant";
   plan: "free" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
   billingCycle: "monthly" | "yearly";
+  billingCycleStart: string | null;
   shipmentsThisMonth: number;
   rolloverQuota: number;
   overageCharges: number;
@@ -104,6 +105,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const role = profileData && !("isNotFound" in profileData) ? profileData.role || "user" : "user";
   const plan = profileData && !("isNotFound" in profileData) ? profileData.plan || "free" : "free";
   const billingCycle = profileData && !("isNotFound" in profileData) ? profileData.billingCycle || "monthly" : "monthly";
+  const billingCycleStart = profileData && !("isNotFound" in profileData) ? profileData.billingCycleStart || null : null;
   const shipmentsThisMonth = profileData && !("isNotFound" in profileData) ? Number(profileData.shipmentsThisMonth || 0) : 0;
   const rolloverQuota = profileData && !("isNotFound" in profileData) ? Number(profileData.rolloverQuota || 0) : 0;
   const overageCharges = profileData && !("isNotFound" in profileData) ? Number(profileData.overageCharges || 0) : 0;
@@ -122,6 +124,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         role,
         plan,
         billingCycle,
+        billingCycleStart,
         shipmentsThisMonth,
         rolloverQuota,
         overageCharges,

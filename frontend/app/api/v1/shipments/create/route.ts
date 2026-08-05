@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     const billingStart = shipper.billingCycleStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const shipmentCount = await db.shipment.countDocuments({
-      shipperAddress: shipperAddress,
+      shipperAddress: { $regex: new RegExp(`^${shipper._id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
       createdAt: { $gte: billingStart },
     });
 
@@ -92,30 +92,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Increment shipment usage counter or apply pay-as-you-go metered overage in USD
-    if (shipmentCount >= totalAllowed) {
-      const OVERAGE_RATES_USD: Record<string, number> = {
-        pro_starter: 0.02,
-        pro_growth: 0.015,
-        pro_scale: 0.01,
-        pro: 0.015,
-      };
-      const overageRate = OVERAGE_RATES_USD[shipper.plan] || 0.02;
-      await db.user.findByIdAndUpdate(shipperAddress, {
-        $inc: { overageCharges: overageRate, shipmentsThisMonth: 1 },
-      });
-    } else {
-      await db.user.findByIdAndUpdate(shipperAddress, {
-        $inc: { shipmentsThisMonth: 1 },
-      });
-    }
-
     // 2. Generate cryptographically secure package credentials
     const packageIdBytes = crypto.randomBytes(32);
     const packageId = "0x" + packageIdBytes.toString("hex");
 
     const innerSecret = "RCVR-" + crypto.randomBytes(4).toString("hex").toUpperCase();
-    
+
     // Compute innerSecretHash = keccak256(packageId + innerSecret)
     const packageHash = keccak256(
       encodePacked(["bytes32", "string"], [packageId as `0x${string}`, innerSecret])
@@ -162,7 +144,6 @@ export async function POST(request: Request) {
       message: { raw: messageHash },
     });
 
-
     // 5. Send transaction to contract
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
@@ -199,6 +180,24 @@ export async function POST(request: Request) {
         },
       ],
     });
+
+    // 7. Increment shipment usage counter or apply pay-as-you-go metered overage in USD only AFTER successful registration
+    if (shipmentCount >= totalAllowed) {
+      const OVERAGE_RATES_USD: Record<string, number> = {
+        pro_starter: 0.02,
+        pro_growth: 0.015,
+        pro_scale: 0.01,
+        pro: 0.015,
+      };
+      const overageRate = OVERAGE_RATES_USD[shipper.plan] || 0.02;
+      await db.user.findByIdAndUpdate(shipper._id, {
+        $inc: { overageCharges: overageRate, shipmentsThisMonth: 1 },
+      });
+    } else {
+      await db.user.findByIdAndUpdate(shipper._id, {
+        $inc: { shipmentsThisMonth: 1 },
+      });
+    }
 
     const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
     const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;

@@ -54,7 +54,7 @@ interface Shipment {
 export default function ShipmentsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { apiKey, subscriptionActive, role, companyName, plan, billingCycle, shipmentsThisMonth, rolloverQuota, isProfileLoaded, refetchProfile } = useProfile();
+  const { apiKey, subscriptionActive, role, companyName, plan, billingCycle, billingCycleStart, shipmentsThisMonth, rolloverQuota, isProfileLoaded, refetchProfile } = useProfile();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -433,8 +433,8 @@ export default function ShipmentsPage() {
       setReceiverPhone("");
       setDestination("");
       setWebhookUrl("");
-      queryClient.invalidateQueries({ queryKey: ["shipments", account.address] });
-      queryClient.invalidateQueries({ queryKey: ["profile", account.address] });
+      queryClient.invalidateQueries({ queryKey: ["shipments"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       refetchProfile();
       setCreatedInnerSecret(data.innerSecret || null);
       setShowStickerDownload(data.shipment);
@@ -565,6 +565,7 @@ export default function ShipmentsPage() {
                 const targetRank = TIER_RANKS[selectedTier] || 0;
                 const isDowngrade = targetRank < currentRank;
                 const isSameTier = targetRank === currentRank;
+                const isCycleDowngrade = isSameTier && billingCycle === "yearly" && selectedCycle === "monthly";
                 const currentName = TIER_NAMES[plan || "free"] || "Current Plan";
                 const targetName = TIER_NAMES[selectedTier] || "Selected Plan";
 
@@ -632,7 +633,7 @@ export default function ShipmentsPage() {
                           TIER_RANKS["pro_starter"] < currentRank
                             ? "border-slate-800/40 bg-slate-900/20 opacity-40 cursor-not-allowed"
                             : selectedTier === "pro_starter"
-                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer"
+                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer shadow-sm"
                             : "border-slate-800 bg-slate-900/40 hover:border-slate-700 cursor-pointer"
                         }`}
                       >
@@ -663,7 +664,7 @@ export default function ShipmentsPage() {
                           TIER_RANKS["pro_growth"] < currentRank
                             ? "border-slate-800/40 bg-slate-900/20 opacity-40 cursor-not-allowed"
                             : selectedTier === "pro_growth"
-                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer"
+                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer shadow-sm"
                             : "border-slate-800 bg-slate-900/40 hover:border-slate-700 cursor-pointer"
                         }`}
                       >
@@ -694,7 +695,7 @@ export default function ShipmentsPage() {
                           TIER_RANKS["pro_scale"] < currentRank
                             ? "border-slate-800/40 bg-slate-900/20 opacity-40 cursor-not-allowed"
                             : selectedTier === "pro_scale"
-                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer"
+                            ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500 cursor-pointer shadow-sm"
                             : "border-slate-800 bg-slate-900/40 hover:border-slate-700 cursor-pointer"
                         }`}
                       >
@@ -718,19 +719,15 @@ export default function ShipmentsPage() {
                     <button
                       type="button"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || (subscriptionActive && role === "merchant" && isSameTier && billingCycle === selectedCycle)}
-                      className={`w-full text-center font-bold text-xs py-3 rounded-lg transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer ${
-                        isDowngrade
-                          ? "bg-amber-600 hover:bg-amber-500 text-white"
-                          : "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white"
-                      }`}
+                      disabled={isUpgrading || (subscriptionActive && role === "merchant" && isSameTier && billingCycle === selectedCycle) || targetRank < currentRank || isCycleDowngrade}
+                      className="w-full text-center font-bold text-xs py-3 rounded-lg transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white"
                     >
                       {isUpgrading ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Loading Stripe Checkout...</>
-                      ) : subscriptionActive && role === "merchant" && isSameTier && billingCycle === selectedCycle ? (
+                      ) : subscriptionActive && role === "merchant" && isSameTier && (billingCycle === selectedCycle || isCycleDowngrade) ? (
                         "Current Active Plan"
                       ) : (
-                        `${isDowngrade ? "Downgrade to " : isSameTier ? "Switch to " : "Pay "} ${
+                        `${isSameTier ? "Switch to " : "Pay "} ${
                           selectedTier === "pro_starter"
                             ? (selectedCycle === "yearly" ? convertUsdPrice(162, userCurrency).formattedLocal : convertUsdPrice(15, userCurrency).formattedLocal)
                             : selectedTier === "pro_growth"
@@ -752,7 +749,7 @@ export default function ShipmentsPage() {
                     return (
                       <div className="mb-4 p-3 bg-blue-950/50 border border-blue-800/40 rounded-xl text-xs flex items-center justify-between text-blue-200">
                         <span>
-                          🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used
+                          🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used {billingCycleStart ? `(Since ${new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : ""}
                         </span>
                         <Link href="/settings" className="text-[11px] font-bold text-blue-400 hover:text-blue-300 underline">
                           Manage →
