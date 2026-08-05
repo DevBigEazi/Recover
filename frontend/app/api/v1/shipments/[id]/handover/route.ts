@@ -168,7 +168,7 @@ export async function POST(
     if (riderName && riderName.trim()) {
       riderOperatorLabel += riderName.trim();
     } else {
-      riderOperatorLabel += "Dispatch Rider";
+      riderOperatorLabel += "Delivery Rider / Driver";
     }
     if (riderPlateNumber && riderPlateNumber.trim()) {
       riderOperatorLabel += ` (Plate: ${riderPlateNumber.trim()})`;

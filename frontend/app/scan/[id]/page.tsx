@@ -280,18 +280,18 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                     Next Steps &amp; Resolution Guidance
                   </span>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Once resolved between involved parties, a fresh replacement package can be registered and handed over to courier again, or settled according to the conclusions agreed upon by the parties.
+                    Once resolved between involved parties, a fresh replacement package can be registered and handed over to delivery rider/driver again, or settled according to the conclusions agreed upon by the parties.
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Courier Delivery Manifest Card — Shown only when unlocked via Courier PIN / WhatsApp Link */}
+            {/* Delivery Rider / Driver Manifest Card — Shown only when unlocked via Rider/Driver PIN / WhatsApp Link */}
             {shipment.isCourierAuthorized && (
               <div className="bg-linear-to-r from-blue-950/80 via-indigo-950/70 to-slate-900 border border-blue-800/60 rounded-2xl p-5 backdrop-blur-md shadow-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase font-extrabold text-blue-400 tracking-wider flex items-center gap-1.5">
-                    <Truck className="w-4 h-4 text-blue-400" /> Courier Delivery Manifest
+                    <Truck className="w-4 h-4 text-blue-400" /> Delivery Rider / Driver Manifest
                   </h3>
                   <span className="text-[10px] bg-blue-900/80 text-blue-300 font-bold px-2 py-0.5 rounded-full border border-blue-700/50">
                     PIN Verified ✓
@@ -337,12 +337,12 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
-            {/* Dispatched Courier Information Card — Unlocked via Courier PIN / Rider Link */}
+            {/* Dispatched Delivery Rider / Driver Information Card — Unlocked via Rider/Driver PIN / Link */}
             {shipment.isCourierAuthorized && shipment.status === "InTransit" && (shipment.riderInfo?.phone || shipment.metadata?.riderPhone) && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-lg space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1.5">
-                    <Truck className="w-4 h-4 text-indigo-400" /> Dispatched Courier / Rider Info
+                    <Truck className="w-4 h-4 text-indigo-400" /> Dispatched Delivery Rider / Driver Info
                   </h3>
                   <span className="text-[10px] bg-indigo-950 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-800">
                     In Transit
@@ -352,7 +352,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex-wrap">
                   <div className="space-y-0.5">
                     <span className="text-sm font-bold text-white block">
-                      {shipment.riderInfo?.name || (shipment.metadata?.riderName as string) || "Dispatch Courier"}
+                      {shipment.riderInfo?.name || (shipment.metadata?.riderName as string) || "Delivery Rider / Driver"}
                     </span>
                     <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
                       {!!(shipment.riderInfo?.plateNumber || shipment.metadata?.riderPlateNumber) && (
@@ -369,7 +369,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                     href={`tel:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
                     className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md shrink-0 cursor-pointer"
                   >
-                    <Phone className="w-3.5 h-3.5" /> Call Courier
+                    <Phone className="w-3.5 h-3.5" /> Call Rider / Driver
                   </a>
                 </div>
               </div>
@@ -391,12 +391,12 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                   </p>
                 </div>
 
-                {/* Optional Courier PIN Entry for Riders without WhatsApp Link */}
+                {/* Optional Rider / Driver PIN Entry for Riders/Drivers without WhatsApp Link */}
                 {!shipment.isCourierAuthorized && (
                   <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <KeyRound className="w-4 h-4 text-blue-400 shrink-0" />
-                      <p className="text-[11px] text-slate-400">Are you the dispatch courier or recipient?</p>
+                      <p className="text-[11px] text-slate-400">Are you the delivery rider/driver or recipient?</p>
                     </div>
                     <form onSubmit={handleCourierPinSubmit} className="flex gap-1.5 shrink-0">
                       <input

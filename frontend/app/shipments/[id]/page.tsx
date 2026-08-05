@@ -411,7 +411,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Record custody transfer to a dispatch rider or courier driver. The event will be logged onto the tamper-proof ledger.
+              Record custody transfer to a delivery rider or driver. The event will be logged onto the tamper-proof ledger.
             </p>
 
             <form onSubmit={handleLogHandover} className="space-y-4">
@@ -518,7 +518,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   <CheckCircle className="w-5 h-5 text-emerald-400" /> Custody Handover Logged!
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Courier PIN: <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">{lastHandoverResult.courierPin}</span>
+                  Rider / Driver PIN: <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">{lastHandoverResult.courierPin}</span>
                 </p>
               </div>
               <button
@@ -530,7 +530,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Share dedicated links with the rider and recipient. Riders use their link to view the recipient manifest, and recipients use theirs to track &amp; verify delivery.
+              Share dedicated links with the delivery rider/driver and recipient. Riders/drivers use their link to view the recipient manifest, and recipients use theirs to track &amp; verify delivery.
             </p>
 
             <div className="space-y-3 pt-1">
@@ -538,21 +538,21 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
-                    🛵 1. Rider Link (Dispatch Courier)
+                    🛵 1. Delivery Rider / Driver Link
                   </span>
                   <span className="text-[9px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-mono font-bold">
                     Includes PIN ?pin={lastHandoverResult.courierPin}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-tight">
-                  Unlocks Recipient Name, Phone (click-to-call), and Delivery Address on rider&apos;s phone browser without login.
+                  Unlocks Recipient Name, Phone (click-to-call), and Delivery Address on rider/driver&apos;s phone browser without login.
                 </p>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => {
                       const cleanPhone = lastHandoverResult.riderPhone ? lastHandoverResult.riderPhone.replace(/\D/g, "") : "";
-                      const msg = `Hi ${lastHandoverResult.riderName || "Rider"}, here is your Recover delivery manifest link for package: ${lastHandoverResult.riderLink} (Courier PIN: ${lastHandoverResult.courierPin})`;
+                      const msg = `Hi ${lastHandoverResult.riderName || "Rider/Driver"}, here is your Recover delivery manifest link for package: ${lastHandoverResult.riderLink} (Rider/Driver PIN: ${lastHandoverResult.courierPin})`;
                       const waUrl = cleanPhone
                         ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
                         : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -565,7 +565,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(lastHandoverResult.riderLink);
-                      toast.success("Rider link copied to clipboard!");
+                      toast.success("Rider/Driver link copied to clipboard!");
                     }}
                     className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 rounded-lg border border-slate-700 transition-colors cursor-pointer"
                   >
@@ -585,13 +585,13 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-tight">
-                  Includes authorization PIN so recipient can view dispatched courier contact info and verify delivery upon arrival.
+                  Includes authorization PIN so recipient can view dispatched delivery rider/driver contact info and verify delivery upon arrival.
                 </p>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => {
-                      const msg = `Hi, track your incoming package delivery and contact your dispatched courier here: ${lastHandoverResult.recipientLink}`;
+                      const msg = `Hi, track your incoming package delivery and contact your dispatched delivery rider/driver here: ${lastHandoverResult.recipientLink}`;
                       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
                     }}
                     className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
