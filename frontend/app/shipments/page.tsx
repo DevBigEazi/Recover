@@ -711,16 +711,14 @@ export default function ShipmentsPage() {
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        {shipment.status !== "Verified" && shipment.status !== "Delivered" && (
+                        {shipment.status !== "Verified" && shipment.status !== "Delivered" && shipment.status !== "Disputed" && (
                           <>
-                            {shipment.status !== "Disputed" && (
-                              <button
-                                onClick={() => setSelectedHandoverShipment(shipment)}
-                                className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
-                              >
-                                <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
-                              </button>
-                            )}
+                            <button
+                              onClick={() => setSelectedHandoverShipment(shipment)}
+                              className="bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-blue-800/60 cursor-pointer"
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5" /> Handover
+                            </button>
                             <button
                               onClick={() => {
                                 const trackingCode = formatTrackingCode(shipment.packageId);

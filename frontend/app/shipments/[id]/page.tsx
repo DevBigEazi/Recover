@@ -298,24 +298,23 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
               </div>
             </div>
 
-            {/* Recipient note */}
-            {shipment.status === "InTransit" && (
-              <div className="bg-blue-950/20 border border-blue-900/40 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 backdrop-blur-sm">
-                <div className="p-3 bg-blue-900/30 rounded-xl shrink-0">
-                  <Download className="w-5 h-5 text-blue-400" />
+            {/* Disputed Resolution Note */}
+            {shipment.status === "Disputed" && (
+              <div className="bg-rose-950/30 border border-rose-900/60 rounded-2xl p-5 space-y-3 backdrop-blur-sm shadow-xl">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                  <h3 className="text-sm font-bold text-rose-300">Delivery Disputed — Custody Frozen On-Chain</h3>
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-white">Package In Transit</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    The recipient scans the physical QR sticker to verify delivery. Share the public scan link or let them scan the sticker directly.
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  A tampering or damage dispute has been permanently logged on Electroneum mainnet for audit compliance.
+                </p>
+                <div className="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl space-y-1">
+                  <span className="text-[10px] uppercase font-extrabold text-rose-400 tracking-wider block">
+                    Resolution &amp; Re-Registration Guidance
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Once resolved between involved parties, a new replacement package can be registered and handed over to courier again, or concluded according to the terms agreed upon by the involved parties.
                   </p>
-                  <Link
-                    href={`/scan/${formatTrackingCode(shipment.packageId)}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors"
-                  >
-                    <Globe className="w-3.5 h-3.5" /> Open Recipient Scan Page →
-                  </Link>
                 </div>
               </div>
             )}

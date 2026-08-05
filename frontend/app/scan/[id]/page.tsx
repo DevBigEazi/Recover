@@ -257,14 +257,22 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
 
             {/* Disputed State */}
             {shipment.status === "Disputed" && (
-              <div className="bg-rose-950/20 border border-rose-900/50 rounded-2xl p-6 space-y-2">
+              <div className="bg-rose-950/30 border border-rose-900/60 rounded-2xl p-6 space-y-3 shadow-lg backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-                  <h2 className="font-bold text-rose-300">Delivery Disputed</h2>
+                  <h2 className="font-bold text-rose-300">Delivery Disputed &amp; Frozen On-Chain</h2>
                 </div>
-                <p className="text-slate-400 text-xs leading-relaxed">
-                  A tampering or damage dispute has been filed for this package. Please contact the sender for resolution.
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  A tampering or damage dispute has been logged on the Electroneum mainnet blockchain for audit compliance.
                 </p>
+                <div className="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl space-y-1">
+                  <span className="text-[10px] uppercase font-extrabold text-rose-400 tracking-wider block">
+                    Next Steps &amp; Resolution Guidance
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Once resolved between involved parties, a fresh replacement package can be registered and handed over to courier again, or settled according to the conclusions agreed upon by the parties.
+                  </p>
+                </div>
               </div>
             )}
 
