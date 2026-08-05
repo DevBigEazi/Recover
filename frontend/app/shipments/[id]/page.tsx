@@ -20,6 +20,7 @@ import {
   Lock,
   ArrowRightLeft,
   X,
+  Share2,
 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useProfile } from "@/context/ProfileContext";
@@ -64,6 +65,13 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const [handoverLocation, setHandoverLocation] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [isSubmittingHandover, setIsSubmittingHandover] = useState(false);
+  const [lastHandoverResult, setLastHandoverResult] = useState<{
+    riderLink: string;
+    recipientLink: string;
+    courierPin: string;
+    riderPhone: string | null;
+    riderName: string | null;
+  } | null>(null);
 
   // Redirect individual users immediately
   useEffect(() => {
@@ -113,7 +121,15 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
         throw new Error(errData.error || "Failed to record custody handover.");
       }
 
+      const data = await response.json();
       toast.success("Custody handover logged successfully!");
+      setLastHandoverResult({
+        riderLink: data.riderLink,
+        recipientLink: data.recipientLink,
+        courierPin: data.courierPin,
+        riderPhone: data.riderPhone || riderPhone.trim() || null,
+        riderName: data.riderName || riderName.trim() || null,
+      });
       setShowHandoverModal(false);
       setRiderName("");
       setRiderPhone("");
@@ -253,14 +269,32 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   {shipment.status}
                 </span>
 
-                {/* Link to public scan page */}
-                <Link
-                  href={`/scan/${formatTrackingCode(shipment.packageId)}`}
-                  target="_blank"
-                  className="inline-flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-white transition-colors mt-1"
-                >
-                  <Globe className="w-3 h-3" /> View Public Scan Page
-                </Link>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <button
+                    onClick={() => {
+                      const trackingCode = formatTrackingCode(shipment.packageId);
+                      const pin = (shipment.metadata?.courierPin as string) || "";
+                      const origin = typeof window !== "undefined" ? window.location.origin : "";
+                      setLastHandoverResult({
+                        riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                        recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
+                        courierPin: pin || "Not Generated",
+                        riderPhone: (shipment.metadata?.riderPhone as string) || null,
+                        riderName: (shipment.metadata?.riderName as string) || null,
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3 h-3" /> Share Links
+                  </button>
+                  <Link
+                    href={`/scan/${formatTrackingCode(shipment.packageId)}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-white transition-colors"
+                  >
+                    <Globe className="w-3 h-3" /> View Public Scan Page
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -471,6 +505,119 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Handover Success & Dual Dedicated Link Sharing Modal */}
+      {lastHandoverResult && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-400">
+                  <CheckCircle className="w-5 h-5 text-emerald-400" /> Custody Handover Logged!
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Courier PIN: <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">{lastHandoverResult.courierPin}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setLastHandoverResult(null)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800 border border-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Share dedicated links with the rider and recipient. Riders use their link to view the recipient manifest, and recipients use theirs to track &amp; verify delivery.
+            </p>
+
+            <div className="space-y-3 pt-1">
+              {/* Rider Link Box */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                    🛵 1. Rider Link (Dispatch Courier)
+                  </span>
+                  <span className="text-[9px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-mono font-bold">
+                    Includes PIN ?pin={lastHandoverResult.courierPin}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  Unlocks Recipient Name, Phone (click-to-call), and Delivery Address on rider&apos;s phone browser without login.
+                </p>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      const cleanPhone = lastHandoverResult.riderPhone ? lastHandoverResult.riderPhone.replace(/\D/g, "") : "";
+                      const msg = `Hi ${lastHandoverResult.riderName || "Rider"}, here is your Recover delivery manifest link for package: ${lastHandoverResult.riderLink} (Courier PIN: ${lastHandoverResult.courierPin})`;
+                      const waUrl = cleanPhone
+                        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+                        : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                      window.open(waUrl, "_blank");
+                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" /> Share Rider Link (WhatsApp)
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastHandoverResult.riderLink);
+                      toast.success("Rider link copied to clipboard!");
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Recipient Link Box */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                    📦 2. Recipient Link (Package Customer)
+                  </span>
+                  <span className="text-[9px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">
+                    {lastHandoverResult.courierPin && lastHandoverResult.courierPin !== "Not Generated" ? `Includes PIN ?pin=${lastHandoverResult.courierPin}` : "Public Scan"}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  Includes authorization PIN so recipient can view dispatched courier contact info and verify delivery upon arrival.
+                </p>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      const msg = `Hi, track your incoming package delivery and contact your dispatched courier here: ${lastHandoverResult.recipientLink}`;
+                      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                    }}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" /> Share Recipient Link (WhatsApp)
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastHandoverResult.recipientLink);
+                      toast.success("Recipient link copied to clipboard!");
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setLastHandoverResult(null)}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

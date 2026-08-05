@@ -37,6 +37,15 @@ export async function GET(request: Request) {
       .skip(skip)
       .limit(limit);
 
+    // Auto-heal missing innerSecret fields on legacy shipment documents
+    for (const shipment of shipments) {
+      if (!shipment.innerSecret) {
+        const cleanId = shipment._id.replace(/^0x/i, "").slice(0, 8).toUpperCase();
+        shipment.innerSecret = `RCVR-${cleanId}`;
+        await shipment.save();
+      }
+    }
+
     return NextResponse.json(shipments);
   } catch (error: unknown) {
     console.error("Failed to fetch shipments:", error);

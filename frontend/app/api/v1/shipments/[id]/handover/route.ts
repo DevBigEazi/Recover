@@ -161,7 +161,7 @@ export async function POST(
       transactionHash: txResult.transactionHash,
     });
 
-    // 4. Construct human-friendly rider operator label & location description
+    // 4. Construct human-friendly rider operator label & location description (no phone in public timeline label)
     let riderOperatorLabel = "";
     if (riderName && riderName.trim()) {
       riderOperatorLabel += riderName.trim();
@@ -171,17 +171,26 @@ export async function POST(
     if (riderPlateNumber && riderPlateNumber.trim()) {
       riderOperatorLabel += ` (Plate: ${riderPlateNumber.trim()})`;
     }
-    if (riderPhone && riderPhone.trim()) {
-      riderOperatorLabel += ` · ${riderPhone.trim()}`;
-    }
 
     let fullLocationContext = locationContext?.trim() || "";
     if (notes && notes.trim()) {
       fullLocationContext = fullLocationContext ? `${fullLocationContext} · Note: ${notes.trim()}` : `Note: ${notes.trim()}`;
     }
 
+    // Generate 4-digit Courier Dispatch PIN for rider link access
+    const courierPin = Math.floor(1000 + Math.random() * 9000).toString();
+
     // 5. Update MongoDB shipment record
     shipment.status = "InTransit";
+    shipment.metadata = {
+      ...(shipment.metadata || {}),
+      courierPin,
+      riderName: riderName ? riderName.trim() : null,
+      riderPhone: riderPhone ? riderPhone.trim() : null,
+      riderPlateNumber: riderPlateNumber ? riderPlateNumber.trim() : null,
+      handoverLocation: fullLocationContext || null,
+    };
+
     shipment.events.push({
       event: "InTransit",
       operator: riderOperatorLabel,
@@ -219,6 +228,7 @@ export async function POST(
               riderName: riderName || null,
               riderPhone: riderPhone || null,
               riderPlateNumber: riderPlateNumber || null,
+              courierPin,
               location: location || null,
               locationContext: fullLocationContext || null,
               onChainTxHash: receipt.transactionHash,
@@ -230,7 +240,22 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ success: true, shipment });
+    const requestOrigin = request.headers.get("origin") || request.headers.get("host") ? `https://${request.headers.get("host")}` : "https://userecover.xyz";
+    const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
+    const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
+    const riderLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
+    const recipientLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
+
+    return NextResponse.json({
+      success: true,
+      shipment,
+      courierPin,
+      riderName: riderName || null,
+      riderPhone: riderPhone || null,
+      riderPlateNumber: riderPlateNumber || null,
+      riderLink,
+      recipientLink,
+    });
   } catch (error: unknown) {
     console.error("Handover failed:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to log handover";

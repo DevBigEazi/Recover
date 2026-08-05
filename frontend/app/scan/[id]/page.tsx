@@ -14,6 +14,11 @@ import {
   User,
   Calendar,
   Package,
+  Phone,
+  Truck,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
@@ -34,6 +39,12 @@ interface Shipment {
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   metadata?: Record<string, unknown> | null;
   events: ShipmentEvent[];
+  isCourierAuthorized?: boolean;
+  riderInfo?: {
+    name: string | null;
+    phone: string | null;
+    plateNumber: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -43,17 +54,23 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
   const queryClient = useQueryClient();
 
   const [innerSecret, setInnerSecret] = useState("");
-  const [recipientAddress, setRecipientAddress] = useState("");
+  const [showSecretCode, setShowSecretCode] = useState(false);
+  const [recipientName, setRecipientName] = useState("");
+  const [courierPinInput, setCourierPinInput] = useState("");
+  const [activePin, setActivePin] = useState("");
   const [disputeReason, setDisputeReason] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDisputing, setIsDisputing] = useState(false);
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
-  // Public fetch — no auth required
+  // Public fetch — no auth required, accepts optional courier PIN in URL or manual input
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
-    queryKey: ["scan-tracking", id],
+    queryKey: ["scan-tracking", id, activePin],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/shipments/${id}/history`);
+      const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const urlPin = searchParams?.get("pin") || activePin;
+      const url = `/api/v1/shipments/${id}/history${urlPin ? `?pin=${encodeURIComponent(urlPin)}` : ""}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Package not found");
       return response.json();
     },
@@ -77,8 +94,8 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipientAddress || !innerSecret) {
-      toast.error("Please provide your account ID and the scratch-off code.");
+    if (!innerSecret.trim()) {
+      toast.error("Please provide the scratch-off secret code.");
       return;
     }
 
@@ -89,8 +106,8 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientAddress,
-          innerSecret,
+          recipientName: recipientName.trim() || undefined,
+          innerSecret: innerSecret.trim(),
           location: coords,
           locationContext: coords ? "Browser Geolocation" : "Unknown",
         }),
@@ -112,10 +129,17 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleCourierPinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courierPinInput.trim()) return;
+    setActivePin(courierPinInput.trim());
+    queryClient.invalidateQueries({ queryKey: ["scan-tracking", id] });
+  };
+
   const handleDispute = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipientAddress || !disputeReason) {
-      toast.error("Please provide your account ID and describe the issue.");
+    if (!disputeReason.trim()) {
+      toast.error("Please describe the issue or reason for dispute.");
       return;
     }
 
@@ -126,8 +150,8 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientAddress,
-          reason: disputeReason,
+          recipientAddress: recipientName.trim() || "Recipient",
+          reason: disputeReason.trim(),
           location: coords,
           locationContext: coords ? "Browser Geolocation" : "Unknown",
         }),
@@ -244,10 +268,99 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
+            {/* Courier Delivery Manifest Card — Shown only when unlocked via Courier PIN / WhatsApp Link */}
+            {shipment.isCourierAuthorized && (
+              <div className="bg-linear-to-r from-blue-950/80 via-indigo-950/70 to-slate-900 border border-blue-800/60 rounded-2xl p-5 backdrop-blur-md shadow-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs uppercase font-extrabold text-blue-400 tracking-wider flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-blue-400" /> Courier Delivery Manifest
+                  </h3>
+                  <span className="text-[10px] bg-blue-900/80 text-blue-300 font-bold px-2 py-0.5 rounded-full border border-blue-700/50">
+                    PIN Verified ✓
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {!!shipment.metadata?.receiverName && (
+                    <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Intended Recipient</span>
+                      <span className="text-sm font-bold text-white block">
+                        {shipment.metadata.receiverName as string}
+                      </span>
+                    </div>
+                  )}
+
+                  {!!shipment.metadata?.receiverPhone && (
+                    <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-semibold block">Recipient Phone</span>
+                        <span className="text-xs font-mono font-bold text-white block">
+                          {shipment.metadata.receiverPhone as string}
+                        </span>
+                      </div>
+                      <a
+                        href={`tel:${shipment.metadata.receiverPhone as string}`}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shrink-0"
+                      >
+                        <Phone className="w-3.5 h-3.5" /> Call
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {!!shipment.metadata?.destination && (
+                  <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] text-slate-400 font-semibold block">Delivery Destination</span>
+                    <span className="text-xs font-semibold text-slate-200 block">
+                      {shipment.metadata.destination as string}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Dispatched Courier Information Card — Unlocked via Courier PIN / Rider Link */}
+            {shipment.isCourierAuthorized && shipment.status === "InTransit" && (shipment.riderInfo?.phone || shipment.metadata?.riderPhone) && (
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-indigo-400" /> Dispatched Courier / Rider Info
+                  </h3>
+                  <span className="text-[10px] bg-indigo-950 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-800">
+                    In Transit
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex-wrap">
+                  <div className="space-y-0.5">
+                    <span className="text-sm font-bold text-white block">
+                      {shipment.riderInfo?.name || (shipment.metadata?.riderName as string) || "Dispatch Courier"}
+                    </span>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
+                      {!!(shipment.riderInfo?.plateNumber || shipment.metadata?.riderPlateNumber) && (
+                        <span>Plate: <strong>{(shipment.riderInfo?.plateNumber || shipment.metadata?.riderPlateNumber) as string}</strong></span>
+                      )}
+                      <span>·</span>
+                      <span className="font-mono text-slate-300">
+                        {(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}
+                      </span>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`tel:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md shrink-0 cursor-pointer"
+                  >
+                    <Phone className="w-3.5 h-3.5" /> Call Courier
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Recipient Verification & Dispute Forms — shown only when InTransit */}
             {shipment.status === "InTransit" && !verifiedSuccess && (
               <div className="space-y-4">
-                {/* Instructions for couriers */}
+                {/* Security instructions */}
                 <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 space-y-1.5">
                   <h3 className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
                     🔒 Tamper-Proof Delivery Checkpoint
@@ -260,44 +373,92 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                   </p>
                 </div>
 
-                {/* Common recipient ID field */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4">
-                  <div>
-                    <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5">
-                      Your Account ID
-                    </label>
-                    <input
-                      type="text"
-                      value={recipientAddress}
-                      onChange={(e) => setRecipientAddress(e.target.value)}
-                      placeholder="Enter your account identifier"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg px-3 py-2.5 text-xs text-white outline-hidden font-mono placeholder-slate-600 transition-colors"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">Enter the account ID of the person receiving this package.</p>
+                {/* Optional Courier PIN Entry for Riders without WhatsApp Link */}
+                {!shipment.isCourierAuthorized && (
+                  <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-blue-400 shrink-0" />
+                      <p className="text-[11px] text-slate-400">Are you the dispatch courier or recipient?</p>
+                    </div>
+                    <form onSubmit={handleCourierPinSubmit} className="flex gap-1.5 shrink-0">
+                      <input
+                        type="text"
+                        value={courierPinInput}
+                        onChange={(e) => setCourierPinInput(e.target.value)}
+                        placeholder="4-digit PIN"
+                        maxLength={4}
+                        className="w-20 bg-slate-950 border border-slate-800 text-center font-mono text-xs text-white rounded-lg py-1 px-2 focus:border-blue-500 outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Unlock
+                      </button>
+                    </form>
                   </div>
+                )}
 
+                {/* Account-Free Recipient Verification Card */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4">
                   {/* Verify Delivery */}
-                  <div className="border-t border-slate-800/60 pt-4 space-y-3">
+                  <div className="space-y-3">
                     <h4 className="text-xs font-bold uppercase text-slate-300 tracking-wider">
-                      ✓ Verify Delivery (Recipients Only)
+                      ✓ Verify Delivery (No Account Required)
                     </h4>
                     <form onSubmit={handleVerify} className="space-y-3">
                       <div>
                         <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                          Scratch-Off Secret Code
+                          Your Name (Optional)
                         </label>
                         <input
-                          type="password"
-                          value={innerSecret}
-                          onChange={(e) => setInnerSecret(e.target.value)}
-                          placeholder="Enter the code revealed under the scratch-off layer"
-                          className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2.5 text-xs text-white outline-hidden placeholder-slate-600 transition-colors"
+                          type="text"
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          placeholder="e.g. Jane Doe"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-lg px-3 py-2.5 text-xs text-white outline-hidden placeholder-slate-600 transition-colors"
                         />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[10px] uppercase font-bold text-slate-400">
+                            Scratch-Off Secret Code *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowSecretCode(!showSecretCode)}
+                            className="text-[10px] font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            {showSecretCode ? (
+                              <><EyeOff className="w-3 h-3 text-slate-400" /> Hide Code</>
+                            ) : (
+                              <><Eye className="w-3 h-3 text-slate-400" /> Show Code</>
+                            )}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showSecretCode ? "text" : "password"}
+                            value={innerSecret}
+                            onChange={(e) => setInnerSecret(e.target.value)}
+                            placeholder="Enter code (e.g. RCVR-A1B2C3D4 or A1B2C3D4)"
+                            className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2.5 pr-10 text-xs text-white outline-hidden placeholder-slate-600 transition-colors font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSecretCode(!showSecretCode)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
+                            title={showSecretCode ? "Hide Secret Code" : "Show Secret Code"}
+                          >
+                            {showSecretCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
                       <button
                         type="submit"
-                        disabled={isVerifying || isDisputing || !recipientAddress.trim() || !innerSecret.trim()}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2"
+                        disabled={isVerifying || isDisputing || !innerSecret.trim()}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
                       >
                         {isVerifying ? (
                           <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
@@ -323,8 +484,8 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                       />
                       <button
                         type="submit"
-                        disabled={isDisputing || isVerifying || !recipientAddress.trim() || !disputeReason.trim()}
-                        className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-800/50 transition-colors px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        disabled={isDisputing || isVerifying || !disputeReason.trim()}
+                        className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-800/50 transition-colors px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
                       >
                         {isDisputing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Dispute"}
                       </button>

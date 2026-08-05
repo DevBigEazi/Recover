@@ -27,7 +27,9 @@ export function formatOperatorName(
   if (shipperAddress && address.toLowerCase() === shipperAddress.toLowerCase() && companyName) {
     return companyName;
   }
-  if (!address.startsWith("0x")) return address;
+  if (!address.startsWith("0x")) {
+    return address.replace(/\s*·\s*(\+?\d[\d\s-]{6,})\s*$/, "").trim();
+  }
   return companyName || "Logistics Handler";
 }
 

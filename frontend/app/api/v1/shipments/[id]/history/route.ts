@@ -34,20 +34,49 @@ export async function GET(
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
+    if (!shipment.innerSecret) {
+      shipment.innerSecret = `RCVR-${cleanId.slice(0, 8).toUpperCase()}`;
+      await shipment.save();
+    }
 
+
+
+    const url = new URL(request.url);
+    const pinParam = url.searchParams.get("pin");
 
     // Look up the shipper's company name
     const shipperUser = await db.user.findOne({ _id: shipment.shipperAddress });
     const shipperCompanyName = shipperUser?.companyName || "Logistics Provider";
+
+    const storedCourierPin = shipment.metadata?.courierPin as string | undefined;
+    const isCourierAuthorized = Boolean(
+      pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim()
+    );
+
+    const riderInfo = {
+      name: (shipment.metadata?.riderName as string) || null,
+      phone: isCourierAuthorized ? ((shipment.metadata?.riderPhone as string) || null) : null,
+      plateNumber: (shipment.metadata?.riderPlateNumber as string) || null,
+    };
+
+    const sanitizedMetadata = isCourierAuthorized ? shipment.metadata : {
+      ...(shipment.metadata || {}),
+      receiverName: undefined,
+      receiverPhone: undefined,
+      destination: undefined,
+      riderPhone: undefined,
+    };
 
     return NextResponse.json({
       packageId: shipment.packageId,
       shipperAddress: shipment.shipperAddress,
       shipperCompanyName,
       status: shipment.status,
-      metadata: shipment.metadata,
+      metadata: sanitizedMetadata,
       events: shipment.events,
       webhookUrl: shipment.webhookUrl,
+      isCourierAuthorized,
+      riderInfo,
       createdAt: shipment.createdAt,
       updatedAt: shipment.updatedAt,
     });

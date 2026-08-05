@@ -13,7 +13,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { recipientAddress, innerSecret, passcode, secret, location, locationContext } = body;
+    const { recipientAddress, recipientName, innerSecret, passcode, secret, location, locationContext } = body;
     const secretCode = innerSecret || passcode || secret;
 
     await connectDB();
@@ -23,7 +23,7 @@ export async function POST(
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    let effectiveRecipientAddress = recipientAddress;
+    let effectiveRecipientAddress = recipientAddress || recipientName;
     if (apiKeyToken) {
       const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
       if (!apiKeyUser) {
@@ -32,8 +32,12 @@ export async function POST(
       effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
     }
 
-    if (!effectiveRecipientAddress || !secretCode) {
-      return NextResponse.json({ error: "Recipient address and innerSecret (or passcode) are required." }, { status: 400 });
+    if (!effectiveRecipientAddress) {
+      effectiveRecipientAddress = "Verified Recipient";
+    }
+
+    if (!secretCode) {
+      return NextResponse.json({ error: "Scratch-off secret code (innerSecret) is required for verification." }, { status: 400 });
     }
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
@@ -59,11 +63,45 @@ export async function POST(
 
     const targetPackageId = (shipment.packageId || shipment._id) as `0x${string}`;
 
-    // Verify secret matches the package hash stored locally/on-chain
-    const inputHash = keccak256(
-      encodePacked(["bytes32", "string"], [targetPackageId, secretCode])
-    );
-    if (inputHash !== shipment.innerSecretHash) {
+    // Normalize input code & stored secret for case-insensitive matching
+    const rawSecret = String(secretCode).trim();
+    const cleanRaw = rawSecret.replace(/^RCVR-/i, "");
+
+    const candidates = [
+      rawSecret,
+      rawSecret.toUpperCase(),
+      rawSecret.toLowerCase(),
+      `RCVR-${cleanRaw.toUpperCase()}`,
+      `RCVR-${cleanRaw.toLowerCase()}`,
+      `rcvr-${cleanRaw.toLowerCase()}`,
+      cleanRaw.toUpperCase(),
+      cleanRaw.toLowerCase(),
+    ];
+
+    let matchedSecret: string | null = null;
+
+    // 1. Direct stored innerSecret check (case-insensitive & prefix-tolerant)
+    if (shipment.innerSecret) {
+      const storedClean = shipment.innerSecret.replace(/^RCVR-/i, "").trim().toUpperCase();
+      if (cleanRaw.toUpperCase() === storedClean) {
+        matchedSecret = shipment.innerSecret;
+      }
+    }
+
+    // 2. Hash check against all candidates for the real secret code
+    if (!matchedSecret) {
+      for (const cand of candidates) {
+        const testHash = keccak256(
+          encodePacked(["bytes32", "string"], [targetPackageId, cand])
+        );
+        if (testHash === shipment.innerSecretHash) {
+          matchedSecret = cand;
+          break;
+        }
+      }
+    }
+
+    if (!matchedSecret) {
       return NextResponse.json({ error: "Invalid secret code. Package integrity verification failed." }, { status: 400 });
     }
 
@@ -96,7 +134,7 @@ export async function POST(
         [
           relayerAccount.address as `0x${string}`,
           targetPackageId,
-          keccak256(encodePacked(["string"], [secretCode])),
+          keccak256(encodePacked(["string"], [matchedSecret])),
           BigInt(nonce),
           BigInt(deadline),
           BigInt(chainId),
@@ -114,7 +152,7 @@ export async function POST(
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
       method: "function verifyDelivery(bytes32 packageId, string innerSecret, uint256 deadline, bytes signature)",
-      params: [targetPackageId, secretCode, BigInt(deadline), signature],
+      params: [targetPackageId, matchedSecret, BigInt(deadline), signature],
     });
 
     const txResult = await sendTransaction({
