@@ -142,13 +142,14 @@ print(res.json())`,
   "event": "package.delivered",
   "timestamp": "2026-08-03T14:30:00Z",
   "data": {
-    "packageId": "pkg_8f912a",
+    "packageId": "RCV-8F912A3B4C5D",
     "companyName": "Big Eazi Logistics",
     "shipperAddress": "0x6e799abd05b044acb6d9a59605de21ec845c2180",
     "packageName": "iPhone 15 Pro Dispatch",
-    "status": "Delivered",
-    "handoverCompletedAt": "2026-08-03T14:29:55Z",
-    "itemHash": "0x4a91b2..."
+    "status": "Verified",
+    "recipient": "0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "location": "Lagos, NG",
+    "onChainTxHash": "0x8f912a3b4c5d..."
   }
 }`;
 
@@ -593,20 +594,12 @@ print(res.json())`,
                 <h4 className="font-bold text-primary text-base">Supported Event Types:</h4>
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
-                    <span className="font-mono font-bold text-indigo-600">package.created</span>
-                    <span className="text-xs text-neutral-slate">— Triggered when a dispatch is registered</span>
-                  </li>
-                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
-                    <span className="font-mono font-bold text-blue-600">package.scanned</span>
-                    <span className="text-xs text-neutral-slate">— Triggered on physical QR scan</span>
-                  </li>
-                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
                     <span className="font-mono font-bold text-emerald-600">package.delivered</span>
-                    <span className="text-xs text-neutral-slate">— Triggered on successful PIN handover</span>
+                    <span className="text-xs text-neutral-slate">— Triggered on successful PIN verification & delivery</span>
                   </li>
                   <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
-                    <span className="font-mono font-bold text-red-600">package.disputed</span>
-                    <span className="text-xs text-neutral-slate">— Triggered when a dispute is logged</span>
+                    <span className="font-mono font-bold text-red-600">shipment.disputed</span>
+                    <span className="text-xs text-neutral-slate">— Triggered when a delivery dispute is logged</span>
                   </li>
                 </ul>
                 <p className="pt-2 text-xs leading-relaxed">
