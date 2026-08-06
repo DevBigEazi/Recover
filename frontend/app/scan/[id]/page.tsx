@@ -73,13 +73,15 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
     }
   }, [id]);
 
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const urlPin = searchParams?.get("pin") || "";
+  const effectivePin = urlPin || activePin;
+
   // Public fetch — no auth required, accepts optional courier PIN in URL or manual input
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
-    queryKey: ["scan-tracking", id, activePin],
+    queryKey: ["scan-tracking", id, effectivePin],
     queryFn: async () => {
-      const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-      const urlPin = searchParams?.get("pin") || activePin;
-      const url = `/api/v1/shipments/${id}/history${urlPin ? `?pin=${encodeURIComponent(urlPin)}` : ""}`;
+      const url = `/api/v1/shipments/${id}/history${effectivePin ? `?pin=${encodeURIComponent(effectivePin)}` : ""}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error("Package not found");
       return response.json();
