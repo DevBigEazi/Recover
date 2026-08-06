@@ -582,7 +582,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
             {/* Footer */}
             <p className="text-center text-[10px] text-slate-600 leading-relaxed px-4">
               Powered by <span className="text-slate-500 font-semibold">Recover</span> · Tamper-Proof Delivery Verification ·{" "}
-              <Link href="/" className="text-slate-500 hover:text-slate-400 underline">userecover.xyz</Link>
+              <Link href="/" className="text-slate-500 hover:text-slate-400 underline">recoverprotocol.xyz</Link>
             </p>
           </>
         )}

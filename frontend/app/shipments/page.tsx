@@ -295,7 +295,7 @@ export default function ShipmentsPage() {
               <div class="holo-pattern"></div>
               <div class="header">
                 <img src="${window.location.origin}/icon-192.png" alt="Recover Logo" />
-                <span>PREMIUM TAMPER-PROOF SECURITY LABEL BY https://userecover.xyz</span>
+                <span>PREMIUM TAMPER-PROOF SECURITY LABEL BY https://recoverprotocol.xyz</span>
               </div>
               <span class="side-warn left">DO NOT ACCEPT IF SEAL IS BROKEN</span>
               <span class="side-warn right">DO NOT ACCEPT IF SEAL IS BROKEN</span>
@@ -1221,7 +1221,7 @@ export default function ShipmentsPage() {
                   <div className="bg-slate-900 text-white text-[7px] font-bold text-center py-1.5 px-2 flex items-center justify-center gap-1.5 tracking-wider">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/icon-192.png" alt="Recover Logo" className="w-3 h-3 object-contain shrink-0" />
-                    <span>PREMIUM TAMPER-PROOF SECURITY LABEL BY https://userecover.xyz</span>
+                    <span>PREMIUM TAMPER-PROOF SECURITY LABEL BY https://recoverprotocol.xyz</span>
                   </div>
 
                   {/* Body */}
