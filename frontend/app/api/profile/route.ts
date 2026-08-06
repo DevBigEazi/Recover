@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       });
       userObj.shipmentsThisMonth = actualCount;
       if (user.shipmentsThisMonth !== actualCount) {
-        db.user.findByIdAndUpdate(user._id, { shipmentsThisMonth: actualCount }).catch((e) => console.error("Sync shipments error:", e));
+        await db.user.findByIdAndUpdate(user._id, { shipmentsThisMonth: actualCount }).catch((e) => console.error("Sync shipments error:", e));
       }
 
       return NextResponse.json(userObj, { status: 200 });
