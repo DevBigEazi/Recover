@@ -30,13 +30,8 @@ export async function GET(
       ],
     });
 
-    if (!shipment) {
+    if (!shipment || (!shipment.innerSecret && !shipment.innerSecretHash)) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
-    }
-
-    if (!shipment.innerSecret) {
-      shipment.innerSecret = `RCVR-${cleanId.slice(0, 8).toUpperCase()}`;
-      await shipment.save();
     }
 
 
@@ -48,19 +43,23 @@ export async function GET(
     const shipperUser = await db.user.findOne({ _id: shipment.shipperAddress });
     const shipperCompanyName = shipperUser?.companyName || "Logistics Provider";
 
-    const storedCourierPin = shipment.metadata?.courierPin as string | undefined;
+    const shipmentObj = typeof shipment.toObject === "function" ? shipment.toObject() : shipment;
+    const rawMetadata = { ...(shipmentObj.metadata || {}) } as Record<string, unknown>;
+    delete rawMetadata.courierPin;
+
+    const storedCourierPin = shipmentObj.metadata?.courierPin as string | undefined;
     const isCourierAuthorized = Boolean(
       pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim()
     );
 
     const riderInfo = {
-      name: (shipment.metadata?.riderName as string) || null,
-      phone: isCourierAuthorized ? ((shipment.metadata?.riderPhone as string) || null) : null,
-      plateNumber: (shipment.metadata?.riderPlateNumber as string) || null,
+      name: (rawMetadata.riderName as string) || null,
+      phone: isCourierAuthorized ? ((rawMetadata.riderPhone as string) || null) : null,
+      plateNumber: (rawMetadata.riderPlateNumber as string) || null,
     };
 
-    const sanitizedMetadata = isCourierAuthorized ? shipment.metadata : {
-      ...(shipment.metadata || {}),
+    const sanitizedMetadata = isCourierAuthorized ? rawMetadata : {
+      ...rawMetadata,
       receiverName: undefined,
       receiverPhone: undefined,
       destination: undefined,
