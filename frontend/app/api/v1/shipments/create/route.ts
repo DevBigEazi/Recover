@@ -9,6 +9,10 @@ import crypto from "node:crypto";
 import { sendPushNotification } from "@/lib/push";
 
 export async function POST(request: Request) {
+  let reservedUserAddress: string | null = null;
+  let reservedOverageAmount = 0;
+  let isQuotaReserved = false;
+
   try {
     const body = await request.json();
     const {
@@ -83,7 +87,37 @@ export async function POST(request: Request) {
     const baseLimit = TIER_LIMITS[shipper.plan] || 100;
     const totalAllowed = baseLimit + (shipper.rolloverQuota || 0);
 
-    if (shipper.plan === "free" && shipmentCount >= totalAllowed) {
+    const OVERAGE_RATES_USD: Record<string, number> = {
+      pro_starter: 0.02,
+      pro_growth: 0.015,
+      pro_scale: 0.01,
+      pro: 0.015,
+    };
+
+    const isOverage = shipmentCount >= totalAllowed;
+    const overageRate = isOverage ? (OVERAGE_RATES_USD[shipper.plan] || 0.02) : 0;
+    reservedUserAddress = shipper._id;
+    reservedOverageAmount = overageRate;
+
+    const reservedUser = await db.user.findByIdAndUpdate(
+      shipper._id,
+      {
+        $inc: {
+          shipmentsThisMonth: 1,
+          ...(overageRate > 0 ? { overageCharges: overageRate } : {}),
+        },
+      },
+      { new: true }
+    );
+
+    isQuotaReserved = true;
+    const reservedCount = reservedUser?.shipmentsThisMonth || (shipmentCount + 1);
+
+    if (shipper.plan === "free" && reservedCount > totalAllowed) {
+      await db.user.findByIdAndUpdate(shipper._id, {
+        $inc: { shipmentsThisMonth: -1 },
+      });
+      isQuotaReserved = false;
       return NextResponse.json(
         {
           error: `Monthly limit reached (${totalAllowed} packages). Upgrade your plan to increase shipment capacity.`,
@@ -182,23 +216,7 @@ export async function POST(request: Request) {
       ],
     });
 
-    // 7. Increment shipment usage counter or apply pay-as-you-go metered overage in USD only AFTER successful registration
-    if (shipmentCount >= totalAllowed) {
-      const OVERAGE_RATES_USD: Record<string, number> = {
-        pro_starter: 0.02,
-        pro_growth: 0.015,
-        pro_scale: 0.01,
-        pro: 0.015,
-      };
-      const overageRate = OVERAGE_RATES_USD[shipper.plan] || 0.02;
-      await db.user.findByIdAndUpdate(shipper._id, {
-        $inc: { overageCharges: overageRate, shipmentsThisMonth: 1 },
-      });
-    } else {
-      await db.user.findByIdAndUpdate(shipper._id, {
-        $inc: { shipmentsThisMonth: 1 },
-      });
-    }
+
 
     const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
     const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
@@ -231,6 +249,18 @@ export async function POST(request: Request) {
       shipment: newShipment,
     });
   } catch (error: unknown) {
+    if (isQuotaReserved && reservedUserAddress) {
+      try {
+        await db.user.findByIdAndUpdate(reservedUserAddress, {
+          $inc: {
+            shipmentsThisMonth: -1,
+            ...(reservedOverageAmount > 0 ? { overageCharges: -reservedOverageAmount } : {}),
+          },
+        });
+      } catch (rollbackErr) {
+        console.error("Quota reservation rollback failed:", rollbackErr);
+      }
+    }
     console.error("Failed to register shipment:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to create shipment";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
