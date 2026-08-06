@@ -24,40 +24,38 @@ export async function POST(
       location,
       locationContext,
       notes,
-      operatorAddress,
     } = body;
 
     await connectDB();
 
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
+    const verifiedHeaderAddress = (
+      request.headers.get("x-owner-address") || request.headers.get("x-operator-address")
+    )?.trim()?.toLowerCase();
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
     let authenticatedUser = null;
     if (apiKeyToken) {
       authenticatedUser = await db.user.findOne({ apiKey: apiKeyToken });
-    } else if (operatorAddress) {
-      const cleanOp = operatorAddress.toLowerCase();
+      if (!authenticatedUser) {
+        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      }
+    } else if (verifiedHeaderAddress) {
       authenticatedUser = await db.user.findOne({
-        $or: [{ _id: cleanOp }, { _id: operatorAddress }],
+        $or: [{ _id: verifiedHeaderAddress }, { _id: { $regex: new RegExp(`^${verifiedHeaderAddress.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }],
       });
     }
 
-    if (!authenticatedUser && apiKeyToken) {
-      return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
-    }
-
-    const effectiveOperatorAddress = authenticatedUser
-      ? (authenticatedUser._id as string).toLowerCase()
-      : (operatorAddress || "").toLowerCase();
-
-    if (!effectiveOperatorAddress) {
+    if (!authenticatedUser) {
       return NextResponse.json(
-        { error: "Authentication required (provide x-api-key or operatorAddress)." },
+        { error: "Authentication required (provide valid x-api-key or verified identity session header)." },
         { status: 401 }
       );
     }
+
+    const effectiveOperatorAddress = (authenticatedUser._id as string).toLowerCase();
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
     const shipment = await db.shipment.findOne({
@@ -242,11 +240,11 @@ export async function POST(
       }
     }
 
-    const requestOrigin = request.headers.get("origin") || request.headers.get("host") ? `https://${request.headers.get("host")}` : "https://userecover.xyz";
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://recoverprotocol.xyz").replace(/\/$/, "");
     const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
     const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
-    const riderLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
-    const recipientLink = `${requestOrigin}/scan/${trackingCode}?pin=${courierPin}`;
+    const riderLink = `${appUrl}/scan/${trackingCode}?pin=${courierPin}`;
+    const recipientLink = `${appUrl}/scan/${trackingCode}`;
 
     // 7. Dispatch in-app notification in DB & Web Push alert
     try {
