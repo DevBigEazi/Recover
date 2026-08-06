@@ -25,17 +25,13 @@ export async function POST(
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    let effectiveRecipientAddress = recipientAddress || recipientName;
+    let effectiveRecipientAddress = recipientAddress || recipientName || null;
     if (apiKeyToken) {
       const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
       if (!apiKeyUser) {
         return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
       }
       effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
-    }
-
-    if (!effectiveRecipientAddress) {
-      effectiveRecipientAddress = "Verified Recipient";
     }
 
     if (!secretCode) {
@@ -82,16 +78,8 @@ export async function POST(
 
     let matchedSecret: string | null = null;
 
-    // 1. Direct stored innerSecret check (case-insensitive & prefix-tolerant)
-    if (shipment.innerSecret) {
-      const storedClean = shipment.innerSecret.replace(/^RCVR-/i, "").trim().toUpperCase();
-      if (cleanRaw.toUpperCase() === storedClean) {
-        matchedSecret = shipment.innerSecret;
-      }
-    }
-
-    // 2. Hash check against all candidates for the real secret code
-    if (!matchedSecret) {
+    // 1. Authoritative cryptographic hash check against all input candidates
+    if (shipment.innerSecretHash) {
       for (const cand of candidates) {
         const testHash = keccak256(
           encodePacked(["bytes32", "string"], [targetPackageId, cand])
@@ -100,6 +88,14 @@ export async function POST(
           matchedSecret = cand;
           break;
         }
+      }
+    }
+
+    // 2. Recover original stored casing after hash validation succeeds
+    if (matchedSecret && shipment.innerSecret) {
+      const storedClean = shipment.innerSecret.replace(/^RCVR-/i, "").trim().toUpperCase();
+      if (cleanRaw.toUpperCase() === storedClean) {
+        matchedSecret = shipment.innerSecret;
       }
     }
 
@@ -172,7 +168,7 @@ export async function POST(
     shipment.status = "Verified";
     shipment.events.push({
       event: "Verified",
-      operator: effectiveRecipientAddress,
+      operator: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || "Package Recipient",
       location: location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
@@ -203,7 +199,7 @@ export async function POST(
               shipperAddress: shipment.shipperAddress,
               packageName: shipment.metadata?.name || "Package",
               status: "Verified",
-              recipient: effectiveRecipientAddress,
+              recipient: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || null,
               location: location || null,
               onChainTxHash: receipt.transactionHash,
             },
