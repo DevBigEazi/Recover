@@ -174,7 +174,7 @@ print(res.json())`,
       step: 3,
       icon: <Package className="w-5 h-5 text-emerald-600" />,
       title: "Register Your First Dispatch",
-      description: "Call POST /api/v1/shipments/create with your API key in the Authorization header. The response returns a unique packageId, a 6-digit handover PIN, and a printable QR sticker URL for the physical parcel.",
+      description: "Call POST /api/v1/shipments/create with your API key in the Authorization header. The response returns a unique packageId, consumer trackingCode, RCVR-prefixed handover secret (innerSecret), and shipment record.",
       action: "See Code Example ↓",
       actionHref: "#endpoints",
     },
@@ -182,7 +182,7 @@ print(res.json())`,
       step: 4,
       icon: <Truck className="w-5 h-5 text-blue-600" />,
       title: "Print & Affix QR Sticker to Package",
-      description: "Use the returned QR sticker URL to print a tamper-proof label onto the shipping box or poly-mailer. When anyone (rider, warehouse, recipient) scans the QR, Recover shows the live package status without any app install.",
+      description: "Use the tracking code URL to generate or print a tamper-proof label onto the shipping box or poly-mailer. When anyone (rider, warehouse, recipient) scans the QR, Recover shows the live package status without any app install.",
     },
     {
       step: 5,
@@ -371,7 +371,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Registers a new commercial shipment, decrements your monthly quota, writes a tamper-proof record to the Electroneum blockchain, and returns a printable QR sticker URL and 6-digit handover PIN.
+                Registers a new commercial shipment, reserves your monthly quota, writes a tamper-proof record to the Electroneum blockchain, and returns a unique packageId, trackingCode, RCVR-prefixed handover secret (innerSecret), and shipment object.
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -400,12 +400,12 @@ print(res.json())`,
                   </ul>
                 </div>
                 <div className="bg-neutral-mist/30 p-3.5 rounded-xl border border-neutral-mist space-y-1">
-                  <span className="font-bold text-primary block">201 Created Response:</span>
+                  <span className="font-bold text-primary block">200 OK Response:</span>
                   <ul className="space-y-1 text-neutral-slate font-mono">
                     <li>• <strong className="text-emerald-600">success</strong>: true</li>
-                    <li>• <strong className="text-emerald-600">packageId</strong>: &quot;0x4a91b2...&quot; (internal reference)</li>
+                    <li>• <strong className="text-emerald-600">packageId</strong>: &quot;0x4a91b2...&quot; (internal package ID)</li>
                     <li>• <strong className="text-emerald-600">trackingCode</strong>: &quot;RCV-4A91B2C3E8F0&quot; (consumer-facing tracking code)</li>
-                    <li>• <strong className="text-emerald-600">innerSecret</strong>: &quot;RCVR-A8F2B1C0&quot; (Secret Handover PIN)</li>
+                    <li>• <strong className="text-emerald-600">innerSecret</strong>: &quot;RCVR-A8F2B1C0&quot; (8-character RCVR-prefixed hex handover secret)</li>
                     <li>• <strong className="text-emerald-600">shipment</strong>: Full Shipment Object (status: &quot;Created&quot;, metadata, events)</li>
                   </ul>
                 </div>
