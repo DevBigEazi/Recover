@@ -30,24 +30,52 @@ export async function GET(
       ],
     });
 
-    if (!shipment) {
+    if (!shipment || (!shipment.innerSecret && !shipment.innerSecretHash)) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
 
 
+    const url = new URL(request.url);
+    const pinParam = url.searchParams.get("pin");
+
     // Look up the shipper's company name
     const shipperUser = await db.user.findOne({ _id: shipment.shipperAddress });
     const shipperCompanyName = shipperUser?.companyName || "Logistics Provider";
+
+    const shipmentObj = typeof shipment.toObject === "function" ? shipment.toObject() : shipment;
+    const rawMetadata = { ...(shipmentObj.metadata || {}) } as Record<string, unknown>;
+    delete rawMetadata.courierPin;
+
+    const storedCourierPin = shipmentObj.metadata?.courierPin as string | undefined;
+    const isCourierAuthorized = Boolean(
+      pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim()
+    );
+
+    const riderInfo = {
+      name: (rawMetadata.riderName as string) || null,
+      phone: isCourierAuthorized ? ((rawMetadata.riderPhone as string) || null) : null,
+      plateNumber: (rawMetadata.riderPlateNumber as string) || null,
+    };
+
+    const sanitizedMetadata = isCourierAuthorized ? rawMetadata : {
+      ...rawMetadata,
+      receiverName: undefined,
+      receiverPhone: undefined,
+      destination: undefined,
+      riderPhone: undefined,
+    };
 
     return NextResponse.json({
       packageId: shipment.packageId,
       shipperAddress: shipment.shipperAddress,
       shipperCompanyName,
       status: shipment.status,
-      metadata: shipment.metadata,
+      metadata: sanitizedMetadata,
       events: shipment.events,
       webhookUrl: shipment.webhookUrl,
+      isCourierAuthorized,
+      riderInfo,
       createdAt: shipment.createdAt,
       updatedAt: shipment.updatedAt,
     });

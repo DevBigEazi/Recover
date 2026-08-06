@@ -5,6 +5,8 @@ import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
+import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(
   request: Request,
@@ -13,7 +15,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { recipientAddress, innerSecret, passcode, secret, location, locationContext } = body;
+    const { recipientAddress, recipientName, innerSecret, passcode, secret, location, locationContext } = body;
     const secretCode = innerSecret || passcode || secret;
 
     await connectDB();
@@ -23,7 +25,7 @@ export async function POST(
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    let effectiveRecipientAddress = recipientAddress;
+    let effectiveRecipientAddress = recipientAddress || recipientName || null;
     if (apiKeyToken) {
       const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
       if (!apiKeyUser) {
@@ -32,8 +34,8 @@ export async function POST(
       effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
     }
 
-    if (!effectiveRecipientAddress || !secretCode) {
-      return NextResponse.json({ error: "Recipient address and innerSecret (or passcode) are required." }, { status: 400 });
+    if (!secretCode) {
+      return NextResponse.json({ error: "Scratch-off secret code (innerSecret) is required for verification." }, { status: 400 });
     }
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
@@ -59,11 +61,45 @@ export async function POST(
 
     const targetPackageId = (shipment.packageId || shipment._id) as `0x${string}`;
 
-    // Verify secret matches the package hash stored locally/on-chain
-    const inputHash = keccak256(
-      encodePacked(["bytes32", "string"], [targetPackageId, secretCode])
-    );
-    if (inputHash !== shipment.innerSecretHash) {
+    // Normalize input code & stored secret for case-insensitive matching
+    const rawSecret = String(secretCode).trim();
+    const cleanRaw = rawSecret.replace(/^RCVR-/i, "");
+
+    const candidates = [
+      rawSecret,
+      rawSecret.toUpperCase(),
+      rawSecret.toLowerCase(),
+      `RCVR-${cleanRaw.toUpperCase()}`,
+      `RCVR-${cleanRaw.toLowerCase()}`,
+      `rcvr-${cleanRaw.toLowerCase()}`,
+      cleanRaw.toUpperCase(),
+      cleanRaw.toLowerCase(),
+    ];
+
+    let matchedSecret: string | null = null;
+
+    // 1. Authoritative cryptographic hash check against all input candidates
+    if (shipment.innerSecretHash) {
+      for (const cand of candidates) {
+        const testHash = keccak256(
+          encodePacked(["bytes32", "string"], [targetPackageId, cand])
+        );
+        if (testHash === shipment.innerSecretHash) {
+          matchedSecret = cand;
+          break;
+        }
+      }
+    }
+
+    // 2. Recover original stored casing after hash validation succeeds
+    if (matchedSecret && shipment.innerSecret) {
+      const storedClean = shipment.innerSecret.replace(/^RCVR-/i, "").trim().toUpperCase();
+      if (cleanRaw.toUpperCase() === storedClean) {
+        matchedSecret = shipment.innerSecret;
+      }
+    }
+
+    if (!matchedSecret) {
       return NextResponse.json({ error: "Invalid secret code. Package integrity verification failed." }, { status: 400 });
     }
 
@@ -96,7 +132,7 @@ export async function POST(
         [
           relayerAccount.address as `0x${string}`,
           targetPackageId,
-          keccak256(encodePacked(["string"], [secretCode])),
+          keccak256(encodePacked(["string"], [matchedSecret])),
           BigInt(nonce),
           BigInt(deadline),
           BigInt(chainId),
@@ -114,7 +150,7 @@ export async function POST(
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
       method: "function verifyDelivery(bytes32 packageId, string innerSecret, uint256 deadline, bytes signature)",
-      params: [targetPackageId, secretCode, BigInt(deadline), signature],
+      params: [targetPackageId, matchedSecret, BigInt(deadline), signature],
     });
 
     const txResult = await sendTransaction({
@@ -132,7 +168,7 @@ export async function POST(
     shipment.status = "Verified";
     shipment.events.push({
       event: "Verified",
-      operator: effectiveRecipientAddress,
+      operator: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || "Package Recipient",
       location: location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
@@ -163,7 +199,7 @@ export async function POST(
               shipperAddress: shipment.shipperAddress,
               packageName: shipment.metadata?.name || "Package",
               status: "Verified",
-              recipient: effectiveRecipientAddress,
+              recipient: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || null,
               location: location || null,
               onChainTxHash: receipt.transactionHash,
             },
@@ -174,6 +210,30 @@ export async function POST(
       }
     }
 
+
+    // 6. Dispatch in-app notification in DB & Web Push alert
+    try {
+      const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
+      const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
+      const pkgName = (shipment.metadata?.name as string) || "Package";
+      const notifMsg = `Package "${pkgName}" (${trackingCode}) was successfully verified & delivered!`;
+
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipment.shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_verified",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipment.shipperAddress.toLowerCase(),
+        "Package Delivered ✓",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_verified notification:", err);
+    }
 
     return NextResponse.json({ success: true, shipment });
   } catch (error: unknown) {

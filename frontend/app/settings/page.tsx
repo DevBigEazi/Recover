@@ -39,6 +39,7 @@ export default function SettingsPage() {
     role, 
     plan, 
     billingCycle,
+    billingCycleStart,
     shipmentsThisMonth, 
     rolloverQuota,
     overageCharges, 
@@ -742,6 +743,11 @@ export default function SettingsPage() {
                         ).toLocaleString()}
                       </span>
                     </div>
+                    {billingCycleStart && (
+                      <span className="text-[10px] text-neutral-slate block mt-1">
+                        📅 Cycle started {new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    )}
                     {rolloverQuota > 0 && (
                       <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
                         ✨ +{rolloverQuota.toLocaleString()} unused shipments rolled over from previous plan
@@ -750,7 +756,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="bg-neutral-white border border-neutral-mist p-4 rounded-xl shadow-xs">
                     <span className="text-[10px] text-neutral-slate font-semibold block mb-0.5">Metered Overage Fees</span>
-                    <span className="text-lg font-bold text-primary">{overageCharges} NGN</span>
+                    <span className="text-lg font-bold text-primary">{convertUsdPrice(overageCharges, userCurrency).formattedLocal}</span>
                   </div>
                 </div>
 
@@ -1007,8 +1013,11 @@ export default function SettingsPage() {
         const targetRank = TIER_RANKS[selectedUpgradeTier] || 0;
         const isDowngrade = targetRank < currentRank;
         const isSameTier = targetRank === currentRank;
+        const isSameCycle = billingCycle === selectedUpgradeCycle;
         const currentName = TIER_NAMES[plan || "free"] || "Current Plan";
         const targetName = TIER_NAMES[selectedUpgradeTier] || "Selected Plan";
+
+        const isCycleDowngrade = isSameTier && billingCycle === "yearly" && selectedUpgradeCycle === "monthly";
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111827b3] backdrop-blur-xs animate-fade-in">
@@ -1084,7 +1093,7 @@ export default function SettingsPage() {
                     TIER_RANKS["pro_starter"] < currentRank
                       ? "border-neutral-mist/60 bg-neutral-mist/10 opacity-50 cursor-not-allowed"
                       : selectedUpgradeTier === "pro_starter"
-                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer"
+                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer shadow-xs"
                       : "border-neutral-mist hover:border-gray-300 bg-neutral-mist/20 cursor-pointer"
                   }`}
                 >
@@ -1123,7 +1132,7 @@ export default function SettingsPage() {
                     TIER_RANKS["pro_growth"] < currentRank
                       ? "border-neutral-mist/60 bg-neutral-mist/10 opacity-50 cursor-not-allowed"
                       : selectedUpgradeTier === "pro_growth"
-                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer"
+                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer shadow-xs"
                       : "border-neutral-mist hover:border-gray-300 bg-neutral-mist/20 cursor-pointer"
                   }`}
                 >
@@ -1162,7 +1171,7 @@ export default function SettingsPage() {
                     TIER_RANKS["pro_scale"] < currentRank
                       ? "border-neutral-mist/60 bg-neutral-mist/10 opacity-50 cursor-not-allowed"
                       : selectedUpgradeTier === "pro_scale"
-                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer"
+                      ? "border-accent bg-neutral-white ring-2 ring-accent cursor-pointer shadow-xs"
                       : "border-neutral-mist hover:border-gray-300 bg-neutral-mist/20 cursor-pointer"
                   }`}
                 >
@@ -1201,23 +1210,21 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={handleUpgradePlan}
-                  disabled={isUpgrading || (isSameTier && billingCycle === selectedUpgradeCycle)}
-                  className={`font-bold px-5 py-2.5 rounded-lg text-xs transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer ${
-                    isDowngrade
-                      ? "bg-amber-600 hover:bg-amber-700 text-white"
-                      : "bg-accent hover:bg-accent-light text-neutral-white"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={isUpgrading || (isSameTier && isSameCycle) || targetRank < currentRank || isCycleDowngrade}
+                  className="bg-accent hover:bg-accent-light text-neutral-white font-bold px-5 py-2.5 rounded-lg text-xs transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUpgrading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Loading Stripe Checkout...</span>
                     </>
-                  ) : isSameTier && billingCycle === selectedUpgradeCycle ? (
+                  ) : isSameTier && isCycleDowngrade ? (
+                    <span>Annual Billing Active Until Renewal</span>
+                  ) : isSameTier && isSameCycle ? (
                     <span>Current Active Plan</span>
                   ) : (
                     <span>
-                      {isDowngrade ? "Downgrade to " : isSameTier ? "Switch to " : "Upgrade to "}
+                      {isSameTier ? "Switch to " : "Upgrade to "}
                       {selectedUpgradeTier === "pro_starter"
                         ? (selectedUpgradeCycle === "yearly" ? convertUsdPrice(162, userCurrency).formattedLocal : convertUsdPrice(15, userCurrency).formattedLocal)
                         : selectedUpgradeTier === "pro_growth"

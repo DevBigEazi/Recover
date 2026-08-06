@@ -5,6 +5,8 @@ import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
+import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(
   request: Request,
@@ -13,30 +15,47 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { nextHandlerAddress, nextHandler, location, locationContext } = body;
-    const targetNextHandler = nextHandlerAddress || nextHandler;
-
-    if (!targetNextHandler) {
-      return NextResponse.json({ error: "nextHandler address is required." }, { status: 400 });
-    }
+    const {
+      nextHandlerAddress,
+      nextHandler,
+      riderName,
+      riderPhone,
+      riderPlateNumber,
+      location,
+      locationContext,
+      notes,
+    } = body;
 
     await connectDB();
 
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
+    const verifiedHeaderAddress = (
+      request.headers.get("x-owner-address") || request.headers.get("x-operator-address")
+    )?.trim()?.toLowerCase();
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
-    if (!apiKeyToken) {
-      return NextResponse.json({ error: "API key is required for authentication." }, { status: 401 });
+    let authenticatedUser = null;
+    if (apiKeyToken) {
+      authenticatedUser = await db.user.findOne({ apiKey: apiKeyToken });
+      if (!authenticatedUser) {
+        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      }
+    } else if (verifiedHeaderAddress) {
+      authenticatedUser = await db.user.findOne({
+        $or: [{ _id: verifiedHeaderAddress }, { _id: { $regex: new RegExp(`^${verifiedHeaderAddress.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }],
+      });
     }
 
-    const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
-    if (!apiKeyUser) {
-      return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+    if (!authenticatedUser) {
+      return NextResponse.json(
+        { error: "Authentication required (provide valid x-api-key or verified identity session header)." },
+        { status: 401 }
+      );
     }
 
-    const effectiveOperatorAddress = (apiKeyUser._id as string).toLowerCase();
+    const effectiveOperatorAddress = (authenticatedUser._id as string).toLowerCase();
 
     const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
     const shipment = await db.shipment.findOne({
@@ -61,13 +80,27 @@ export async function POST(
     const lastEvent = shipment.events && shipment.events.length > 0 ? shipment.events[shipment.events.length - 1] : null;
     const currentHandler = (lastEvent?.operator || shipment.shipperAddress || "").toLowerCase();
 
-    if (effectiveOperatorAddress !== currentHandler) {
+    if (
+      effectiveOperatorAddress !== currentHandler &&
+      effectiveOperatorAddress !== (shipment.shipperAddress || "").toLowerCase()
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized. Authenticated operator is not the current handler of this shipment." },
+        { error: "Unauthorized. Authenticated operator is not the owner or current handler of this shipment." },
         { status: 403 }
       );
     }
 
+    // Determine target EVM address for smart contract logHandover
+    let targetNextHandler: `0x${string}`;
+    const rawNext = nextHandlerAddress || nextHandler;
+    if (typeof rawNext === "string" && rawNext.startsWith("0x") && rawNext.length === 42) {
+      targetNextHandler = rawNext as `0x${string}`;
+    } else {
+      // Deterministically derive fallback address from rider identity hash (non-zero)
+      const seed = riderPhone || riderPlateNumber || riderName || `RIDER_${id}_${Date.now()}`;
+      const rawHash = keccak256(encodePacked(["string"], [seed]));
+      targetNextHandler = ("0x" + rawHash.slice(26)) as `0x${string}`;
+    }
 
     const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
     if (!signerPrivateKey) {
@@ -110,7 +143,6 @@ export async function POST(
       message: { raw: messageHash },
     });
 
-
     // 3. Prepare and send transaction
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
@@ -129,20 +161,48 @@ export async function POST(
       transactionHash: txResult.transactionHash,
     });
 
-    // 4. Update MongoDB shipment record
+    // 4. Construct human-friendly rider operator label & location description (no phone in public timeline label)
+    let riderOperatorLabel = "";
+    if (riderName && riderName.trim()) {
+      riderOperatorLabel += riderName.trim();
+    } else {
+      riderOperatorLabel += "Delivery Rider / Driver";
+    }
+    if (riderPlateNumber && riderPlateNumber.trim()) {
+      riderOperatorLabel += ` (Plate: ${riderPlateNumber.trim()})`;
+    }
+
+    let fullLocationContext = locationContext?.trim() || "";
+    if (notes && notes.trim()) {
+      fullLocationContext = fullLocationContext ? `${fullLocationContext} · Note: ${notes.trim()}` : `Note: ${notes.trim()}`;
+    }
+
+    // Generate 4-digit Courier Dispatch PIN for rider link access
+    const courierPin = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // 5. Update MongoDB shipment record
     shipment.status = "InTransit";
+    shipment.metadata = {
+      ...(shipment.metadata || {}),
+      courierPin,
+      riderName: riderName ? riderName.trim() : null,
+      riderPhone: riderPhone ? riderPhone.trim() : null,
+      riderPlateNumber: riderPlateNumber ? riderPlateNumber.trim() : null,
+      handoverLocation: fullLocationContext || null,
+    };
+
     shipment.events.push({
       event: "InTransit",
-      operator: nextHandlerAddress,
+      operator: riderOperatorLabel,
       location: location || null,
-      locationContext: locationContext || null,
+      locationContext: fullLocationContext || null,
       timestamp: new Date(),
       onChainTxHash: receipt.transactionHash,
     });
 
     await shipment.save();
 
-    // 5. Fire webhook if configured
+    // 6. Fire webhook if configured
     if (shipment.webhookUrl) {
       try {
         const shipperUser = await db.user.findOne({
@@ -164,8 +224,13 @@ export async function POST(
               shipperAddress: shipment.shipperAddress,
               packageName: shipment.metadata?.name || "Package",
               status: "InTransit",
-              operator: nextHandlerAddress,
+              operator: riderOperatorLabel,
+              riderName: riderName || null,
+              riderPhone: riderPhone || null,
+              riderPlateNumber: riderPlateNumber || null,
+              courierPin,
               location: location || null,
+              locationContext: fullLocationContext || null,
               onChainTxHash: receipt.transactionHash,
             },
           }),
@@ -175,8 +240,43 @@ export async function POST(
       }
     }
 
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://recoverprotocol.xyz").replace(/\/$/, "");
+    const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
+    const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
+    const riderLink = `${appUrl}/scan/${trackingCode}?pin=${courierPin}`;
+    const recipientLink = `${appUrl}/scan/${trackingCode}`;
 
-    return NextResponse.json({ success: true, shipment });
+    // 7. Dispatch in-app notification in DB & Web Push alert
+    try {
+      const pkgName = (shipment.metadata?.name as string) || "Package";
+      const notifMsg = `Package "${pkgName}" (${trackingCode}) was handed over to ${riderName ? riderName.trim() : "Dispatch Rider"}.`;
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipment.shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_intransit",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipment.shipperAddress.toLowerCase(),
+        "Package In Transit 🛵",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_intransit notification:", err);
+    }
+
+    return NextResponse.json({
+      success: true,
+      shipment,
+      courierPin,
+      riderName: riderName || null,
+      riderPhone: riderPhone || null,
+      riderPlateNumber: riderPlateNumber || null,
+      riderLink,
+      recipientLink,
+    });
   } catch (error: unknown) {
     console.error("Handover failed:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to log handover";

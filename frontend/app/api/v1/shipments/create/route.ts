@@ -6,8 +6,13 @@ import { readContract, prepareContractCall, sendTransaction, waitForReceipt } fr
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
 import crypto from "node:crypto";
+import { sendPushNotification } from "@/lib/push";
 
 export async function POST(request: Request) {
+  let reservedUserAddress: string | null = null;
+  let reservedOverageAmount = 0;
+  let isQuotaReserved = false;
+
   try {
     const body = await request.json();
     const {
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
 
     const billingStart = shipper.billingCycleStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const shipmentCount = await db.shipment.countDocuments({
-      shipperAddress: shipperAddress,
+      shipperAddress: { $regex: new RegExp(`^${shipper._id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
       createdAt: { $gte: billingStart },
     });
 
@@ -82,7 +87,37 @@ export async function POST(request: Request) {
     const baseLimit = TIER_LIMITS[shipper.plan] || 100;
     const totalAllowed = baseLimit + (shipper.rolloverQuota || 0);
 
-    if (shipper.plan === "free" && shipmentCount >= totalAllowed) {
+    const OVERAGE_RATES_USD: Record<string, number> = {
+      pro_starter: 0.02,
+      pro_growth: 0.015,
+      pro_scale: 0.01,
+      pro: 0.015,
+    };
+
+    const isOverage = shipmentCount >= totalAllowed;
+    const overageRate = isOverage ? (OVERAGE_RATES_USD[shipper.plan] || 0.02) : 0;
+    reservedUserAddress = shipper._id;
+    reservedOverageAmount = overageRate;
+
+    const reservedUser = await db.user.findByIdAndUpdate(
+      shipper._id,
+      {
+        $inc: {
+          shipmentsThisMonth: 1,
+          ...(overageRate > 0 ? { overageCharges: overageRate } : {}),
+        },
+      },
+      { new: true }
+    );
+
+    isQuotaReserved = true;
+    const reservedCount = reservedUser?.shipmentsThisMonth || (shipmentCount + 1);
+
+    if (shipper.plan === "free" && reservedCount > totalAllowed) {
+      await db.user.findByIdAndUpdate(shipper._id, {
+        $inc: { shipmentsThisMonth: -1 },
+      });
+      isQuotaReserved = false;
       return NextResponse.json(
         {
           error: `Monthly limit reached (${totalAllowed} packages). Upgrade your plan to increase shipment capacity.`,
@@ -92,30 +127,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Increment shipment usage counter or apply pay-as-you-go metered overage in USD
-    if (shipmentCount >= totalAllowed) {
-      const OVERAGE_RATES_USD: Record<string, number> = {
-        pro_starter: 0.02,
-        pro_growth: 0.015,
-        pro_scale: 0.01,
-        pro: 0.015,
-      };
-      const overageRate = OVERAGE_RATES_USD[shipper.plan] || 0.02;
-      await db.user.findByIdAndUpdate(shipperAddress, {
-        $inc: { overageCharges: overageRate, shipmentsThisMonth: 1 },
-      });
-    } else {
-      await db.user.findByIdAndUpdate(shipperAddress, {
-        $inc: { shipmentsThisMonth: 1 },
-      });
-    }
-
     // 2. Generate cryptographically secure package credentials
     const packageIdBytes = crypto.randomBytes(32);
     const packageId = "0x" + packageIdBytes.toString("hex");
 
     const innerSecret = "RCVR-" + crypto.randomBytes(4).toString("hex").toUpperCase();
-    
+
     // Compute innerSecretHash = keccak256(packageId + innerSecret)
     const packageHash = keccak256(
       encodePacked(["bytes32", "string"], [packageId as `0x${string}`, innerSecret])
@@ -162,7 +179,6 @@ export async function POST(request: Request) {
       message: { raw: messageHash },
     });
 
-
     // 5. Send transaction to contract
     const transaction = prepareContractCall({
       contract: recoverShipmentContract,
@@ -200,8 +216,31 @@ export async function POST(request: Request) {
       ],
     });
 
+
+
     const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
     const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
+
+    // 8. Create in-app notification in DB & send Web Push alert
+    try {
+      const resolvedPkgName = (finalMetadata.name as string) || "Package";
+      const notifMsg = `Package "${resolvedPkgName}" (${trackingCode}) has been registered.`;
+      await db.notification.create({
+        _id: crypto.randomUUID(),
+        ownerAddress: shipperAddress.toLowerCase(),
+        registrationId: trackingCode,
+        type: "shipment_created",
+        message: notifMsg,
+      });
+      await sendPushNotification(
+        shipperAddress.toLowerCase(),
+        "Package Registered 📦",
+        notifMsg,
+        `/shipments/${trackingCode}`
+      );
+    } catch (err) {
+      console.error("Failed to dispatch shipment_created notification:", err);
+    }
 
     return NextResponse.json({
       success: true,
@@ -211,6 +250,18 @@ export async function POST(request: Request) {
       shipment: newShipment,
     });
   } catch (error: unknown) {
+    if (isQuotaReserved && reservedUserAddress) {
+      try {
+        await db.user.findByIdAndUpdate(reservedUserAddress, {
+          $inc: {
+            shipmentsThisMonth: -1,
+            ...(reservedOverageAmount > 0 ? { overageCharges: -reservedOverageAmount } : {}),
+          },
+        });
+      } catch (rollbackErr) {
+        console.error("Quota reservation rollback failed:", rollbackErr);
+      }
+    }
     console.error("Failed to register shipment:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to create shipment";
     return NextResponse.json({ error: errorMessage }, { status: 500 });

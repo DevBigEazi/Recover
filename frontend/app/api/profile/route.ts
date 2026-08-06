@@ -47,9 +47,19 @@ export async function GET(request: Request) {
       userObj.plan = userObj.plan || "free";
       userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
       userObj.rolloverQuota = userObj.rolloverQuota || 0;
-      userObj.shipmentsThisMonth = userObj.shipmentsThisMonth || 0;
       userObj.overageCharges = userObj.overageCharges || 0;
       userObj.apiKey = user.apiKey || userObj.apiKey || null;
+
+      const billingStart = userObj.billingCycleStart ? new Date(userObj.billingCycleStart) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const actualCount = await db.shipment.countDocuments({
+        shipperAddress: { $regex: new RegExp(`^${user._id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        createdAt: { $gte: billingStart },
+      });
+      userObj.shipmentsThisMonth = actualCount;
+      if (user.shipmentsThisMonth !== actualCount) {
+        await db.user.findByIdAndUpdate(user._id, { shipmentsThisMonth: actualCount }).catch((e) => console.error("Sync shipments error:", e));
+      }
+
       return NextResponse.json(userObj, { status: 200 });
     }
 

@@ -6,7 +6,7 @@ export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion,
   appInfo: {
     name: "Recover Protocol",
-    url: "https://userecover.xyz",
+    url: "https://recoverprotocol.xyz",
   },
 });
 
