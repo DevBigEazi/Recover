@@ -188,7 +188,7 @@ print(res.json())`,
       step: 5,
       icon: <ShieldCheck className="w-5 h-5 text-emerald-600" />,
       title: "Complete Delivery with PIN Handover",
-      description: "At delivery, the recipient provides their secret 6-digit PIN. The rider enters it on the scan page (or your backend calls POST /shipments/[id]/handover). On match, the package status updates to Delivered and your webhook fires.",
+      description: "At delivery, the recipient provides their secret scratch-off PIN. The recipient or rider enters it on the scan page (or your backend calls POST /api/v1/shipments/[id]/verify). On match, the package status updates to Verified and your webhook fires.",
     },
   ];
 
