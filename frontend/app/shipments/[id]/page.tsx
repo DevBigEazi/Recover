@@ -271,19 +271,21 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <button
+                    disabled={!lastHandoverResult?.courierPin}
                     onClick={() => {
+                      if (lastHandoverResult) return;
                       const trackingCode = formatTrackingCode(shipment.packageId);
-                      const pin = (shipment.metadata?.courierPin as string) || "";
                       const origin = typeof window !== "undefined" ? window.location.origin : "";
                       setLastHandoverResult({
-                        riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                        recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                        courierPin: pin || "Not Generated",
+                        riderLink: `${origin}/scan/${trackingCode}`,
+                        recipientLink: `${origin}/scan/${trackingCode}`,
+                        courierPin: "Not Generated",
                         riderPhone: (shipment.metadata?.riderPhone as string) || null,
                         riderName: (shipment.metadata?.riderName as string) || null,
                       });
                     }}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!lastHandoverResult?.courierPin ? "Log a custody handover to generate dispatch links & PIN" : "Share dispatch links"}
                   >
                     <Share2 className="w-3 h-3" /> Share Links
                   </button>
