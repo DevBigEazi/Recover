@@ -21,7 +21,7 @@ export default function NotificationsPage() {
       message: string;
       read: boolean;
       createdAt: string;
-      registrationId: string;
+      registrationId?: string;
     }>
   >({
     queryKey: ["notifications", account?.address],
@@ -146,7 +146,7 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-4 animate-fade-in">
             {notifications.map((n) => {
-              const isShipment = n.type.startsWith("shipment_") || n.registrationId.startsWith("RCV-");
+              const isShipment = n.type.startsWith("shipment_") || Boolean(n.registrationId?.startsWith("RCV-"));
 
               const getBadgeStyle = (type: string) => {
                 switch (type) {
