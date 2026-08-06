@@ -223,7 +223,8 @@ export async function POST(request: Request) {
 
     // 8. Create in-app notification in DB & send Web Push alert
     try {
-      const notifMsg = `Package "${packageName || "Package"}" (${trackingCode}) has been registered.`;
+      const resolvedPkgName = (finalMetadata.name as string) || "Package";
+      const notifMsg = `Package "${resolvedPkgName}" (${trackingCode}) has been registered.`;
       await db.notification.create({
         _id: crypto.randomUUID(),
         ownerAddress: shipperAddress.toLowerCase(),
