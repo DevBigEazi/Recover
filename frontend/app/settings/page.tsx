@@ -1013,6 +1013,7 @@ export default function SettingsPage() {
         const targetRank = TIER_RANKS[selectedUpgradeTier] || 0;
         const isDowngrade = targetRank < currentRank;
         const isSameTier = targetRank === currentRank;
+        const isSameCycle = billingCycle === selectedUpgradeCycle;
         const currentName = TIER_NAMES[plan || "free"] || "Current Plan";
         const targetName = TIER_NAMES[selectedUpgradeTier] || "Selected Plan";
 
@@ -1209,7 +1210,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={handleUpgradePlan}
-                  disabled={isUpgrading || (isSameTier && billingCycle === selectedUpgradeCycle) || targetRank < currentRank || isCycleDowngrade}
+                  disabled={isUpgrading || (isSameTier && isSameCycle) || targetRank < currentRank || isCycleDowngrade}
                   className="bg-accent hover:bg-accent-light text-neutral-white font-bold px-5 py-2.5 rounded-lg text-xs transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUpgrading ? (
@@ -1217,7 +1218,9 @@ export default function SettingsPage() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Loading Stripe Checkout...</span>
                     </>
-                  ) : isSameTier && (billingCycle === selectedUpgradeCycle || isCycleDowngrade) ? (
+                  ) : isSameTier && isCycleDowngrade ? (
+                    <span>Annual Billing Active Until Renewal</span>
+                  ) : isSameTier && isSameCycle ? (
                     <span>Current Active Plan</span>
                   ) : (
                     <span>

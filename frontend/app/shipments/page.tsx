@@ -869,6 +869,7 @@ export default function ShipmentsPage() {
                 const targetRank = TIER_RANKS[selectedTier] || 0;
                 const isDowngrade = targetRank < currentRank;
                 const isSameTier = targetRank === currentRank;
+                const isSameCycle = billingCycle === selectedCycle;
                 const isCycleDowngrade = isSameTier && billingCycle === "yearly" && selectedCycle === "monthly";
                 const currentName = TIER_NAMES[plan || "free"] || "Current Plan";
                 const targetName = TIER_NAMES[selectedTier] || "Selected Plan";
@@ -1023,12 +1024,14 @@ export default function ShipmentsPage() {
                     <button
                       type="button"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || (subscriptionActive && role === "merchant" && isSameTier && billingCycle === selectedCycle) || targetRank < currentRank || isCycleDowngrade}
+                      disabled={isUpgrading || (subscriptionActive && role === "merchant" && isSameTier && isSameCycle) || targetRank < currentRank || isCycleDowngrade}
                       className="w-full text-center font-bold text-xs py-3 rounded-lg transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white"
                     >
                       {isUpgrading ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Loading Stripe Checkout...</>
-                      ) : subscriptionActive && role === "merchant" && isSameTier && (billingCycle === selectedCycle || isCycleDowngrade) ? (
+                      ) : subscriptionActive && role === "merchant" && isSameTier && isCycleDowngrade ? (
+                        "Annual Billing Active Until Renewal"
+                      ) : subscriptionActive && role === "merchant" && isSameTier && isSameCycle ? (
                         "Current Active Plan"
                       ) : (
                         `${isSameTier ? "Switch to " : "Pay "} ${
