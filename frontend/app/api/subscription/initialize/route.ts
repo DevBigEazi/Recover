@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const unitAmount = billingCycle === "yearly" ? priceConfig.yearly : priceConfig.monthly;
     const interval = billingCycle === "yearly" ? "year" : "month";
 
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
+    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://recoverprotocol.xyz";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

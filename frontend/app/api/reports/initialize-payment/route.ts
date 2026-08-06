@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       existingStripeCustomerId: ownerUser?.stripeCustomerId || undefined,
     });
 
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
+    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://recoverprotocol.xyz";
 
     const isPhoneCategory = (item.category || "").toLowerCase() === "phone";
     const unlockAmountCents = isPhoneCategory
