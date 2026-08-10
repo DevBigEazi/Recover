@@ -27,17 +27,41 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate secret API key: rec_live_<48-hex-chars>
-    const newApiKey = `rec_live_${crypto.randomBytes(24).toString("hex")}`;
+    let keyType: "live" | "test" = "live";
+    try {
+      const body = await request.json();
+      if (body?.keyType === "test") {
+        keyType = "test";
+      }
+    } catch {
+      // Body may be empty or unparseable, default to live key
+    }
+
+    // Generate secret API key
+    const randomHex = crypto.randomBytes(24).toString("hex");
+    const newKey = keyType === "test" ? `rec_test_${randomHex}` : `rec_live_${randomHex}`;
+    const keyHash = crypto.createHash("sha256").update(newKey).digest("hex");
+    const prefixLength = keyType === "test" ? 9 : 9;
+    const keyMasked = `${newKey.substring(0, prefixLength + 4)}••••${newKey.slice(-4)}`;
+
+    const updateQuery = keyType === "test"
+      ? { $set: { testApiKeyHash: keyHash, testApiKeyMasked: keyMasked, testApiKey: null } }
+      : { $set: { apiKeyHash: keyHash, apiKeyMasked: keyMasked, apiKey: null } };
 
     const updatedUser = await db.user.findByIdAndUpdate(
       user._id,
-      { $set: { apiKey: newApiKey } },
+      updateQuery,
       { new: true }
     );
 
     return NextResponse.json(
-      { success: true, apiKey: updatedUser?.apiKey || newApiKey },
+      {
+        success: true,
+        keyType,
+        apiKeyMasked: updatedUser?.apiKeyMasked || keyMasked,
+        testApiKeyMasked: updatedUser?.testApiKeyMasked || keyMasked,
+        generatedKey: newKey,
+      },
       { status: 200 }
     );
 

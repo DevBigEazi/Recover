@@ -48,7 +48,31 @@ export async function GET(request: Request) {
       userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
       userObj.rolloverQuota = userObj.rolloverQuota || 0;
       userObj.overageCharges = userObj.overageCharges || 0;
-      userObj.apiKey = user.apiKey || userObj.apiKey || null;
+
+      if (user.apiKeyMasked) {
+        userObj.apiKeyMasked = user.apiKeyMasked;
+      } else if (user.apiKey) {
+        userObj.apiKeyMasked = `${user.apiKey.substring(0, 13)}••••${user.apiKey.slice(-4)}`;
+      } else {
+        userObj.apiKeyMasked = null;
+      }
+
+      if (user.testApiKeyMasked) {
+        userObj.testApiKeyMasked = user.testApiKeyMasked;
+      } else if (user.testApiKey) {
+        userObj.testApiKeyMasked = `${user.testApiKey.substring(0, 13)}••••${user.testApiKey.slice(-4)}`;
+      } else {
+        userObj.testApiKeyMasked = null;
+      }
+
+      // Never expose plaintext keys in profile responses
+      // Automatically sanitize database: purge raw plaintext keys from MongoDB if hashes exist
+      if (user.apiKey || user.testApiKey) {
+        const unsetFields: Record<string, string> = {};
+        if (user.apiKey) unsetFields.apiKey = "";
+        if (user.testApiKey) unsetFields.testApiKey = "";
+        await db.user.findByIdAndUpdate(user._id, { $unset: unsetFields }).catch((e) => console.error("Purge plaintext key error:", e));
+      }
 
       const billingStart = userObj.billingCycleStart ? new Date(userObj.billingCycleStart) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const actualCount = await db.shipment.countDocuments({

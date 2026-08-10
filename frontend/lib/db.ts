@@ -76,6 +76,11 @@ export interface IUser {
   rolloverQuota: number;
   overageCharges: number;
   apiKey?: string | null;
+  testApiKey?: string | null;
+  apiKeyHash?: string | null;
+  testApiKeyHash?: string | null;
+  apiKeyMasked?: string | null;
+  testApiKeyMasked?: string | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripePriceId?: string | null;
@@ -167,6 +172,9 @@ export interface IShipment {
   metadata?: Record<string, unknown> | null;
   events: IShipmentEvent[];
   webhookUrl?: string | null;
+  trackingCode?: string | null;
+  onChainId?: string;
+  isTest?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -200,6 +208,11 @@ const UserSchema = new Schema<IUser>(
     rolloverQuota: { type: Number, default: 0 },
     overageCharges: { type: Number, default: 0 },
     apiKey: { type: String, default: null, index: true },
+    testApiKey: { type: String, default: null, index: true },
+    apiKeyHash: { type: String, default: null, index: true },
+    testApiKeyHash: { type: String, default: null, index: true },
+    apiKeyMasked: { type: String, default: null },
+    testApiKeyMasked: { type: String, default: null },
     stripeCustomerId: { type: String, default: null, index: true },
     stripeSubscriptionId: { type: String, default: null, index: true },
     stripePriceId: { type: String, default: null },
@@ -354,24 +367,52 @@ const ShipmentSchema = new Schema<IShipment>(
     metadata: { type: Schema.Types.Mixed, default: null },
     events: [ShipmentEventSchema],
     webhookUrl: { type: String, default: null },
+    trackingCode: { type: String, default: null, index: true },
+    isTest: { type: Boolean, default: false, index: true },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      versionKey: false,
+      transform: (_doc, ret: Record<string, unknown>) => {
+        if (ret._id && typeof ret._id === "string") {
+          const rawId = ret._id;
+          ret.onChainId = rawId;
+          if (!ret.trackingCode) {
+            const cleanId = rawId.startsWith("0x") ? rawId.slice(2) : rawId;
+            ret.trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
+          }
+          delete ret._id;
+        }
+        delete ret.id;
+        delete ret.packageId;
+        if (Array.isArray(ret.events)) {
+          ret.events.forEach((ev: Record<string, unknown>) => {
+            delete ev._id;
+            delete ev.id;
+          });
+        }
+        return ret;
+      },
+    },
     toObject: { virtuals: true },
   }
 );
 
-ShipmentSchema.virtual("packageId")
+ShipmentSchema.virtual("onChainId")
   .get(function (this: { _id: string }) {
     return this._id;
-  })
-  .set(function (this: { _id: string }, val: string) {
-    this._id = val;
   });
 
 ShipmentSchema.index({ shipperAddress: 1, createdAt: -1 });
+ShipmentSchema.index({ trackingCode: 1 });
 ShipmentSchema.index({ status: 1 });
+
+// Clear cached User model in development to force re-compilation with updated schema
+if (process.env.NODE_ENV !== "production" && mongoose.models.User) {
+  delete mongoose.models.User;
+}
 
 // Models
 const UserModel = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
@@ -380,6 +421,7 @@ const FinderReportModel = mongoose.models.FinderReport || mongoose.model<IFinder
 const NotificationModel = mongoose.models.Notification || mongoose.model<INotification>("Notification", NotificationSchema);
 const PushSubscriptionModel = mongoose.models.PushSubscription || mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
 const ShipmentModel = mongoose.models.Shipment || mongoose.model<IShipment>("Shipment", ShipmentSchema);
+const TestShipmentModel = mongoose.models.TestShipment || mongoose.model<IShipment>("TestShipment", ShipmentSchema);
 
 // Export db object matching Prisma collection access patterns where possible
 export const db = {
@@ -389,4 +431,5 @@ export const db = {
   notification: NotificationModel as Model<INotification>,
   pushSubscription: PushSubscriptionModel as Model<IPushSubscription>,
   shipment: ShipmentModel as Model<IShipment>,
+  testShipment: TestShipmentModel as Model<IShipment>,
 };
