@@ -30,8 +30,6 @@ export async function getShipperFromApiKey(apiKeyToken: string | null | undefine
       { apiKeyHash: tokenHash },
       { testApiKey: cleanToken },
       { apiKey: cleanToken },
-      { testApiKey: { $regex: new RegExp(`^${cleanToken.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-      { apiKey: { $regex: new RegExp(`^${cleanToken.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
     ],
   });
 
