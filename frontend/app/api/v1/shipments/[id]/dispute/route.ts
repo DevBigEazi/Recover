@@ -16,7 +16,10 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { recipientAddress, reason, location, locationContext } = body;
+    const { recipientAddress, reason, location, locationContext, innerSecret, passcode, secret } = body;
+    const secretCode = (id && id.trim().toUpperCase().startsWith("RCVR-"))
+      ? id.trim()
+      : (innerSecret || passcode || secret);
 
     await connectDB();
 
@@ -27,26 +30,32 @@ export async function POST(
 
     let effectiveRecipientAddress = recipientAddress;
     let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
+    let authenticatedShipper = null;
+
     if (apiKeyToken) {
       const authResult = await getShipperFromApiKey(apiKeyToken);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
-      const apiKeyUser = authResult.shipper;
-      effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
+      authenticatedShipper = authResult.shipper;
+      effectiveRecipientAddress = effectiveRecipientAddress || authenticatedShipper._id;
       isTestKey = authResult.isTest;
     }
 
-    if (!effectiveRecipientAddress || !reason) {
-      return NextResponse.json({ error: "Recipient address and reason are required." }, { status: 400 });
+    if (!reason) {
+      return NextResponse.json({ error: "Reason for dispute is required." }, { status: 400 });
     }
 
-    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
+    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^RCVR-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
     const idFilter = [
       { trackingCode: id.trim() },
       { trackingCode: id.trim().toUpperCase() },
       { trackingCode: { $regex: new RegExp(`^${id.trim()}$`, "i") } },
       { trackingCode: { $regex: new RegExp(`^RCV-${cleanId}`, "i") } },
+      { innerSecret: id.trim() },
+      { innerSecret: id.trim().toUpperCase() },
+      { innerSecret: { $regex: new RegExp(`^${id.trim()}$`, "i") } },
+      { innerSecret: { $regex: new RegExp(`^RCVR-${cleanId}`, "i") } },
       { _id: id.trim() },
       { _id: id.trim().toLowerCase() },
       { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
@@ -64,6 +73,27 @@ export async function POST(
     if (!shipment) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
+
+    const isShipper = authenticatedShipper && (
+      authenticatedShipper._id.toLowerCase() === shipment.shipperAddress.toLowerCase()
+    );
+
+    let isSecretValid = false;
+    if (secretCode && shipment.innerSecret) {
+      isSecretValid = shipment.innerSecret.toUpperCase() === secretCode.trim().toUpperCase();
+    } else if (secretCode && shipment.innerSecretHash) {
+      const computedHash = keccak256(encodePacked(["string"], [secretCode.trim().toUpperCase()]));
+      isSecretValid = computedHash.toLowerCase() === shipment.innerSecretHash.toLowerCase();
+    }
+
+    if (!isShipper && !isSecretValid) {
+      return NextResponse.json(
+        { error: "Scratch-off secret code (innerSecret) or owner API key authorization is required to file a dispute." },
+        { status: 403 }
+      );
+    }
+
+    effectiveRecipientAddress = effectiveRecipientAddress || "Anonymous Recipient";
 
     // Idempotency guard: cannot dispute a package that is already resolved
     if (shipment.status === "Verified" || shipment.status === "Disputed") {

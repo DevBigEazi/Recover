@@ -66,6 +66,7 @@ export default function DevelopersPage() {
     }, null, 2),
     history_get: "",
     dispute_post: JSON.stringify({
+      innerSecret: "RCVR-59DBE11D",
       reason: "Package contents damaged on arrival",
       location: "Lekki Phase 1"
     }, null, 2),
@@ -83,7 +84,11 @@ export default function DevelopersPage() {
       const secret = lastCreatedInnerSecret || "RCVR-59DBE11D";
       setReqParamId(secret);
       setReqBodyText(JSON.stringify({ innerSecret: secret, location: "Lekki Phase 1" }, null, 2));
-    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get" || ep === "dispute_post") {
+    } else if (ep === "dispute_post") {
+      const secret = lastCreatedInnerSecret || "RCVR-59DBE11D";
+      setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
+      setReqBodyText(JSON.stringify({ innerSecret: secret, reason: "Package contents damaged on arrival", location: "Lekki Phase 1" }, null, 2));
+    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get") {
       setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
     }
   };
@@ -324,14 +329,14 @@ print(res.json())`,
       curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
-  -d '{ "reason": "Damaged contents on arrival", "location": "Lagos" }'`,
+  -d '{ "innerSecret": "RCVR-A8F2B1C0", "reason": "Damaged contents on arrival", "location": "Lagos" }'`,
       javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
     'Content-Type': 'application/json'
   },
-  body: JSON.stringify({ reason: 'Damaged contents on arrival', location: 'Lagos' })
+  body: JSON.stringify({ innerSecret: 'RCVR-A8F2B1C0', reason: 'Damaged contents on arrival', location: 'Lagos' })
 });
 const result = await res.json();
 console.log('Dispute Logged:', result.success);`,
@@ -340,7 +345,7 @@ console.log('Dispute Logged:', result.success);`,
 res = requests.post(
     "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
-    json={"reason": "Damaged contents on arrival", "location": "Lagos"}
+    json={"innerSecret": "RCVR-A8F2B1C0", "reason": "Damaged contents on arrival", "location": "Lagos"}
 )
 print(res.json())`,
     },
