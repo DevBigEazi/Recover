@@ -44,7 +44,7 @@ export async function getShipperFromApiKey(apiKeyToken: string | null | undefine
 
   if (shipper.role !== "merchant") {
     return {
-      shipper,
+      shipper: null,
       isTest: isTestToken,
       error: "Developer API access is only enabled for logistics merchant accounts.",
       status: 403,
