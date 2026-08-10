@@ -190,7 +190,6 @@ export default function DevelopersPage() {
           innerSecret: data.innerSecret,
           location: "Lekki Phase 1"
         }, null, 2);
-        defaultConsoleBodies.verify_post = updatedBody;
         if (selectedConsoleEndpoint === "verify_post") {
           setReqParamId(data.innerSecret);
           setReqBodyText(updatedBody);
