@@ -23,6 +23,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { isRealTxHash } from "@/lib/chain";
 import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
@@ -377,7 +378,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                           <span className="text-slate-300">{evt.locationContext}</span>
                         </p>
                       )}
-                      {evt.onChainTxHash && (
+                      {isRealTxHash(evt.onChainTxHash) ? (
                         <a
                           href={`https://blockexplorer.electroneum.com/tx/${evt.onChainTxHash}`}
                           target="_blank"
@@ -386,7 +387,11 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                         >
                           <FileText className="w-3 h-3" /> View Tamper-Proof Record
                         </a>
-                      )}
+                      ) : evt.onChainTxHash ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium font-mono">
+                          <FileText className="w-3 h-3" /> Sandbox Simulated Record
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}

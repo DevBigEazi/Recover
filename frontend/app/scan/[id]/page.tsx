@@ -23,6 +23,7 @@ import {
 import { toast } from "react-hot-toast";
 import Link from "next/link";
 import { formatTrackingCode, formatOperatorName, formatWeight } from "@/lib/format";
+import { isRealTxHash } from "@/lib/chain";
 
 interface ShipmentEvent {
   event: string;
@@ -564,7 +565,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                             {evt.locationContext}
                           </p>
                         )}
-                        {evt.onChainTxHash && (
+                        {isRealTxHash(evt.onChainTxHash) ? (
                           <a
                             href={`https://blockexplorer.electroneum.com/tx/${evt.onChainTxHash}`}
                             target="_blank"
@@ -573,7 +574,11 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                           >
                             <FileText className="w-2.5 h-2.5" /> View Record
                           </a>
-                        )}
+                        ) : evt.onChainTxHash ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                            <FileText className="w-2.5 h-2.5" /> Sandbox Simulated Record
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   ))}
