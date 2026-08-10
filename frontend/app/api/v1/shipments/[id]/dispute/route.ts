@@ -103,7 +103,14 @@ export async function POST(
       );
     }
 
-    const isSandboxMode = isTestKey || isTestShipment || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
+    if (isTestKey && !isTestShipment) {
+      return NextResponse.json(
+        { error: "Test Sandbox API keys cannot be used to modify live production shipments." },
+        { status: 403 }
+      );
+    }
+
+    const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
     let txHash = `0xsimulated_tx_${crypto.randomBytes(16).toString("hex")}`;
 
     if (!isSandboxMode) {

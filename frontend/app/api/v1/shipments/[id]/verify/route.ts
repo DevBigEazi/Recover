@@ -75,10 +75,17 @@ export async function POST(
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
-    const isSandboxMode = isTestShipment || isTestKey || shipment.isTest;
+    if (isTestKey && !isTestShipment) {
+      return NextResponse.json(
+        { error: "Test Sandbox API keys cannot be used to modify live production shipments." },
+        { status: 403 }
+      );
+    }
 
-    // Idempotency guard: only allow verification when the package is actively in transit (or Created in sandbox)
-    if (shipment.status !== "InTransit" && !(isSandboxMode && shipment.status === "Created")) {
+    const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
+
+    // Idempotency guard: only allow verification when the package is actively in transit (or Created in testShipment)
+    if (shipment.status !== "InTransit" && !(isTestShipment && shipment.status === "Created")) {
       return NextResponse.json(
         { error: `Cannot verify delivery. Package status is '${shipment.status}' — expected 'InTransit'.` },
         { status: 409 }
