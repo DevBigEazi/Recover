@@ -29,14 +29,14 @@ export async function GET() {
     );
   } catch (error: unknown) {
     const responseTime = Math.round(performance.now() - startTime);
-    const errorMessage = error instanceof Error ? error.message : "Health check failed";
+    console.error("Health check failed:", error);
 
     return NextResponse.json(
       {
         status: "unhealthy",
         timestamp: new Date().toISOString(),
         version: "v1.0.0",
-        error: errorMessage,
+        error: "Health check failed",
         responseTimeMs: responseTime,
       },
       { status: 503 }
