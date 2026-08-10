@@ -98,7 +98,9 @@ export default function SettingsPage() {
       }
       if (data.generatedKey) {
         try {
-          sessionStorage.setItem("last_generated_api_key", data.generatedKey);
+          if (keyType === "test" || data.generatedKey.startsWith("rec_test_")) {
+            sessionStorage.setItem("last_generated_test_api_key", data.generatedKey);
+          }
         } catch {
           // ignore session storage errors
         }

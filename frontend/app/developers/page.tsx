@@ -33,10 +33,15 @@ export default function DevelopersPage() {
 
   // Auto-populate API key if available in sessionStorage
   useEffect(() => {
-    if (!apiTestKey) {
-      const storedKey = typeof window !== "undefined" ? sessionStorage.getItem("last_generated_api_key") : null;
-      if (storedKey) {
-        setApiTestKey(storedKey);
+    if (!apiTestKey && typeof window !== "undefined") {
+      try {
+        const storedKey = sessionStorage.getItem("last_generated_test_api_key");
+        if (storedKey) {
+          setApiTestKey(storedKey);
+          sessionStorage.removeItem("last_generated_test_api_key");
+        }
+      } catch {
+        // ignore session storage errors
       }
     }
   }, [apiTestKey]);
