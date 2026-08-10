@@ -9,6 +9,7 @@ export async function GET() {
     // Check MongoDB connection status
     await connectDB();
     const isDbConnected = mongoose.connection.readyState === 1;
+    const isRelayerConfigured = Boolean(process.env.BACKEND_SIGNER_PRIVATE_KEY);
 
     const responseTime = Math.round(performance.now() - startTime);
 
@@ -19,8 +20,8 @@ export async function GET() {
         version: "v1.0.0",
         services: {
           database: isDbConnected ? "connected" : "disconnected",
-          blockchain: "Electroneum Mainnet (Chain ID 52014)",
-          relayer: "active",
+          chain: "Electroneum Mainnet (Chain ID 52014)",
+          relayerConfigured: isRelayerConfigured,
         },
         responseTimeMs: responseTime,
       },

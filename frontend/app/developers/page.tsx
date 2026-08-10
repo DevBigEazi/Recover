@@ -1118,7 +1118,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Returns the real-time operational status of the REST API, MongoDB connection, Electroneum mainnet relayer, and system response latency (in ms).
+                Returns the real-time operational status of the REST API, MongoDB connection, Electroneum mainnet chain configuration, backend relayer configuration status, and system response latency (in ms).
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
