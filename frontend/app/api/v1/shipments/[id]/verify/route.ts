@@ -292,7 +292,16 @@ export async function GET(
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
-    return NextResponse.json(shipment);
+    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^RCVR-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
+    return NextResponse.json({
+      trackingCode: shipment.trackingCode || `RCV-${cleanId.slice(0, 12).toUpperCase()}`,
+      onChainId: shipment._id,
+      shipperAddress: shipment.shipperAddress,
+      status: shipment.status,
+      events: shipment.events,
+      createdAt: shipment.createdAt,
+      updatedAt: shipment.updatedAt,
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch shipment";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
