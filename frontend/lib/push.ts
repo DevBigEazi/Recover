@@ -3,7 +3,7 @@ import { db, connectDB } from "@/lib/db";
 
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-const subject = process.env.VAPID_SUBJECT || "mailto:support@recoverprotocol.xyz";
+const subject = process.env.VAPID_SUBJECT || "mailto:support@userecover.xyz";
 
 let isVapidSet = false;
 if (vapidPublicKey && vapidPrivateKey) {

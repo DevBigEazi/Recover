@@ -224,7 +224,7 @@ export default function DevelopersPage() {
 
   const codeExamples = {
     createShipment: {
-      curl: `curl -X POST https://recoverprotocol.xyz/api/v1/shipments/create \\
+      curl: `curl -X POST https://userecover.xyz/api/v1/shipments/create \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -d '{
@@ -232,7 +232,7 @@ export default function DevelopersPage() {
     "weight": "0.45",
     "receiverPhone": "+2348012345678"
   }'`,
-      javascript: `const response = await fetch('https://recoverprotocol.xyz/api/v1/shipments/create', {
+      javascript: `const response = await fetch('https://userecover.xyz/api/v1/shipments/create', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -251,7 +251,7 @@ const data = await response.json();
 console.log('Dispatch Created:', data.packageId, data.innerSecret);`,
       python: `import requests
 
-url = "https://recoverprotocol.xyz/api/v1/shipments/create"
+url = "https://userecover.xyz/api/v1/shipments/create"
 headers = {
     "Content-Type": "application/json",
     "Authorization": "Bearer rec_live_8f921a4b901e23f..."
@@ -268,21 +268,21 @@ response = requests.post(url, json=payload, headers=headers)
 print(response.json())`,
     },
     verifyShipment: {
-      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify"`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify');
+      curl: `curl -X GET "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify"`,
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify');
 const packageData = await res.json();
 console.log('Package Status:', packageData.status); // InTransit | Delivered | Disputed`,
       python: `import requests
 
-res = requests.get("https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify")
+res = requests.get("https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify")
 print(res.json())`,
     },
     handoverShipment: {
-      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover" \\
+      curl: `curl -X POST "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
   -d '{ "riderName": "John Rider", "riderPhone": "+2348011223344", "location": "Ikeja Hub, Lagos" }'`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover', {
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
@@ -295,18 +295,18 @@ console.log('Handover Status:', result.shipment.status);`,
       python: `import requests
 
 res = requests.post(
-    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover",
+    "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
     json={"riderName": "John Rider", "riderPhone": "+2348011223344", "location": "Ikeja Hub, Lagos"}
 )
 print(res.json())`,
     },
     confirmDelivery: {
-      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify" \\
+      curl: `curl -X POST "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
   -d '{ "innerSecret": "RCVR-A8F2B1C0", "location": "Lekki, Lagos" }'`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify', {
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
@@ -319,28 +319,28 @@ console.log('Delivery Verified:', result.shipment.status);`,
       python: `import requests
 
 res = requests.post(
-    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify",
+    "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
     json={"innerSecret": "RCVR-A8F2B1C0", "location": "Lekki, Lagos"}
 )
 print(res.json())`,
     },
     historyShipment: {
-      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history"`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history');
+      curl: `curl -X GET "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history"`,
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history');
 const history = await res.json();
 console.log('Custody Timeline Events:', history.events);`,
       python: `import requests
 
-res = requests.get("https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history")
+res = requests.get("https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history")
 print(res.json())`,
     },
     disputeShipment: {
-      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute" \\
+      curl: `curl -X POST "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
   -d '{ "innerSecret": "RCVR-A8F2B1C0", "reason": "Damaged contents on arrival", "location": "Lagos" }'`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute', {
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
@@ -353,27 +353,27 @@ console.log('Dispute Logged:', result.success);`,
       python: `import requests
 
 res = requests.post(
-    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute",
+    "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
     json={"innerSecret": "RCVR-A8F2B1C0", "reason": "Damaged contents on arrival", "location": "Lagos"}
 )
 print(res.json())`,
     },
     healthCheck: {
-      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/health"`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/health');
+      curl: `curl -X GET "https://userecover.xyz/api/v1/health"`,
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/health');
 const health = await res.json();
 console.log('API Health Status:', health.status); // "healthy"`,
       python: `import requests
 
-res = requests.get("https://recoverprotocol.xyz/api/v1/health")
+res = requests.get("https://userecover.xyz/api/v1/health")
 print(res.json())`,
     },
 
     listShipments: {
-      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments" \\
+      curl: `curl -X GET "https://userecover.xyz/api/v1/shipments" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..."`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments', {
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments', {
   headers: { 'Authorization': 'Bearer rec_live_8f921a4b901e23f...' }
 });
 const shipments = await res.json();
@@ -381,7 +381,7 @@ console.log('My Shipments:', shipments.length);`,
       python: `import requests
 
 res = requests.get(
-    "https://recoverprotocol.xyz/api/v1/shipments",
+    "https://userecover.xyz/api/v1/shipments",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."}
 )
 print(res.json())`,
@@ -875,7 +875,7 @@ print(res.json())`,
                 <Server className="w-6 h-6 text-indigo-600" /> REST API Endpoint Reference
               </h2>
               <p className="text-xs text-neutral-slate mt-1">
-                Base URL: <code className="bg-slate-900 text-emerald-400 font-mono px-2 py-0.5 rounded text-xs">https://recoverprotocol.xyz/api/v1</code>
+                Base URL: <code className="bg-slate-900 text-emerald-400 font-mono px-2 py-0.5 rounded text-xs">https://userecover.xyz/api/v1</code>
               </p>
             </div>
 
