@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getShipperFromApiKey } from "@/lib/auth-api";
 import { db, connectDB } from "@/lib/db";
+import { buildShipmentIdFilter } from "@/lib/shipment-lookup";
 import { recoverShipmentContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
@@ -62,18 +63,7 @@ export async function POST(
 
     const effectiveOperatorAddress = (authenticatedUser._id as string).toLowerCase();
 
-    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
-
-    const idFilter = [
-      { trackingCode: id.trim() },
-      { trackingCode: id.trim().toUpperCase() },
-      { trackingCode: { $regex: new RegExp(`^${id.trim()}$`, "i") } },
-      { trackingCode: { $regex: new RegExp(`^RCV-${cleanId}`, "i") } },
-      { _id: id.trim() },
-      { _id: id.trim().toLowerCase() },
-      { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
-      { _id: { $regex: new RegExp(`^${cleanId}`, "i") } },
-    ];
+    const idFilter = buildShipmentIdFilter(id, false);
 
     // Search in testShipment first, then live shipment
     let shipment = await db.testShipment.findOne({ $or: idFilter });

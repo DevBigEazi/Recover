@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getShipperFromApiKey } from "@/lib/auth-api";
 import { db, connectDB } from "@/lib/db";
+import { buildShipmentIdFilter } from "@/lib/shipment-lookup";
 
 export async function GET(
   request: Request,
@@ -22,18 +23,7 @@ export async function GET(
       }
     }
 
-    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
-
-    const idFilter = [
-      { trackingCode: id.trim() },
-      { trackingCode: id.trim().toUpperCase() },
-      { trackingCode: { $regex: new RegExp(`^${id.trim()}$`, "i") } },
-      { trackingCode: { $regex: new RegExp(`^RCV-${cleanId}`, "i") } },
-      { _id: id.trim() },
-      { _id: id.trim().toLowerCase() },
-      { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
-      { _id: { $regex: new RegExp(`^${cleanId}`, "i") } },
-    ];
+    const idFilter = buildShipmentIdFilter(id, false);
 
     let shipment = await db.testShipment.findOne({ $or: idFilter });
     if (!shipment) {
@@ -76,6 +66,7 @@ export async function GET(
       riderPhone: undefined,
     };
 
+    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^RCVR-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
     const effectiveTrackingCode = shipment.trackingCode || `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
 
     return NextResponse.json({
