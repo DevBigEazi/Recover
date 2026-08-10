@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
+import { getShipperFromApiKey } from "@/lib/auth-api";
 
 export async function GET(request: Request) {
   try {
@@ -12,17 +13,19 @@ export async function GET(request: Request) {
     await connectDB();
 
     let targetShipperAddress = searchParams.get("shipperAddress")?.toLowerCase();
+    let isTest = false;
 
     if (apiKeyToken) {
-      const shipper = await db.user.findOne({ apiKey: apiKeyToken });
-      if (!shipper) {
-        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      const authResult = await getShipperFromApiKey(apiKeyToken);
+      if (!authResult.shipper) {
+        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
-      targetShipperAddress = shipper._id.toLowerCase();
+      targetShipperAddress = authResult.shipper._id.toLowerCase();
+      isTest = authResult.isTest;
     }
 
     if (!targetShipperAddress) {
-      return NextResponse.json({ error: "API key or shipperAddress parameter is required" }, { status: 400 });
+      return NextResponse.json({ error: "API key header or shipperAddress query parameter is required." }, { status: 400 });
     }
 
     const limitParam = parseInt(searchParams.get("limit") || "100", 10);
@@ -31,7 +34,9 @@ export async function GET(request: Request) {
     const page = Math.max(1, isNaN(pageParam) ? 1 : pageParam);
     const skip = (page - 1) * limit;
 
-    const shipments = await db.shipment
+    const shipmentModel = isTest ? db.testShipment : db.shipment;
+
+    const shipments = await shipmentModel
       .find({ shipperAddress: targetShipperAddress })
       .sort({ createdAt: -1 })
       .skip(skip)

@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/db";
+import mongoose from "mongoose";
+
+export async function GET() {
+  const startTime = performance.now();
+
+  try {
+    // Check MongoDB connection status
+    await connectDB();
+    const isDbConnected = mongoose.connection.readyState === 1;
+
+    const responseTime = Math.round(performance.now() - startTime);
+
+    return NextResponse.json(
+      {
+        status: isDbConnected ? "healthy" : "degraded",
+        timestamp: new Date().toISOString(),
+        version: "v1.0.0",
+        services: {
+          database: isDbConnected ? "connected" : "disconnected",
+          blockchain: "Electroneum Mainnet (Chain ID 52014)",
+          relayer: "active",
+        },
+        responseTimeMs: responseTime,
+      },
+      { status: isDbConnected ? 200 : 503 }
+    );
+  } catch (error: unknown) {
+    const responseTime = Math.round(performance.now() - startTime);
+    const errorMessage = error instanceof Error ? error.message : "Health check failed";
+
+    return NextResponse.json(
+      {
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        version: "v1.0.0",
+        error: errorMessage,
+        responseTimeMs: responseTime,
+      },
+      { status: 503 }
+    );
+  }
+}
