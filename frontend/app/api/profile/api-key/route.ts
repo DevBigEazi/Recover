@@ -58,8 +58,8 @@ export async function POST(request: Request) {
       {
         success: true,
         keyType,
-        apiKeyMasked: updatedUser?.apiKeyMasked || keyMasked,
-        testApiKeyMasked: updatedUser?.testApiKeyMasked || keyMasked,
+        apiKeyMasked: updatedUser?.apiKeyMasked ?? (keyType === "live" ? keyMasked : null),
+        testApiKeyMasked: updatedUser?.testApiKeyMasked ?? (keyType === "test" ? keyMasked : null),
         generatedKey: newKey,
       },
       { status: 200 }

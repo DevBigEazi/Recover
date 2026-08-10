@@ -760,7 +760,7 @@ print(res.json())`,
                   {isExecutingTest ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Sending Test Request...</span>
+                      <span>Sending Request...</span>
                     </>
                   ) : (
                     <>
