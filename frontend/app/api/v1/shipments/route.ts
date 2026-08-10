@@ -12,21 +12,15 @@ export async function GET(request: Request) {
 
     await connectDB();
 
-    let targetShipperAddress = searchParams.get("shipperAddress")?.toLowerCase();
-    let isTest = false;
-
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
-      if (!authResult.shipper) {
-        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
-      }
-      targetShipperAddress = authResult.shipper._id.toLowerCase();
-      isTest = authResult.isTest;
+    const authResult = await getShipperFromApiKey(apiKeyToken);
+    if (!authResult.shipper) {
+      return NextResponse.json(
+        { error: authResult.error || "Invalid or unauthorized API key provided." },
+        { status: authResult.status || 401 }
+      );
     }
-
-    if (!targetShipperAddress) {
-      return NextResponse.json({ error: "API key header or shipperAddress query parameter is required." }, { status: 400 });
-    }
+    const targetShipperAddress = authResult.shipper._id.toLowerCase();
+    const isTest = authResult.isTest;
 
     const limitParam = parseInt(searchParams.get("limit") || "100", 10);
     const pageParam = parseInt(searchParams.get("page") || "1", 10);
