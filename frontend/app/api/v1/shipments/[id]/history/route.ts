@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getShipperFromApiKey } from "@/lib/auth-api";
 import { db, connectDB } from "@/lib/db";
+import { buildShipmentIdFilter } from "@/lib/shipment-lookup";
 
 export async function GET(
   request: Request,
@@ -15,20 +17,18 @@ export async function GET(
     await connectDB();
 
     if (apiKeyToken) {
-      const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
-      if (!apiKeyUser) {
-        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      const authResult = await getShipperFromApiKey(apiKeyToken);
+      if (!authResult.shipper) {
+        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
     }
 
-    const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
-    const shipment = await db.shipment.findOne({
-      $or: [
-        { _id: id },
-        { _id: id.toLowerCase() },
-        { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
-      ],
-    });
+    const idFilter = buildShipmentIdFilter(id, false);
+
+    let shipment = await db.testShipment.findOne({ $or: idFilter });
+    if (!shipment) {
+      shipment = await db.shipment.findOne({ $or: idFilter });
+    }
 
     if (!shipment || (!shipment.innerSecret && !shipment.innerSecretHash)) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
@@ -66,8 +66,13 @@ export async function GET(
       riderPhone: undefined,
     };
 
+    const cleanId = id.trim().replace(/^RCV-/i, "").replace(/^RCVR-/i, "").replace(/^PKG-/i, "").replace(/^0x/i, "");
+    const effectiveTrackingCode = shipment.trackingCode || `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
+
     return NextResponse.json({
-      packageId: shipment.packageId,
+      trackingCode: effectiveTrackingCode,
+      onChainId: shipment._id,
+      packageId: shipment._id,
       shipperAddress: shipment.shipperAddress,
       shipperCompanyName,
       status: shipment.status,

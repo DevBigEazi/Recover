@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,7 +49,49 @@ export async function GET(request: Request) {
       userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
       userObj.rolloverQuota = userObj.rolloverQuota || 0;
       userObj.overageCharges = userObj.overageCharges || 0;
-      userObj.apiKey = user.apiKey || userObj.apiKey || null;
+
+      if (user.apiKeyMasked) {
+        userObj.apiKeyMasked = user.apiKeyMasked;
+      } else if (user.apiKey) {
+        userObj.apiKeyMasked = `${user.apiKey.substring(0, 13)}••••${user.apiKey.slice(-4)}`;
+      } else {
+        userObj.apiKeyMasked = null;
+      }
+
+      if (user.testApiKeyMasked) {
+        userObj.testApiKeyMasked = user.testApiKeyMasked;
+      } else if (user.testApiKey) {
+        userObj.testApiKeyMasked = `${user.testApiKey.substring(0, 13)}••••${user.testApiKey.slice(-4)}`;
+      } else {
+        userObj.testApiKeyMasked = null;
+      }
+
+      // Never expose plaintext keys in profile responses
+      // Automatically sanitize database: purge raw plaintext keys from MongoDB if hashes exist
+      const setFields: Record<string, string> = {};
+      const unsetFields: Record<string, string> = {};
+      if (user.apiKey) {
+        if (!user.apiKeyHash) {
+          setFields.apiKeyHash = crypto.createHash("sha256").update(user.apiKey).digest("hex");
+          setFields.apiKeyMasked = user.apiKeyMasked || `${user.apiKey.substring(0, 13)}••••${user.apiKey.slice(-4)}`;
+        }
+        unsetFields.apiKey = "";
+      }
+      if (user.testApiKey) {
+        if (!user.testApiKeyHash) {
+          setFields.testApiKeyHash = crypto.createHash("sha256").update(user.testApiKey).digest("hex");
+          setFields.testApiKeyMasked = user.testApiKeyMasked || `${user.testApiKey.substring(0, 13)}••••${user.testApiKey.slice(-4)}`;
+        }
+        unsetFields.testApiKey = "";
+      }
+      if (Object.keys(unsetFields).length > 0) {
+        await db.user
+          .findByIdAndUpdate(user._id, {
+            ...(Object.keys(setFields).length > 0 ? { $set: setFields } : {}),
+            $unset: unsetFields,
+          })
+          .catch((e) => console.error("Purge plaintext key error:", e));
+      }
 
       const billingStart = userObj.billingCycleStart ? new Date(userObj.billingCycleStart) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const actualCount = await db.shipment.countDocuments({

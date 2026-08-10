@@ -11,3 +11,9 @@ export const electroneum = defineChain({
     },
   ],
 });
+
+export function isRealTxHash(hash?: string | null): boolean {
+  if (!hash) return false;
+  if (hash.startsWith("0xsimulated_") || hash.startsWith("0xtest_")) return false;
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}

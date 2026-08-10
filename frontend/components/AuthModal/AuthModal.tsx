@@ -56,13 +56,33 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   ) => {
     setIsLoading(true);
     setError(null);
+    const errHolder: { current: Error | null } = { current: null };
     try {
-      await connect(async () => {
-        const wallet = inAppWallet();
-        await wallet.connect({ client, strategy });
-        return wallet;
+      const wallet = await connect(async () => {
+        try {
+          const wallet = inAppWallet();
+          await wallet.connect({ client, strategy });
+          return wallet;
+        } catch (err) {
+          errHolder.current = err instanceof Error ? err : new Error(String(err));
+          throw err;
+        }
       });
-      toast.success("Connected successfully!");
+
+      if (!wallet) {
+        if (errHolder.current) {
+          const isUserClosed =
+            errHolder.current.message.includes("closed login window") ||
+            errHolder.current.message.includes("User closed");
+          if (!isUserClosed) {
+            setError(errHolder.current.message);
+            toast.error(errHolder.current.message);
+          }
+        }
+        return;
+      }
+
+      toast.success("Sign in successfully!");
       handleClose();
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -109,18 +129,34 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     setIsLoading(true);
     setError(null);
+    const errHolder: { current: Error | null } = { current: null };
     try {
-      await connect(async () => {
-        const wallet = inAppWallet();
-        await wallet.connect({
-          client,
-          strategy: "email",
-          email: email.trim(),
-          verificationCode: otpCode.trim(),
-        });
-        return wallet;
+      const wallet = await connect(async () => {
+        try {
+          const wallet = inAppWallet();
+          await wallet.connect({
+            client,
+            strategy: "email",
+            email: email.trim(),
+            verificationCode: otpCode.trim(),
+          });
+          return wallet;
+        } catch (err) {
+          errHolder.current = err instanceof Error ? err : new Error(String(err));
+          throw err;
+        }
       });
-      toast.success("Connected successfully!");
+
+      if (!wallet) {
+        const message =
+          errHolder.current?.message ||
+          "Invalid or expired verification code. Please try again.";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+
+      toast.success("Sign in successfully!");
       handleClose();
       router.push("/dashboard");
     } catch (err: unknown) {

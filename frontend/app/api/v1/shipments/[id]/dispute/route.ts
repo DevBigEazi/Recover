@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getShipperFromApiKey } from "@/lib/auth-api";
 import { db, connectDB } from "@/lib/db";
+import { buildShipmentIdFilter } from "@/lib/shipment-lookup";
 import { recoverShipmentContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
@@ -15,7 +17,10 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { recipientAddress, reason, location, locationContext } = body;
+    const { recipientAddress, reason, location, locationContext, innerSecret, passcode, secret } = body;
+    const secretCode = (id && id.trim().toUpperCase().startsWith("RCVR-"))
+      ? id.trim()
+      : (innerSecret || passcode || secret);
 
     await connectDB();
 
@@ -25,31 +30,57 @@ export async function POST(
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
     let effectiveRecipientAddress = recipientAddress;
+    let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
+    let authenticatedShipper = null;
+
     if (apiKeyToken) {
-      const apiKeyUser = await db.user.findOne({ apiKey: apiKeyToken });
-      if (!apiKeyUser) {
-        return NextResponse.json({ error: "Invalid or unauthorized API key provided." }, { status: 401 });
+      const authResult = await getShipperFromApiKey(apiKeyToken);
+      if (!authResult.shipper) {
+        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
-      effectiveRecipientAddress = effectiveRecipientAddress || apiKeyUser._id;
+      authenticatedShipper = authResult.shipper;
+      effectiveRecipientAddress = effectiveRecipientAddress || authenticatedShipper._id;
+      isTestKey = authResult.isTest;
     }
 
-    if (!effectiveRecipientAddress || !reason) {
-      return NextResponse.json({ error: "Recipient address and reason are required." }, { status: 400 });
+    if (!reason) {
+      return NextResponse.json({ error: "Reason for dispute is required." }, { status: 400 });
     }
 
-    const cleanId = id.replace(/^RCV-/i, "").replace(/^PKG-/i, "");
-    const shipment = await db.shipment.findOne({
-      $or: [
-        { _id: id },
-        { _id: id.toLowerCase() },
-        { _id: { $regex: new RegExp(`^0x${cleanId}`, "i") } },
-      ],
-    });
+    const idFilter = buildShipmentIdFilter(id, true);
+
+    let isTestShipment = false;
+    let shipment = await db.testShipment.findOne({ $or: idFilter });
+    if (shipment) {
+      isTestShipment = true;
+    } else {
+      shipment = await db.shipment.findOne({ $or: idFilter });
+    }
 
     if (!shipment) {
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
+    const isShipper = authenticatedShipper && (
+      authenticatedShipper._id.toLowerCase() === shipment.shipperAddress.toLowerCase()
+    );
+
+    let isSecretValid = false;
+    if (secretCode && shipment.innerSecret) {
+      isSecretValid = shipment.innerSecret.toUpperCase() === secretCode.trim().toUpperCase();
+    } else if (secretCode && shipment.innerSecretHash) {
+      const computedHash = keccak256(encodePacked(["string"], [secretCode.trim().toUpperCase()]));
+      isSecretValid = computedHash.toLowerCase() === shipment.innerSecretHash.toLowerCase();
+    }
+
+    if (!isShipper && !isSecretValid) {
+      return NextResponse.json(
+        { error: "Scratch-off secret code (innerSecret) or owner API key authorization is required to file a dispute." },
+        { status: 403 }
+      );
+    }
+
+    effectiveRecipientAddress = effectiveRecipientAddress || "Anonymous Recipient";
 
     // Idempotency guard: cannot dispute a package that is already resolved
     if (shipment.status === "Verified" || shipment.status === "Disputed") {
@@ -59,65 +90,78 @@ export async function POST(
       );
     }
 
-    const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
-    if (!signerPrivateKey) {
-      return NextResponse.json({ error: "Backend signer configuration missing." }, { status: 500 });
+    if (isTestKey && !isTestShipment) {
+      return NextResponse.json(
+        { error: "Test Sandbox API keys cannot be used to modify live production shipments." },
+        { status: 403 }
+      );
     }
 
-    const relayerAccount = privateKeyToAccount({
-      client,
-      privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
-    });
+    const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
+    let txHash = `0xsimulated_tx_${crypto.randomBytes(16).toString("hex")}`;
 
-    // 1. Fetch current nonce from contract for the relayer (msg.sender)
-    const nonce = await readContract({
-      contract: recoverShipmentContract,
-      method: "function userNonces(address user) view returns (uint256)",
-      params: [relayerAccount.address as `0x${string}`],
-    });
+    if (!isSandboxMode) {
+      const signerPrivateKey = process.env.BACKEND_SIGNER_PRIVATE_KEY;
+      if (!signerPrivateKey) {
+        return NextResponse.json({ error: "Backend signer configuration missing." }, { status: 500 });
+      }
 
-    const deadline = Math.floor(Date.now() / 1000) + 600;
-    const chainId = 52014;
-    const contractAddress = process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as `0x${string}`;
+      const relayerAccount = privateKeyToAccount({
+        client,
+        privateKey: signerPrivateKey.startsWith("0x") ? signerPrivateKey : `0x${signerPrivateKey}`,
+      });
 
-    // 2. Generate backend witness signature (msg.sender in contract is relayerAccount.address)
-    const messageHash = keccak256(
-      encodePacked(
-        ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
-        [
-          relayerAccount.address as `0x${string}`,
-          shipment._id as `0x${string}`,
-          keccak256(encodePacked(["string"], [reason])),
-          BigInt(nonce),
-          BigInt(deadline),
-          BigInt(chainId),
-          contractAddress,
-        ]
-      )
-    );
+      // 1. Fetch current nonce from contract for the relayer (msg.sender)
+      const nonce = await readContract({
+        contract: recoverShipmentContract,
+        method: "function userNonces(address user) view returns (uint256)",
+        params: [relayerAccount.address as `0x${string}`],
+      });
 
-    const signature = await relayerAccount.signMessage({
-      message: { raw: messageHash },
-    });
+      const deadline = Math.floor(Date.now() / 1000) + 600;
+      const chainId = 52014;
+      const contractAddress = process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as `0x${string}`;
 
+      // 2. Generate backend witness signature (msg.sender in contract is relayerAccount.address)
+      const messageHash = keccak256(
+        encodePacked(
+          ["address", "bytes32", "bytes32", "uint256", "uint256", "uint256", "address"],
+          [
+            relayerAccount.address as `0x${string}`,
+            shipment._id as `0x${string}`,
+            keccak256(encodePacked(["string"], [reason])),
+            BigInt(nonce),
+            BigInt(deadline),
+            BigInt(chainId),
+            contractAddress,
+          ]
+        )
+      );
 
-    // 3. Prepare and send transaction
-    const transaction = prepareContractCall({
-      contract: recoverShipmentContract,
-      method: "function disputeDelivery(bytes32 packageId, string reason, uint256 deadline, bytes signature)",
-      params: [shipment._id as `0x${string}`, reason, BigInt(deadline), signature],
-    });
+      const signature = await relayerAccount.signMessage({
+        message: { raw: messageHash },
+      });
 
-    const txResult = await sendTransaction({
-      transaction,
-      account: relayerAccount,
-    });
+      // 3. Prepare and send transaction
+      const transaction = prepareContractCall({
+        contract: recoverShipmentContract,
+        method: "function disputeDelivery(bytes32 packageId, string reason, uint256 deadline, bytes signature)",
+        params: [shipment._id as `0x${string}`, reason, BigInt(deadline), signature],
+      });
 
-    const receipt = await waitForReceipt({
-      client,
-      chain: recoverShipmentContract.chain,
-      transactionHash: txResult.transactionHash,
-    });
+      const txResult = await sendTransaction({
+        transaction,
+        account: relayerAccount,
+      });
+
+      const receipt = await waitForReceipt({
+        client,
+        chain: recoverShipmentContract.chain,
+        transactionHash: txResult.transactionHash,
+      });
+
+      txHash = receipt.transactionHash;
+    }
 
     // 4. Update MongoDB shipment record
     shipment.status = "Disputed";
@@ -127,7 +171,7 @@ export async function POST(
       location: location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
-      onChainTxHash: receipt.transactionHash,
+      onChainTxHash: txHash,
     });
 
     await shipment.save();

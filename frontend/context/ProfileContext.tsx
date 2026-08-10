@@ -21,6 +21,9 @@ interface ProfileContextType {
   rolloverQuota: number;
   overageCharges: number;
   apiKey: string | null;
+  testApiKey: string | null;
+  apiKeyMasked: string | null;
+  testApiKeyMasked: string | null;
   isProfileLoaded: boolean;
   isNewUser: boolean;
   isOpenSetup: boolean;
@@ -110,6 +113,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const rolloverQuota = profileData && !("isNotFound" in profileData) ? Number(profileData.rolloverQuota || 0) : 0;
   const overageCharges = profileData && !("isNotFound" in profileData) ? Number(profileData.overageCharges || 0) : 0;
   const apiKey = profileData && !("isNotFound" in profileData) ? profileData.apiKey || null : null;
+  const testApiKey = profileData && !("isNotFound" in profileData) ? profileData.testApiKey || null : null;
+  const apiKeyMasked = profileData && !("isNotFound" in profileData) ? profileData.apiKeyMasked || (apiKey ? `${apiKey.substring(0, 13)}••••${apiKey.slice(-4)}` : null) : null;
+  const testApiKeyMasked = profileData && !("isNotFound" in profileData) ? profileData.testApiKeyMasked || (testApiKey ? `${testApiKey.substring(0, 13)}••••${testApiKey.slice(-4)}` : null) : null;
 
   return (
     <ProfileContext.Provider
@@ -129,6 +135,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         rolloverQuota,
         overageCharges,
         apiKey,
+        testApiKey,
+        apiKeyMasked,
+        testApiKeyMasked,
         isProfileLoaded,
         isNewUser,
         isOpenSetup,
