@@ -108,6 +108,12 @@ export default function DevelopersPage() {
   };
 
   const executeApiTestRequest = async () => {
+    if (apiTestKey.trim().startsWith("rec_live_")) {
+      setTestRespStatus(400);
+      setTestRespData({ error: "Live API keys (rec_live_...) are rejected in the test console. Please use a test key (rec_test_...)." });
+      return;
+    }
+
     setIsExecutingTest(true);
     setTestRespStatus(null);
     setTestRespData(null);
@@ -589,14 +595,18 @@ print(res.json())`,
               </label>
               <div className="flex items-center gap-2">
                 <input
-                  type="text"
+                  type="password"
                   value={apiTestKey}
                   onChange={(e) => setApiTestKey(e.target.value)}
-                  placeholder="Paste your secret API key (rec_test_... or rec_live_...)"
+                  placeholder="Paste your secret API key (rec_test_...)"
                   className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs font-mono text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
-              {apiTestKey.includes("•") ? (
+              {apiTestKey.trim().startsWith("rec_live_") ? (
+                <p className="text-[11px] text-rose-800 font-medium bg-rose-50 p-2 rounded-lg border border-rose-200">
+                  ⚠️ <strong>Live Key Rejected:</strong> Live API keys (`rec_live_...`) are rejected in the test console. Only test sandbox keys (`rec_test_...`) may be used.
+                </p>
+              ) : apiTestKey.includes("•") ? (
                 <p className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded-lg border border-amber-200">
                   ⚠️ <strong>Notice:</strong> Masked strings (containing ••••) cannot authenticate API calls. Please paste the full secret key you saved from <Link href="/settings" className="underline font-bold">Settings</Link> or generate a new key.
                 </p>
