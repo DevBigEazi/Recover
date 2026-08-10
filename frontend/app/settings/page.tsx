@@ -1353,10 +1353,14 @@ export default function SettingsPage() {
               <span className="select-all font-bold">{newlyGeneratedSecretKey.key}</span>
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(newlyGeneratedSecretKey.key);
-                  setHasCopiedSecretKey(true);
-                  toast.success("API Key copied to clipboard!");
+                onClick={async () => {
+                 try {
+                    await navigator.clipboard.writeText(newlyGeneratedSecretKey.key);
+                    setHasCopiedSecretKey(true);
+                    toast.success("API Key copied to clipboard!");
+                  } catch {
+                    toast.error("Copy failed. Select the key and copy it manually.");
+                  }
                 }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
               >
