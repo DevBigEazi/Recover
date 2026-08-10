@@ -1,14 +1,205 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { Code, Terminal, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, Truck, ShieldCheck } from "lucide-react";
+import { Code, Terminal, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, Truck, ShieldCheck, Play, Loader2 } from "lucide-react";
+
 
 export default function DevelopersPage() {
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
   const [activeLang, setActiveLang] = useState<"curl" | "javascript" | "python">("curl");
+
+
+
+  // Interactive REST API Console State
+  const [apiTestKey, setApiTestKey] = useState<string>("");
+  const [selectedConsoleEndpoint, setSelectedConsoleEndpoint] = useState<"create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get">("create");
+  const [reqParamId, setReqParamId] = useState<string>("RCV-DEMOPKG123");
+  const [reqBodyText, setReqBodyText] = useState<string>(
+    JSON.stringify({
+      packageName: "Test Parcel Simulation",
+      receiverName: "Alex Morgan",
+      receiverPhone: "+2348099887766",
+      destination: "Victoria Island, Lagos",
+      weight: "0.85"
+    }, null, 2)
+  );
+  const [isExecutingTest, setIsExecutingTest] = useState(false);
+  const [testRespStatus, setTestRespStatus] = useState<number | null>(null);
+  const [testRespTime, setTestRespTime] = useState<number | null>(null);
+  const [testRespData, setTestRespData] = useState<unknown | null>(null);
+
+  // Auto-populate API key if available in sessionStorage
+  useEffect(() => {
+    if (!apiTestKey) {
+      const storedKey = typeof window !== "undefined" ? sessionStorage.getItem("last_generated_api_key") : null;
+      if (storedKey) {
+        setApiTestKey(storedKey);
+      }
+    }
+  }, [apiTestKey]);
+
+  const [lastCreatedTrackingCode, setLastCreatedTrackingCode] = useState<string>("RCV-DEMOPKG123");
+  const [lastCreatedInnerSecret, setLastCreatedInnerSecret] = useState<string>("RCVR-59DBE11D");
+
+  const defaultConsoleBodies: Record<string, string> = {
+    create: JSON.stringify({
+      packageName: "Test Parcel Simulation",
+      receiverName: "Alex Morgan",
+      receiverPhone: "+2348099887766",
+      destination: "Victoria Island, Lagos",
+      weight: "0.85"
+    }, null, 2),
+    list: "",
+    verify_get: "",
+    handover_post: JSON.stringify({
+      nextHandler: "0x3f12a8b901e23f45678901234567890123456789",
+      riderName: "John Rider",
+      riderPhone: "+2348011223344",
+      location: "Ikeja Dispatch Hub"
+    }, null, 2),
+    verify_post: JSON.stringify({
+      innerSecret: "RCVR-59DBE11D",
+      location: "Lekki Phase 1"
+    }, null, 2),
+    history_get: "",
+    dispute_post: JSON.stringify({
+      reason: "Package contents damaged on arrival",
+      location: "Lekki Phase 1"
+    }, null, 2),
+    health_get: ""
+  };
+
+  const handleEndpointSelect = (ep: "create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get") => {
+    setSelectedConsoleEndpoint(ep);
+    setReqBodyText(defaultConsoleBodies[ep] || "");
+    setTestRespStatus(null);
+    setTestRespData(null);
+    setTestRespTime(null);
+
+    if (ep === "verify_post") {
+      const secret = lastCreatedInnerSecret || "RCVR-59DBE11D";
+      setReqParamId(secret);
+      setReqBodyText(JSON.stringify({ innerSecret: secret, location: "Lekki Phase 1" }, null, 2));
+    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get" || ep === "dispute_post") {
+      setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
+    }
+  };
+
+  const handleReqParamIdInputChange = (val: string) => {
+    setReqParamId(val);
+    if (selectedConsoleEndpoint === "verify_post") {
+      let parsed: Record<string, unknown> = {};
+      try {
+        parsed = JSON.parse(reqBodyText) as Record<string, unknown>;
+      } catch {
+        parsed = { location: "Lekki Phase 1" };
+      }
+      parsed.innerSecret = val.trim();
+      setReqBodyText(JSON.stringify(parsed, null, 2));
+    }
+  };
+
+  const executeApiTestRequest = async () => {
+    setIsExecutingTest(true);
+    setTestRespStatus(null);
+    setTestRespData(null);
+    const start = performance.now();
+
+    try {
+      let url = "";
+      let method = "POST";
+      let bodyData: string | undefined = undefined;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (apiTestKey.trim()) {
+        headers["Authorization"] = `Bearer ${apiTestKey.trim()}`;
+      }
+
+      if (selectedConsoleEndpoint === "create") {
+        url = "/api/v1/shipments/create";
+        method = "POST";
+        bodyData = reqBodyText;
+      } else if (selectedConsoleEndpoint === "list") {
+        url = "/api/v1/shipments";
+        method = "GET";
+      } else if (selectedConsoleEndpoint === "verify_get") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/verify`;
+        method = "GET";
+      } else if (selectedConsoleEndpoint === "handover_post") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/handover`;
+        method = "POST";
+        bodyData = reqBodyText;
+      } else if (selectedConsoleEndpoint === "verify_post") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/verify`;
+        method = "POST";
+        let parsedBody: Record<string, unknown> = {};
+        try {
+          parsedBody = JSON.parse(reqBodyText) as Record<string, unknown>;
+        } catch {
+          parsedBody = { location: "Lekki Phase 1" };
+        }
+        parsedBody.innerSecret = reqParamId.trim();
+        bodyData = JSON.stringify(parsedBody, null, 2);
+        setReqBodyText(bodyData);
+      } else if (selectedConsoleEndpoint === "history_get") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/history`;
+        method = "GET";
+      } else if (selectedConsoleEndpoint === "dispute_post") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/dispute`;
+        method = "POST";
+        bodyData = reqBodyText;
+      } else if (selectedConsoleEndpoint === "health_get") {
+        url = "/api/v1/health";
+        method = "GET";
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: method === "GET" ? undefined : bodyData,
+      });
+
+      const end = performance.now();
+      setTestRespTime(Math.round(end - start));
+      setTestRespStatus(res.status);
+
+      const data = await res.json().catch(() => ({ rawText: "Failed to parse JSON response" }));
+      setTestRespData(data);
+
+      if (res.ok && data?.trackingCode) {
+        setLastCreatedTrackingCode(data.trackingCode);
+        if (selectedConsoleEndpoint !== "verify_post") {
+          setReqParamId(data.trackingCode);
+        }
+      }
+
+      if (res.ok && data?.innerSecret) {
+        setLastCreatedInnerSecret(data.innerSecret);
+        const updatedBody = JSON.stringify({
+          innerSecret: data.innerSecret,
+          location: "Lekki Phase 1"
+        }, null, 2);
+        defaultConsoleBodies.verify_post = updatedBody;
+        if (selectedConsoleEndpoint === "verify_post") {
+          setReqParamId(data.innerSecret);
+          setReqBodyText(updatedBody);
+        }
+      }
+    } catch (err: unknown) {
+      const end = performance.now();
+      setTestRespTime(Math.round(end - start));
+      setTestRespStatus(500);
+      setTestRespData({ error: err instanceof Error ? err.message : "Request failed" });
+    } finally {
+      setIsExecutingTest(false);
+    }
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -62,45 +253,45 @@ response = requests.post(url, json=payload, headers=headers)
 print(response.json())`,
     },
     verifyShipment: {
-      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify"`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify');
+      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify"`,
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify');
 const packageData = await res.json();
 console.log('Package Status:', packageData.status); // InTransit | Delivered | Disputed`,
       python: `import requests
 
-res = requests.get("https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify")
+res = requests.get("https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify")
 print(res.json())`,
     },
     handoverShipment: {
-      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/handover" \\
+      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
-  -d '{ "nextHandler": "0x3f12a8...", "location": "Ikeja Hub, Lagos" }'`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/handover', {
+  -d '{ "riderName": "John Rider", "riderPhone": "+2348011223344", "location": "Ikeja Hub, Lagos" }'`,
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
     'Content-Type': 'application/json'
   },
-  body: JSON.stringify({ nextHandler: '0x3f12a8...', location: 'Ikeja Hub, Lagos' })
+  body: JSON.stringify({ riderName: 'John Rider', riderPhone: '+2348011223344', location: 'Ikeja Hub, Lagos' })
 });
 const result = await res.json();
 console.log('Handover Status:', result.shipment.status);`,
       python: `import requests
 
 res = requests.post(
-    "https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/handover",
+    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/handover",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
-    json={"nextHandler": "0x3f12a8...", "location": "Ikeja Hub, Lagos"}
+    json={"riderName": "John Rider", "riderPhone": "+2348011223344", "location": "Ikeja Hub, Lagos"}
 )
 print(res.json())`,
     },
     confirmDelivery: {
-      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify" \\
+      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify" \\
   -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
   -H "Content-Type: application/json" \\
   -d '{ "innerSecret": "RCVR-A8F2B1C0", "location": "Lekki, Lagos" }'`,
-      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify', {
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
@@ -113,10 +304,54 @@ console.log('Delivery Verified:', result.shipment.status);`,
       python: `import requests
 
 res = requests.post(
-    "https://recoverprotocol.xyz/api/v1/shipments/pkg_8f912a/verify",
+    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify",
     headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
     json={"innerSecret": "RCVR-A8F2B1C0", "location": "Lekki, Lagos"}
 )
+print(res.json())`,
+    },
+    historyShipment: {
+      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history"`,
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history');
+const history = await res.json();
+console.log('Custody Timeline Events:', history.events);`,
+      python: `import requests
+
+res = requests.get("https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/history")
+print(res.json())`,
+    },
+    disputeShipment: {
+      curl: `curl -X POST "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute" \\
+  -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
+  -H "Content-Type: application/json" \\
+  -d '{ "reason": "Damaged contents on arrival", "location": "Lagos" }'`,
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ reason: 'Damaged contents on arrival', location: 'Lagos' })
+});
+const result = await res.json();
+console.log('Dispute Logged:', result.success);`,
+      python: `import requests
+
+res = requests.post(
+    "https://recoverprotocol.xyz/api/v1/shipments/RCV-8F912A3B4C5D/dispute",
+    headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
+    json={"reason": "Damaged contents on arrival", "location": "Lagos"}
+)
+print(res.json())`,
+    },
+    healthCheck: {
+      curl: `curl -X GET "https://recoverprotocol.xyz/api/v1/health"`,
+      javascript: `const res = await fetch('https://recoverprotocol.xyz/api/v1/health');
+const health = await res.json();
+console.log('API Health Status:', health.status); // "healthy"`,
+      python: `import requests
+
+res = requests.get("https://recoverprotocol.xyz/api/v1/health")
 print(res.json())`,
     },
 
@@ -306,6 +541,275 @@ print(res.json())`,
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 leading-relaxed">
               <strong>🔒 Security:</strong> Never expose your API key in client-side browser code. Only use it in server-to-server calls from your backend (Node.js, Python, PHP, etc.). If your key is compromised, roll it immediately from <Link href="/settings" className="font-bold underline">Settings</Link>.
+            </div>
+          </div>
+
+          {/* Interactive REST API Console / Playground */}
+          <div id="sandbox-playground" className="bg-neutral-white border-2 border-indigo-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1">
+                  🧪 Sandbox Testing Console
+                </div>
+                <h2 className="text-xl font-bold text-primary font-display flex items-center gap-2">
+                  Interactive REST API Playground
+                </h2>
+                <p className="text-xs text-neutral-slate mt-0.5">
+                  Test making live requests with your API key (`rec_test_...` or `rec_live_...`) directly in your browser.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/settings"
+                  className="bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary text-xs font-bold px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Manage API Keys in Settings →
+                </Link>
+              </div>
+            </div>
+
+            {/* API Key Input Field */}
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-2">
+              <label className="text-xs font-bold text-indigo-950 flex items-center justify-between">
+                <span>Enter Your API Key (Authorization Bearer Header):</span>
+                {apiTestKey ? (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    Auto-filled from active session
+                  </span>
+                ) : (
+                  <Link href="/settings" className="text-[10px] font-bold text-indigo-600 underline">
+                    Generate Key in Settings →
+                  </Link>
+                )}
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={apiTestKey}
+                  onChange={(e) => setApiTestKey(e.target.value)}
+                  placeholder="Paste your secret API key (rec_test_... or rec_live_...)"
+                  className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs font-mono text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+              {apiTestKey.includes("•") ? (
+                <p className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded-lg border border-amber-200">
+                  ⚠️ <strong>Notice:</strong> Masked strings (containing ••••) cannot authenticate API calls. Please paste the full secret key you saved from <Link href="/settings" className="underline font-bold">Settings</Link> or generate a new key.
+                </p>
+              ) : (
+                <p className="text-[11px] text-indigo-700">
+                  💡 Tip: Use a Test Sandbox Key (`rec_test_...`) to simulate requests safely without consuming live shipment quota or broadcasting to mainnet.
+                </p>
+              )}
+            </div>
+
+            {/* Endpoint Selector Tabs */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-primary block">Select Endpoint to Test:</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("create")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "create"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">POST</span>
+                  <span>/shipments/create</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("list")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "list"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/shipments</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("verify_get")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "verify_get"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/shipments/[id]/verify</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("handover_post")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "handover_post"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">POST</span>
+                  <span>/shipments/[id]/handover</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("verify_post")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "verify_post"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">POST</span>
+                  <span>/shipments/[id]/verify</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("history_get")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "history_get"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/shipments/[id]/history</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("dispute_post")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "dispute_post"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">POST</span>
+                  <span>/shipments/[id]/dispute</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEndpointSelect("health_get")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "health_get"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/health</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Request Configuration Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              <div className="space-y-3">
+                {/* ID param input if endpoint has [id] */}
+                {(selectedConsoleEndpoint === "verify_get" || selectedConsoleEndpoint === "handover_post" || selectedConsoleEndpoint === "verify_post" || selectedConsoleEndpoint === "history_get" || selectedConsoleEndpoint === "dispute_post") && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-primary block">
+                      {selectedConsoleEndpoint === "verify_post"
+                        ? "Scratch-Off Code / Inner Secret:"
+                        : "Package Tracking Code:"}
+                    </label>
+                    <input
+                      type="text"
+                      value={reqParamId}
+                      onChange={(e) => handleReqParamIdInputChange(e.target.value)}
+                      placeholder={
+                        selectedConsoleEndpoint === "verify_post"
+                          ? "RCVR-59DBE11D"
+                          : "RCV-4A91B2C3E8F0"
+                      }
+                      className="w-full bg-neutral-white border border-neutral-mist rounded-lg px-3 py-1.5 text-xs font-mono text-primary"
+                    />
+                  </div>
+                )}
+
+                {/* Request Body JSON textarea */}
+                {selectedConsoleEndpoint !== "list" && selectedConsoleEndpoint !== "verify_get" && selectedConsoleEndpoint !== "history_get" && selectedConsoleEndpoint !== "health_get" && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-primary block">Request JSON Body:</label>
+                    <textarea
+                      rows={7}
+                      value={reqBodyText}
+                      onChange={(e) => setReqBodyText(e.target.value)}
+                      className="w-full bg-slate-950 text-emerald-400 font-mono p-3 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={executeApiTestRequest}
+                  disabled={isExecutingTest}
+                  className="w-full bg-primary hover:bg-primary-light text-white text-xs font-bold py-3 rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isExecutingTest ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending Test Request...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                      <span>Execute API Request</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Live Response Panel */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary block">API Response Output:</span>
+                  {testRespStatus !== null && (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                        testRespStatus >= 200 && testRespStatus < 300
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          : "bg-red-100 text-red-800 border border-red-300"
+                      }`}>
+                        HTTP {testRespStatus}
+                      </span>
+                      {testRespTime !== null && (
+                        <span className="text-[10px] font-mono text-neutral-slate">
+                          ⏱️ {testRespTime} ms
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto min-h-55 max-h-90">
+                  {isExecutingTest ? (
+                    <div className="flex items-center justify-center py-16 text-slate-400 gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                      <span>Executing request...</span>
+                    </div>
+                  ) : testRespData !== null ? (
+                    <pre className="text-emerald-300 whitespace-pre-wrap">
+                      {JSON.stringify(testRespData, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="text-slate-500 text-center py-16 text-xs">
+                      Click &quot;Execute API Request&quot; above to test this endpoint live and inspect response output.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -537,6 +1041,99 @@ print(res.json())`,
               </div>
             </div>
 
+            {/* Endpoint 6: Fetch Custody History Timeline */}
+            <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-blue-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg uppercase">
+                    GET
+                  </span>
+                  <code className="text-sm font-mono font-bold text-primary">/shipments/[id]/history</code>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Public Timeline
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                Fetches the complete custody event timeline (Created, InTransit, Handover, Verified, Disputed) for a package. Passing an authorized courier PIN unlocks rider contact details.
+              </p>
+
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(codeExamples.historyShipment[activeLang], "history")}
+                  className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Copy code"
+                >
+                  {copiedSnippet === "history" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre>{codeExamples.historyShipment[activeLang]}</pre>
+              </div>
+            </div>
+
+            {/* Endpoint 7: Log Delivery Dispute */}
+            <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-emerald-500 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg uppercase">
+                    POST
+                  </span>
+                  <code className="text-sm font-mono font-bold text-primary">/shipments/[id]/dispute</code>
+                </div>
+                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  🔑 API Key Required
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                Files a formal delivery dispute for damaged, stolen, or missing contents. Updates package status to &quot;Disputed&quot;, records an on-chain event, and triggers a <code className="bg-neutral-mist px-1 rounded">shipment.disputed</code> webhook.
+              </p>
+
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(codeExamples.disputeShipment[activeLang], "dispute")}
+                  className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Copy code"
+                >
+                  {copiedSnippet === "dispute" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre>{codeExamples.disputeShipment[activeLang]}</pre>
+              </div>
+            </div>
+
+            {/* Endpoint 8: API Health Status Check */}
+            <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-blue-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg uppercase">
+                    GET
+                  </span>
+                  <code className="text-sm font-mono font-bold text-primary">/health</code>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Public Health Check
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                Returns the real-time operational status of the REST API, MongoDB connection, Electroneum mainnet relayer, and system response latency (in ms).
+              </p>
+
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(codeExamples.healthCheck[activeLang], "health")}
+                  className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Copy code"
+                >
+                  {copiedSnippet === "health" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre>{codeExamples.healthCheck[activeLang]}</pre>
+              </div>
+            </div>
+
           </div>
 
           {/* HTTP Status Codes Reference */}
@@ -570,6 +1167,14 @@ print(res.json())`,
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
                 <span className="text-2xl font-extrabold text-red-600 block">400</span>
                 <span className="text-neutral-slate font-semibold">Bad Request</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                <span className="text-2xl font-extrabold text-amber-600 block">409</span>
+                <span className="text-neutral-slate font-semibold">State Conflict</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                <span className="text-2xl font-extrabold text-amber-600 block">429</span>
+                <span className="text-neutral-slate font-semibold">Rate Limited</span>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
                 <span className="text-2xl font-extrabold text-red-600 block">500</span>
