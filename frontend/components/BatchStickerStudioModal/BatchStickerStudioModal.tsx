@@ -359,7 +359,7 @@ export default function BatchStickerStudioModal({
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=10&data=${encodeURIComponent(
                           typeof window !== "undefined"
                             ? window.location.origin + "/verify/" + item.registrationId
-                            : "https://recoverprotocol.xyz/verify/" + item.registrationId
+                            : "https://userecover.xyz/verify/" + item.registrationId
                         )}`}
                         alt={`QR code sticker for ${item.name}`}
                         width={70}

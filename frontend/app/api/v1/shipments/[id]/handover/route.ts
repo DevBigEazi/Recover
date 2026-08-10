@@ -263,7 +263,7 @@ export async function POST(
       }
     }
 
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://recoverprotocol.xyz").replace(/\/$/, "");
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz").replace(/\/$/, "");
     const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
     const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
     const riderLink = `${appUrl}/scan/${trackingCode}?pin=${courierPin}`;
