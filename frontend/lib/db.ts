@@ -63,13 +63,14 @@ export interface IUser {
   /**
    * Plan tiers:
    * - "free": Bootstrap free plan (100 shipments/mo)
-   * - "pro_starter": Pro Starter (0-999 shipments/mo)
-   * - "pro_growth": Pro Growth (1,000-4,999 shipments/mo)
-   * - "pro_scale": Pro Scale (5,000+ shipments/mo)
+   * - "pro_lite": Pro Lite (2,500 shipments/mo)
+   * - "pro_starter": Pro Starter (10,000 shipments/mo)
+   * - "pro_growth": Pro Growth (100,000 shipments/mo)
+   * - "pro_scale": Pro Scale (500,000 shipments/mo)
    * - "pro": Legacy Pro alias
    * - "enterprise": Reserved future enterprise tier
    */
-  plan: "free" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
+  plan: "free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
   billingCycle: "monthly" | "yearly";
   billingCycleStart: Date;
   shipmentsThisMonth: number;

@@ -259,7 +259,7 @@ export default function Header() {
                               <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">Merchant Plan</span>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-xs font-bold text-primary">
-                                  {plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : plan === "pro" ? "Pro Tier" : "Free Tier"}
+                                  {plan === "pro_lite" ? "Pro Lite" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : plan === "pro" ? "Pro Tier" : "Free Tier"}
                                 </span>
                                 <span className="bg-blue-100 text-blue-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
                                   {billingCycle === "yearly" ? "Annual" : "Monthly"}

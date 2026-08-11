@@ -14,7 +14,7 @@ interface ProfileContextType {
   email: string | null;
   subscriptionActive: boolean;
   role: "user" | "merchant";
-  plan: "free" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
+  plan: "free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
   billingCycle: "monthly" | "yearly";
   billingCycleStart: string | null;
   shipmentsThisMonth: number;

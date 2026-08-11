@@ -14,13 +14,15 @@ import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/cur
 
 const TIER_RANKS: Record<string, number> = {
   free: 0,
-  pro_starter: 1,
-  pro_growth: 2,
-  pro_scale: 3,
+  pro_lite: 1,
+  pro_starter: 2,
+  pro_growth: 3,
+  pro_scale: 4,
 };
 
 const TIER_NAMES: Record<string, string> = {
   free: "Free Bootstrap",
+  pro_lite: "Pro Lite",
   pro_starter: "Pro Starter",
   pro_growth: "Pro Growth",
   pro_scale: "Pro Scale",
@@ -139,7 +141,7 @@ export default function SettingsPage() {
 
   // Upgrade Plan Modal States
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<"pro_starter" | "pro_growth" | "pro_scale">("pro_growth");
+  const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<"pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
   const [selectedUpgradeCycle, setSelectedUpgradeCycle] = useState<"monthly" | "yearly">("monthly");
   const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -709,7 +711,9 @@ export default function SettingsPage() {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-neutral-slate tracking-wider">Active Plan</span>
                     <h4 className="text-sm font-extrabold text-primary">
-                      {plan === "pro_starter"
+                      {plan === "pro_lite"
+                        ? "Pro Lite Tier"
+                        : plan === "pro_starter"
                         ? "Pro Starter Tier"
                         : plan === "pro_growth"
                         ? "Pro Growth Tier"
@@ -731,7 +735,7 @@ export default function SettingsPage() {
                       </span>
                     )}
                     {(() => {
-                      const baseLimit = plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
+                      const baseLimit = plan === "pro_lite" ? 2500 : plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
                       const totalCap = baseLimit + (rolloverQuota || 0);
                       const isFreeLimitReached = plan === "free" && shipmentsThisMonth >= totalCap;
                       const isProOverQuota = plan !== "free" && shipmentsThisMonth >= totalCap;
@@ -765,7 +769,7 @@ export default function SettingsPage() {
                     <div className="flex items-baseline gap-2">
                       <span className="text-lg font-bold text-primary">
                         {shipmentsThisMonth.toLocaleString()} / {(
-                          (plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100) + (rolloverQuota || 0)
+                          (plan === "pro_lite" ? 2500 : plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100) + (rolloverQuota || 0)
                         ).toLocaleString()}
                       </span>
                     </div>

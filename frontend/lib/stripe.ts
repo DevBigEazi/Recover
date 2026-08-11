@@ -13,6 +13,8 @@ export const stripe = new Stripe(stripeSecretKey, {
 export const STRIPE_PRICES = {
   REPORT_UNLOCK_PHONE_USD_CENTS: 350, // $3.50 USD for Phone category
   REPORT_UNLOCK_OTHER_USD_CENTS: 150, // $1.50 USD for Other categories
+  PRO_LITE_MONTHLY_CENTS: 600, // $6.00 USD / mo
+  PRO_LITE_YEARLY_CENTS: 6480, // $64.80 USD / yr (10% discount)
   PRO_STARTER_MONTHLY_CENTS: 1500, // $15.00 USD / mo
   PRO_STARTER_YEARLY_CENTS: 16200, // $162.00 USD / yr (10% discount)
   PRO_GROWTH_MONTHLY_CENTS: 4500, // $45.00 USD / mo

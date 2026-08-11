@@ -9,7 +9,7 @@ import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/cur
 
 export default function PricingPage() {
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
-  const [proQuota, setProQuota] = useState<"pro_starter" | "pro_growth" | "pro_scale">("pro_growth");
+  const [proQuota, setProQuota] = useState<"pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
 
   useEffect(() => {
@@ -17,6 +17,14 @@ export default function PricingPage() {
   }, []);
 
   const proOptions = {
+    pro_lite: {
+      name: "Pro Lite",
+      quota: "2,500 dispatches / mo",
+      usdMonthly: 6,
+      usdYearly: 64.8,
+      usdEffective: 5.4,
+      overage: "$0.025 per excess shipment",
+    },
     pro_starter: {
       name: "Pro Starter",
       quota: "10,000 dispatches / mo",
@@ -246,7 +254,18 @@ export default function PricingPage() {
                     <label className="block text-[11px] font-bold text-neutral-slate uppercase tracking-wider">
                       Select Monthly Dispatch Volume:
                     </label>
-                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-neutral-mist/50 border border-neutral-mist rounded-xl">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-neutral-mist/50 border border-neutral-mist rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setProQuota("pro_lite")}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          proQuota === "pro_lite"
+                            ? "bg-primary text-white shadow-xs"
+                            : "text-neutral-slate hover:text-primary"
+                        }`}
+                      >
+                        2,500 / mo
+                      </button>
                       <button
                         type="button"
                         onClick={() => setProQuota("pro_starter")}
