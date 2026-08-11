@@ -71,6 +71,7 @@ export async function GET(
     const effectiveTrackingCode = shipment.trackingCode || `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
 
     return NextResponse.json({
+      _id: shipment._id,
       trackingCode: effectiveTrackingCode,
       onChainId: shipment._id,
       packageId: shipment._id,

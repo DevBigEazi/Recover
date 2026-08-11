@@ -40,7 +40,7 @@ interface ShipmentEvent {
 
 interface Shipment {
   _id: string;
-  packageId: string;
+  trackingCode?: string;
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   innerSecretHash: string;
@@ -116,7 +116,7 @@ export default function ShipmentsPage() {
 
     setIsSubmittingHandover(true);
     try {
-      const response = await fetch(`/api/v1/shipments/${selectedHandoverShipment.packageId}/handover`, {
+      const response = await fetch(`/api/v1/shipments/${selectedHandoverShipment._id}/handover`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -160,9 +160,9 @@ export default function ShipmentsPage() {
   };
 
   const handlePrintSticker = (shipment: Shipment) => {
-    const scanUrl = `${window.location.origin}/scan/${formatTrackingCode(shipment.packageId)}`;
+    const scanUrl = `${window.location.origin}/scan/${shipment.trackingCode || formatTrackingCode(shipment._id)}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=4&data=${encodeURIComponent(scanUrl)}`;
-    const activePin = shipment.innerSecret || createdInnerSecret || ("RCVR-" + (shipment.packageId.startsWith("0x") ? shipment.packageId.slice(2, 10) : shipment.packageId.slice(0, 8)).toUpperCase());
+    const activePin = shipment.innerSecret || createdInnerSecret || ("RCVR-" + (shipment._id.startsWith("0x") ? shipment._id.slice(2, 10) : shipment._id.slice(0, 8)).toUpperCase());
 
     const widthMap = {
       mini: "280px",
@@ -203,7 +203,7 @@ export default function ShipmentsPage() {
       doc.write(`
         <html>
           <head>
-            <title>Print Shipment Label - ${formatTrackingCode(shipment.packageId)}</title>
+            <title>Print Shipment Label - ${shipment.trackingCode || formatTrackingCode(shipment._id)}</title>
             <style>
               @page { size: auto; margin: 0; }
               @media print {
@@ -312,7 +312,7 @@ export default function ShipmentsPage() {
                   <span class="shield-text">SECURE SHIP</span>
                 </div>
                 <div class="realtime">SCANNABLE FOR REAL-TIME TRACKING</div>
-                <div class="tracking">${formatTrackingCode(shipment.packageId)}</div>
+                <div class="tracking">${shipment.trackingCode || formatTrackingCode(shipment._id)}</div>
               </div>
               <div class="divider"></div>
               <div class="scratch-zone">
@@ -573,8 +573,8 @@ export default function ShipmentsPage() {
                   if (searchQuery.trim()) {
                     const q = searchQuery.trim().toLowerCase();
                     const nameMatch = ((s.metadata?.name as string) || "").toLowerCase().includes(q);
-                    const codeMatch = formatTrackingCode(s.packageId).toLowerCase().includes(q);
-                    const idMatch = s.packageId.toLowerCase().includes(q);
+                    const codeMatch = (s.trackingCode || formatTrackingCode(s._id)).toLowerCase().includes(q);
+                    const idMatch = s._id.toLowerCase().includes(q);
                     return nameMatch || codeMatch || idMatch;
                   }
 
@@ -746,7 +746,7 @@ export default function ShipmentsPage() {
                         <div className="space-y-4">
                           {paginatedShipments.map((shipment, idx) => (
                             <div
-                              key={String(shipment._id || shipment.packageId || idx)}
+                              key={String(shipment._id || idx)}
                               className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all rounded-xl p-5 backdrop-blur-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
                             >
                               <div className="space-y-1.5">
@@ -770,7 +770,7 @@ export default function ShipmentsPage() {
                                 </div>
                                 <div className="flex items-center gap-2 text-[10px] text-slate-500">
                                   <span className="font-mono bg-slate-800/80 px-1.5 py-0.5 rounded select-all">
-                                    {formatTrackingCode(shipment.packageId)}
+                                    {shipment.trackingCode || formatTrackingCode(shipment._id)}
                                   </span>
                                   <span>·</span>
                                   <span>Registered: {new Date(shipment.createdAt).toLocaleDateString()}</span>
@@ -788,7 +788,7 @@ export default function ShipmentsPage() {
                                     </button>
                                     <button
                                       onClick={() => {
-                                        const trackingCode = formatTrackingCode(shipment.packageId);
+                                        const trackingCode = shipment.trackingCode || formatTrackingCode(shipment._id);
                                         const pin = (shipment.metadata?.courierPin as string) || "";
                                         const origin = typeof window !== "undefined" ? window.location.origin : "";
                                         setLastHandoverResult({
@@ -812,7 +812,7 @@ export default function ShipmentsPage() {
                                   </>
                                 )}
                                 <Link
-                                  href={`/shipments/${formatTrackingCode(shipment.packageId)}`}
+                                  href={`/shipments/${shipment.trackingCode || formatTrackingCode(shipment._id)}`}
                                   className="bg-blue-600 hover:bg-blue-500 text-xs font-semibold py-2 px-3.5 rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
                                 >
                                   Track <ChevronRight className="w-3.5 h-3.5" />
@@ -1253,7 +1253,7 @@ export default function ShipmentsPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(
-                          `${typeof window !== "undefined" ? window.location.origin : ""}/scan/${formatTrackingCode(showStickerDownload.packageId)}`
+                          `${typeof window !== "undefined" ? window.location.origin : ""}/scan/${showStickerDownload.trackingCode || formatTrackingCode(showStickerDownload._id)}`
                         )}`}
                         alt="Package QR Code"
                         className="w-full h-full object-contain"
@@ -1271,7 +1271,7 @@ export default function ShipmentsPage() {
 
                     {/* Tracking code */}
                     <div className="text-[10px] font-mono font-extrabold text-slate-900 text-center mb-1.5">
-                      {formatTrackingCode(showStickerDownload.packageId)}
+                      {showStickerDownload.trackingCode || formatTrackingCode(showStickerDownload._id)}
                     </div>
 
                     {/* Dashed divider */}
@@ -1341,7 +1341,7 @@ export default function ShipmentsPage() {
                   <ArrowRightLeft className="w-5 h-5 text-blue-400" /> Log Custody Handover
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Package: <span className="font-mono text-slate-300 font-bold">{formatTrackingCode(selectedHandoverShipment.packageId)}</span>
+                  Package: <span className="font-mono text-slate-300 font-bold">{selectedHandoverShipment.trackingCode || formatTrackingCode(selectedHandoverShipment._id)}</span>
                 </p>
               </div>
               <button

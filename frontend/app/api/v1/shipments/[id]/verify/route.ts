@@ -79,7 +79,7 @@ export async function POST(
       );
     }
 
-    const targetPackageId = (shipment.packageId || shipment._id) as `0x${string}`;
+    const targetPackageId = shipment._id as `0x${string}`;
 
     // Normalize input code & stored secret for case-insensitive matching
     const rawSecret = String(secretCode).trim();

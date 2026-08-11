@@ -34,7 +34,8 @@ interface ShipmentEvent {
 }
 
 interface Shipment {
-  packageId: string;
+  _id: string;
+  trackingCode?: string;
   shipperAddress: string;
   shipperCompanyName?: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
@@ -253,7 +254,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
               </div>
 
               <div className="border-t border-slate-800/60 pt-3">
-                <p className="text-[10px] text-slate-400 font-mono font-bold">Tracking Code: {formatTrackingCode(shipment.packageId)}</p>
+                <p className="text-[10px] text-slate-400 font-mono font-bold">Tracking Code: {shipment.trackingCode || formatTrackingCode(shipment._id)}</p>
               </div>
             </div>
 

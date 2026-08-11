@@ -164,8 +164,7 @@ export interface IShipmentEvent {
 }
 
 export interface IShipment {
-  _id: string; // packageId
-  packageId?: string; // virtual
+  _id: string;
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   innerSecret?: string | null;
@@ -387,7 +386,6 @@ const ShipmentSchema = new Schema<IShipment>(
           delete ret._id;
         }
         delete ret.id;
-        delete ret.packageId;
         if (Array.isArray(ret.events)) {
           ret.events.forEach((ev: Record<string, unknown>) => {
             delete ev._id;
