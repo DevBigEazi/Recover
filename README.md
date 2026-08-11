@@ -68,6 +68,7 @@ Recover features a seamless payment engine powered by **Stripe Checkout & Stripe
   - **Phone Category**: **$3.50 USD** base price
   - **Other Categories**: **$1.50 USD** base price
 * **Enterprise Logistics SaaS Subscriptions**:
+  - **Pro Lite**: **$6 / month** (or **$64.80 / year** — Save 10%) · Up to 2,500 dispatches/mo
   - **Pro Starter**: **$15 / month** (or **$162 / year** — Save 10%) · Up to 10,000 dispatches/mo
   - **Pro Growth**: **$45 / month** (or **$486 / year** — Save 10%) · Up to 100,000 dispatches/mo
   - **Pro Scale**: **$100 / month** (or **$1,080 / year** — Save 10%) · Up to 500,000 dispatches/mo
@@ -109,6 +110,8 @@ Recover includes an integrated **Printable QR Sticker Studio**:
 * **Gasless Backend Relayer Pattern**:
   - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
   - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
+* **Cryptographic Signed Wallet Challenge Session Auth (`/api/auth/token`)**:
+  - Enforces cryptographic signature proof (SIWE login payload or signed challenge nonce) before issuing HTTP-only session JWT tokens, preventing unauthorized token generation from address strings alone.
 * **Consumer-Friendly Copy & Privacy Default**:
   - Raw EVM hashes (`0x...`) are formatted into consumer tracking codes (`PKG-8F912A`).
   - User wallet addresses are hidden behind Display Names and Company Names.
@@ -127,7 +130,7 @@ recover/
 │   ├── app/                   # App Router pages and API endpoints
 │   ├── components/            # UI components (Header, Modals, Inbox, etc.)
 │   ├── context/               # Auth & Profile context providers
-│   ├── lib/                   # Database (MongoDB), Stripe, Currency FX, Thirdweb SDK
+│   ├── lib/                   # Database (MongoDB), OpenGraph/Metadata, Stripe, Currency FX, Thirdweb SDK
 │   └── public/                # Static assets, PWA manifest, service worker (sw.js)
 ├── smart-contract/            # Foundry Solidity Workspace
 │   ├── src/                   # RecoverRegistry & RecoverShipment UUPS Contracts
