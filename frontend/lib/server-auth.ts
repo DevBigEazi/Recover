@@ -2,9 +2,17 @@ import { createAuth } from "thirdweb/auth";
 import { privateKeyToAccount } from "thirdweb/wallets";
 import { client } from "@/lib/client";
 
-const adminPrivateKey =
-  process.env.RELAYER_PRIVATE_KEY ||
-  "0x0000000000000000000000000000000000000000000000000000000000000001";
+const adminPrivateKey = (
+  process.env.BACKEND_SIGNER_PRIVATE_KEY ||
+  process.env.BACKEND_SIGNER_PRIVATE_KEY ||
+  ""
+).trim();
+
+if (!adminPrivateKey) {
+  throw new Error(
+    "BACKEND_SIGNER_PRIVATE_KEY environment variable is required for serverAuth initialization."
+  );
+}
 
 let domain = "userecover.xyz";
 try {
