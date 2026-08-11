@@ -743,20 +743,6 @@ print(res.json())`,
                   <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">POST</span>
                   <span>/shipments/[id]/dispute</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleEndpointSelect("shipment_qr")}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    selectedConsoleEndpoint === "shipment_qr"
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
-                  }`}
-                >
-                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
-                  <span>/shipments/[id]/qr</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={() => handleEndpointSelect("health_get")}
