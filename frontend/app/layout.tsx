@@ -31,8 +31,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+function getMetadataBaseUrl(): URL {
+  const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim() || "https://userecover.xyz";
+  const formatted = raw.startsWith("http://") || raw.startsWith("https://") ? raw : `https://${raw}`;
+  try {
+    return new URL(formatted);
+  } catch {
+    return new URL("https://userecover.xyz");
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz"),
+  metadataBase: getMetadataBaseUrl(),
   title: {
     default: "Recover — Physical Item Protection & Package Tracking",
     template: "%s | Recover",
