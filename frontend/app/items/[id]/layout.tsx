@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { sharedOpenGraph } from "@/app/layout";
 
 export async function generateMetadata({
   params,
@@ -12,6 +13,7 @@ export async function generateMetadata({
     title: `Protected Item Details (${cleanId})`,
     description: `View protected item details, export sticker sizes, and manage trusted alternate recovery contacts for item ${cleanId}.`,
     openGraph: {
+      ...sharedOpenGraph,
       title: `Protected Item Details (${cleanId}) | Recover`,
       description: `View protected item details, export sticker sizes, and manage trusted alternate recovery contacts.`,
       url: `https://userecover.xyz/items/${cleanId}`,

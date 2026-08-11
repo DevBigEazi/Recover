@@ -193,7 +193,7 @@ export async function POST(
     shipment.events.push({
       event: "Verified",
       operator: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || "Package Recipient",
-      location: location || null,
+      location: typeof location === "object" && location !== null ? JSON.stringify(location) : location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
       onChainTxHash: txHash,
