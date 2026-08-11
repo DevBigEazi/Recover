@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "Pricing & Subscription Plans",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Pricing & Subscription Plans | Recover",
     description:
       "Transparent pricing for individuals & businesses. Personal recovery unlocks from $1.50 and merchant tracking from $6/mo.",
-    url: "https://userecover.xyz/pricing",
+    url: "/pricing",
   },
 };
 

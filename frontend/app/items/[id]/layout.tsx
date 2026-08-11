@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export async function generateMetadata({
   params,
@@ -16,7 +16,7 @@ export async function generateMetadata({
       ...sharedOpenGraph,
       title: `Protected Item Details (${cleanId}) | Recover`,
       description: `View protected item details, export sticker sizes, and manage trusted alternate recovery contacts.`,
-      url: `https://userecover.xyz/items/${cleanId}`,
+      url: `/items/${cleanId}`,
     },
   };
 }

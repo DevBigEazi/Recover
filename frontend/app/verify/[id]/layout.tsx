@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export async function generateMetadata({
   params,
@@ -16,7 +16,7 @@ export async function generateMetadata({
       ...sharedOpenGraph,
       title: `Verify Package Custody & Scan Status (${cleanId}) | Recover`,
       description: `Scan verification page for package ${cleanId}. View live custody status and verify PIN handover.`,
-      url: `https://userecover.xyz/verify/${cleanId}`,
+      url: `/verify/${cleanId}`,
     },
   };
 }

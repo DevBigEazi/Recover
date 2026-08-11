@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "Developer REST API & Webhooks Reference",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Developer REST API & Webhooks Reference | Recover",
     description:
       "Integrate tamper-proof package tracking into your store. Create dispatches, generate QR images, verify PIN handovers, and stream webhooks.",
-    url: "https://userecover.xyz/developers",
+    url: "/developers",
   },
 };
 

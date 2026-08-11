@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "Logistics Package Tracking Workspace",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Logistics Package Tracking Workspace | Recover",
     description:
       "Register commercial dispatches, manage courier handovers, print dual-layer QR shipping labels, and audit delivery timelines.",
-    url: "https://userecover.xyz/shipments",
+    url: "/shipments",
   },
 };
 

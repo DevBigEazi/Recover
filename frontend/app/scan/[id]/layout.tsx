@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export async function generateMetadata({
   params,
@@ -16,7 +16,7 @@ export async function generateMetadata({
       ...sharedOpenGraph,
       title: `Report Found Item / Package Status (${cleanId}) | Recover`,
       description: `Public scan page for item/package ${cleanId}. Submit finder location coordinates or check status instantly.`,
-      url: `https://userecover.xyz/scan/${cleanId}`,
+      url: `/scan/${cleanId}`,
     },
   };
 }

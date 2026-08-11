@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "Account Settings & Developer API Keys",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Account Settings & Developer API Keys | Recover",
     description:
       "Manage your profile, merchant workspace subscription, notification preferences, and secret REST API keys.",
-    url: "https://userecover.xyz/settings",
+    url: "/settings",
   },
 };
 

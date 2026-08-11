@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "About Recover — Physical Item Protection",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "About Recover — Physical Item Protection | Recover",
     description:
       "Learn how Recover combines scannable physical QR stickers with location alerts and tamper-proof verification.",
-    url: "https://userecover.xyz/about",
+    url: "/about",
   },
 };
 

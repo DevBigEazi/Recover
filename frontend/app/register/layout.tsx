@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sharedOpenGraph } from "@/app/layout";
+import { sharedOpenGraph } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: "Register New Valuables & Packages",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     title: "Register New Valuables & Packages | Recover",
     description:
       "Register personal items or commercial shipments to generate scannable QR codes and scratch-off PIN protection.",
-    url: "https://userecover.xyz/register",
+    url: "/register",
   },
 };
 

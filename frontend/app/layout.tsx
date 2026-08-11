@@ -31,32 +31,12 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-function getMetadataBaseUrl(): URL {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim() || "https://userecover.xyz";
-  const formatted = raw.startsWith("http://") || raw.startsWith("https://") ? raw : `https://${raw}`;
-  try {
-    return new URL(formatted);
-  } catch {
-    return new URL("https://userecover.xyz");
-  }
-}
+import { sharedOpenGraph, getMetadataBaseUrl } from "@/lib/metadata";
 
-export const sharedOpenGraph = {
-  siteName: "Recover",
-  images: [
-    {
-      url: "/og-image.png",
-      width: 1200,
-      height: 630,
-      alt: "Recover Protocol — Physical Item Protection & Package Tracking",
-    },
-  ],
-  locale: "en_US",
-  type: "website",
-};
+const metadataBase = getMetadataBaseUrl();
 
 export const metadata: Metadata = {
-  metadataBase: getMetadataBaseUrl(),
+  metadataBase,
   title: {
     default: "Recover — Physical Item Protection & Package Tracking",
     template: "%s | Recover",
@@ -81,7 +61,7 @@ export const metadata: Metadata = {
     title: "Recover — Physical Item Protection & Package Tracking",
     description:
       "Protect personal belongings with scannable QR stickers & track commercial dispatches with instant location alerts, PIN handovers, and REST API integration.",
-    url: "https://userecover.xyz",
+    url: metadataBase.origin,
   },
   twitter: {
     card: "summary_large_image",
