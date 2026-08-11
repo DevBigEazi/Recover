@@ -61,6 +61,7 @@ export async function POST(request: Request) {
 
       const TIER_LIMITS: Record<string, number> = {
         free: 100,
+        pro_lite: 2500,
         pro_starter: 10000,
         pro_growth: 100000,
         pro_scale: 500000,
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       const totalAllowed = baseLimit + (shipper.rolloverQuota || 0);
 
       const OVERAGE_RATES_USD: Record<string, number> = {
+        pro_lite: 0.025,
         pro_starter: 0.02,
         pro_growth: 0.015,
         pro_scale: 0.01,

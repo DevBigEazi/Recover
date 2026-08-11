@@ -34,6 +34,7 @@ export async function POST(request: Request) {
 
     const TIER_QUOTAS: Record<string, number> = {
       free: 100,
+      pro_lite: 2500,
       pro_starter: 10000,
       pro_growth: 100000,
       pro_scale: 500000,

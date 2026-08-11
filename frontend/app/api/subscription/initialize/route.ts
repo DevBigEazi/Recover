@@ -3,6 +3,7 @@ import { db, connectDB } from "@/lib/db";
 import { stripe, getOrCreateStripeCustomer, STRIPE_PRICES } from "@/lib/stripe";
 
 const TIER_PRICES: Record<string, { monthly: number; yearly: number }> = {
+  pro_lite: { monthly: STRIPE_PRICES.PRO_LITE_MONTHLY_CENTS, yearly: STRIPE_PRICES.PRO_LITE_YEARLY_CENTS },
   pro_starter: { monthly: STRIPE_PRICES.PRO_STARTER_MONTHLY_CENTS, yearly: STRIPE_PRICES.PRO_STARTER_YEARLY_CENTS },
   pro_growth: { monthly: STRIPE_PRICES.PRO_GROWTH_MONTHLY_CENTS, yearly: STRIPE_PRICES.PRO_GROWTH_YEARLY_CENTS },
   pro_scale: { monthly: STRIPE_PRICES.PRO_SCALE_MONTHLY_CENTS, yearly: STRIPE_PRICES.PRO_SCALE_YEARLY_CENTS },

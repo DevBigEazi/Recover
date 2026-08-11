@@ -15,13 +15,15 @@ import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/cur
 
 const TIER_RANKS: Record<string, number> = {
   free: 0,
-  pro_starter: 1,
-  pro_growth: 2,
-  pro_scale: 3,
+  pro_lite: 1,
+  pro_starter: 2,
+  pro_growth: 3,
+  pro_scale: 4,
 };
 
 const TIER_NAMES: Record<string, string> = {
   free: "Free Bootstrap",
+  pro_lite: "Pro Lite",
   pro_starter: "Pro Starter",
   pro_growth: "Pro Growth",
   pro_scale: "Pro Scale",
@@ -66,7 +68,7 @@ export default function ShipmentsPage() {
 
   const [isRegistering, setIsRegistering] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<"pro_starter" | "pro_growth" | "pro_scale">("pro_growth");
+  const [selectedTier, setSelectedTier] = useState<"pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
   const [selectedCycle, setSelectedCycle] = useState<"monthly" | "yearly">("monthly");
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
 
@@ -1064,12 +1066,12 @@ export default function ShipmentsPage() {
                   {/* Form Body — Collapsible on mobile, always visible on desktop (lg:block) */}
                   <div className={`mt-3 lg:mt-0 space-y-4 ${isMobileRegisterOpen ? "block" : "hidden lg:block"}`}>
                     {(() => {
-                      const baseLimit = plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
+                      const baseLimit = plan === "pro_lite" ? 2500 : plan === "pro_starter" ? 10000 : plan === "pro_growth" ? 100000 : plan === "pro_scale" ? 500000 : plan === "pro" ? 100000 : 100;
                       const totalCap = baseLimit + (rolloverQuota || 0);
                       return (
                         <div className="mb-4 p-3 bg-blue-950/50 border border-blue-800/40 rounded-xl text-xs flex items-center justify-between text-blue-200">
                           <span>
-                            🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used {billingCycleStart ? `(Since ${new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : ""}
+                            🏷️ <strong>{plan === "free" ? "Free Tier" : plan === "pro_lite" ? "Pro Lite" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : "Pro Tier"}:</strong> {shipmentsThisMonth.toLocaleString()} / {totalCap.toLocaleString()} shipments used {billingCycleStart ? `(Since ${new Date(billingCycleStart).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})` : ""}
                           </span>
                           <Link href="/settings" className="text-[11px] font-bold text-blue-400 hover:text-blue-300 underline">
                             Manage →

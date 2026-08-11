@@ -30,7 +30,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<"user" | "merchant">("user");
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
+  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -637,7 +637,31 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
                   </div>
 
                   {/* Plan Tiers Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {/* Pro Lite */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan("pro_lite")}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                        selectedPlan === "pro_lite"
+                          ? "border-accent bg-neutral-white ring-2 ring-accent"
+                          : "border-neutral-mist hover:border-gray-300 bg-neutral-white/70"
+                      }`}
+                    >
+                      <span className="block text-xs font-extrabold text-primary">Pro Lite</span>
+                      <span className="text-[10px] text-accent font-semibold block mt-0.5">2,500 shipments</span>
+                      <div className="mt-2 text-xs font-bold text-primary">
+                        {billingCycle === "yearly"
+                          ? convertUsdPrice(64.8, userCurrency).formattedLocal
+                          : convertUsdPrice(6, userCurrency).formattedLocal}
+                      </div>
+                      <span className="text-[9px] text-neutral-slate block mt-0.5">
+                        {billingCycle === "yearly"
+                          ? `${convertUsdPrice(5.4, userCurrency).formattedLocal} effective`
+                          : "Up to 2.5k pkgs"}
+                      </span>
+                    </button>
+
                     {/* Pro Starter */}
                     <button
                       type="button"
