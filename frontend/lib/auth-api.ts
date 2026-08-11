@@ -1,5 +1,6 @@
 import { db, connectDB, IUser } from "@/lib/db";
 import crypto from "crypto";
+import { serverAuth } from "@/lib/server-auth";
 
 export interface AuthApiResult {
   shipper: IUser | null;
@@ -16,8 +17,8 @@ export async function getShipperFromApiKey(
 
   const cleanToken = (apiKeyToken || "").trim();
 
-  // 1. Authenticate via secret API key (unmasked)
-  if (cleanToken && !cleanToken.includes("•")) {
+  // 1. Authenticate via secret API key (unmasked rec_live_ / rec_test_)
+  if (cleanToken && (cleanToken.startsWith("rec_live_") || cleanToken.startsWith("rec_test_"))) {
     const isTestToken = cleanToken.startsWith("rec_test_");
     const tokenHash = crypto.createHash("sha256").update(cleanToken).digest("hex");
 
@@ -44,10 +45,44 @@ export async function getShipperFromApiKey(
     }
   }
 
-  // 2. Fallback: Authenticate via logged-in merchant session address (x-owner-address / shipperAddress)
+  // 2. Cryptographic Session JWT Verification (via Thirdweb serverAuth)
+  if (cleanToken && !cleanToken.includes("•")) {
+    try {
+      const verified = await serverAuth.verifyJWT({ jwt: cleanToken });
+      if (verified.valid && verified.parsedJWT?.sub) {
+        const verifiedAddress = String(verified.parsedJWT.sub).toLowerCase();
+        const shipper = await db.user.findOne({
+          $or: [
+            { _id: verifiedAddress },
+            { _id: { $regex: new RegExp(`^${verifiedAddress}$`, "i") } },
+          ],
+        });
+        if (shipper) {
+          if (shipper.role !== "merchant") {
+            return {
+              shipper: null,
+              isTest: false,
+              error: "Shipment management is only available for merchant accounts.",
+              status: 403,
+            };
+          }
+          return { shipper, isTest: false };
+        }
+      }
+    } catch {
+      // JWT token verification failed, fall through
+    }
+  }
+
+  // 3. Fallback: Authenticate via registered merchant session address (x-owner-address / shipperAddress)
   const cleanOwnerAddress = (ownerAddressHeader || "").trim().toLowerCase();
   if (cleanOwnerAddress) {
-    const shipper = await db.user.findById(cleanOwnerAddress);
+    const shipper = await db.user.findOne({
+      $or: [
+        { _id: cleanOwnerAddress },
+        { _id: { $regex: new RegExp(`^${cleanOwnerAddress}$`, "i") } },
+      ],
+    });
     if (shipper) {
       if (shipper.role !== "merchant") {
         return {
@@ -64,7 +99,7 @@ export async function getShipperFromApiKey(
   return {
     shipper: null,
     isTest: false,
-    error: "API key or active merchant session authorization is required.",
+    error: "API key or valid session authorization is required.",
     status: 401,
   };
 }

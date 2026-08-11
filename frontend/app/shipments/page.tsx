@@ -116,9 +116,33 @@ export default function ShipmentsPage() {
 
     setIsSubmittingHandover(true);
     try {
+      let activeApiKey = apiKey;
+      if (!activeApiKey && account?.address) {
+        try {
+          const keyRes = await fetch("/api/profile/api-key", {
+            method: "POST",
+            headers: { "x-owner-address": account.address },
+          });
+          if (keyRes.ok) {
+            const keyData = await keyRes.json();
+            activeApiKey = keyData.apiKey;
+          }
+        } catch (err) {
+          console.error("Failed to auto-provision API key:", err);
+        }
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-owner-address": account.address,
+      };
+      if (activeApiKey && !activeApiKey.includes("•")) {
+        headers["x-api-key"] = activeApiKey;
+      }
+
       const response = await fetch(`/api/v1/shipments/${selectedHandoverShipment._id}/handover`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           operatorAddress: account.address,
           riderName: handoverRiderName.trim() || undefined,
@@ -340,9 +364,30 @@ export default function ShipmentsPage() {
   const { data: shipments = [], isLoading, error } = useQuery<Shipment[]>({
     queryKey: ["shipments", account?.address],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/shipments?shipperAddress=${account!.address}`, {
-        headers: { "x-owner-address": account!.address },
-      });
+      let activeApiKey = apiKey;
+      if (!activeApiKey && account?.address) {
+        try {
+          const keyRes = await fetch("/api/profile/api-key", {
+            method: "POST",
+            headers: { "x-owner-address": account.address },
+          });
+          if (keyRes.ok) {
+            const keyData = await keyRes.json();
+            activeApiKey = keyData.apiKey;
+          }
+        } catch (err) {
+          console.error("Failed to auto-provision API key:", err);
+        }
+      }
+
+      const headers: Record<string, string> = {
+        "x-owner-address": account!.address,
+      };
+      if (activeApiKey && !activeApiKey.includes("•")) {
+        headers["x-api-key"] = activeApiKey;
+      }
+
+      const response = await fetch(`/api/v1/shipments`, { headers });
       if (!response.ok) throw new Error("Failed to load shipments");
       return response.json();
     },
