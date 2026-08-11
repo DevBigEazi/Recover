@@ -85,7 +85,9 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
     queryKey: ["shipment-tracking", id],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/shipments/${id}/history`);
+      const response = await fetch(`/api/v1/shipments/${id}/history`, {
+        headers: account?.address ? { "x-owner-address": account.address } : {},
+      });
       if (!response.ok) throw new Error("Failed to load shipment details");
       return response.json();
     },
@@ -106,7 +108,10 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
     try {
       const response = await fetch(`/api/v1/shipments/${id}/handover`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
         body: JSON.stringify({
           operatorAddress: account.address,
           riderName: riderName.trim() || undefined,

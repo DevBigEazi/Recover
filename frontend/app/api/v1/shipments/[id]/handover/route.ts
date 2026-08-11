@@ -41,17 +41,13 @@ export async function POST(
     let authenticatedUser = null;
     let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
 
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
+    if (apiKeyToken || verifiedHeaderAddress) {
+      const authResult = await getShipperFromApiKey(apiKeyToken, verifiedHeaderAddress);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
       authenticatedUser = authResult.shipper;
       isTestKey = authResult.isTest;
-    } else if (verifiedHeaderAddress) {
-      authenticatedUser = await db.user.findOne({
-        $or: [{ _id: verifiedHeaderAddress }, { _id: { $regex: new RegExp(`^${verifiedHeaderAddress.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }],
-      });
     }
 
     if (!authenticatedUser) {

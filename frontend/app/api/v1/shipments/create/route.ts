@@ -40,7 +40,10 @@ export async function POST(request: Request) {
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = (bearerToken || xApiKeyHeader)?.trim();
 
-    const authResult = await getShipperFromApiKey(apiKeyToken);
+    const authResult = await getShipperFromApiKey(
+      apiKeyToken,
+      request.headers.get("x-owner-address") || body.shipperAddress
+    );
     if (!authResult.shipper) {
       return NextResponse.json(
         { error: authResult.error || "Unauthorized API key provided." },

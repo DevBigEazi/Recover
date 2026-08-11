@@ -33,8 +33,9 @@ export async function POST(
     let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
     let authenticatedShipper = null;
 
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
+    const xOwnerAddress = request.headers.get("x-owner-address");
+    if (apiKeyToken || xOwnerAddress) {
+      const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }

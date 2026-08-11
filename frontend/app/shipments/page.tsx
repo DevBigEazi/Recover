@@ -39,12 +39,12 @@ interface ShipmentEvent {
 }
 
 interface Shipment {
-  innerSecret: string | null;
   _id: string;
   packageId: string;
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   innerSecretHash: string;
+  innerSecret?: string | null;
   metadata?: Record<string, unknown> | null;
   events: ShipmentEvent[];
   webhookUrl?: string | null;
@@ -340,7 +340,9 @@ export default function ShipmentsPage() {
   const { data: shipments = [], isLoading, error } = useQuery<Shipment[]>({
     queryKey: ["shipments", account?.address],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/shipments?shipperAddress=${account!.address}`);
+      const response = await fetch(`/api/v1/shipments?shipperAddress=${account!.address}`, {
+        headers: { "x-owner-address": account!.address },
+      });
       if (!response.ok) throw new Error("Failed to load shipments");
       return response.json();
     },
@@ -465,8 +467,11 @@ export default function ShipmentsPage() {
         }
       }
 
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (activeApiKey) {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-owner-address": account.address,
+      };
+      if (activeApiKey && !activeApiKey.includes("•")) {
         headers["x-api-key"] = activeApiKey;
       }
 
@@ -739,9 +744,9 @@ export default function ShipmentsPage() {
                     ) : (
                       <div className="space-y-4">
                         <div className="space-y-4">
-                          {paginatedShipments.map((shipment) => (
+                          {paginatedShipments.map((shipment, idx) => (
                             <div
-                              key={shipment._id}
+                              key={String(shipment._id || shipment.packageId || idx)}
                               className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all rounded-xl p-5 backdrop-blur-sm shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
                             >
                               <div className="space-y-1.5">

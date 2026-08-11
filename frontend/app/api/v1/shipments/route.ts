@@ -12,7 +12,10 @@ export async function GET(request: Request) {
 
     await connectDB();
 
-    const authResult = await getShipperFromApiKey(apiKeyToken);
+    const authResult = await getShipperFromApiKey(
+      apiKeyToken,
+      request.headers.get("x-owner-address") || searchParams.get("shipperAddress")
+    );
     if (!authResult.shipper) {
       return NextResponse.json(
         { error: authResult.error || "Invalid or unauthorized API key provided." },
