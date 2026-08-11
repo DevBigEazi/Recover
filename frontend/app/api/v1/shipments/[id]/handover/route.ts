@@ -32,27 +32,22 @@ export async function POST(
 
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
-    const verifiedHeaderAddress = (
-      request.headers.get("x-owner-address") || request.headers.get("x-operator-address")
-    )?.trim()?.toLowerCase();
+
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
     const apiKeyToken = bearerToken || xApiKeyHeader;
 
     let authenticatedUser = null;
     let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
 
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
-      if (!authResult.shipper) {
-        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
-      }
-      authenticatedUser = authResult.shipper;
-      isTestKey = authResult.isTest;
-    } else if (verifiedHeaderAddress) {
-      authenticatedUser = await db.user.findOne({
-        $or: [{ _id: verifiedHeaderAddress }, { _id: { $regex: new RegExp(`^${verifiedHeaderAddress.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }],
-      });
+    const authResult = await getShipperFromApiKey(
+      apiKeyToken,
+      request.headers.get("x-owner-address") || request.headers.get("x-operator-address")
+    );
+    if (!authResult.shipper) {
+      return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
     }
+    authenticatedUser = authResult.shipper;
+    isTestKey = authResult.isTest;
 
     if (!authenticatedUser) {
       return NextResponse.json(

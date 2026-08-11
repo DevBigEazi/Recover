@@ -52,6 +52,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       trackingCode,
+      _id: shipment._id,
       packageId: shipment._id,
       status: shipment.status,
       scanUrl,

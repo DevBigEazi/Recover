@@ -16,8 +16,9 @@ export async function GET(
 
     await connectDB();
 
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
+    const xOwnerAddress = request.headers.get("x-owner-address");
+    if (apiKeyToken || xOwnerAddress) {
+      const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
@@ -70,6 +71,7 @@ export async function GET(
     const effectiveTrackingCode = shipment.trackingCode || `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
 
     return NextResponse.json({
+      _id: shipment._id,
       trackingCode: effectiveTrackingCode,
       onChainId: shipment._id,
       packageId: shipment._id,

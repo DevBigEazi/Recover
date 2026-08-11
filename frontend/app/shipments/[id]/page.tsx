@@ -41,7 +41,8 @@ interface ShipmentEvent {
 }
 
 interface Shipment {
-  packageId: string;
+  _id: string;
+  trackingCode?: string;
   shipperAddress: string;
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   metadata?: Record<string, unknown> | null;
@@ -85,7 +86,9 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
     queryKey: ["shipment-tracking", id],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/shipments/${id}/history`);
+      const response = await fetch(`/api/v1/shipments/${id}/history`, {
+        headers: account?.address ? { "x-owner-address": account.address } : {},
+      });
       if (!response.ok) throw new Error("Failed to load shipment details");
       return response.json();
     },
@@ -106,7 +109,10 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
     try {
       const response = await fetch(`/api/v1/shipments/${id}/handover`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-address": account.address,
+        },
         body: JSON.stringify({
           operatorAddress: account.address,
           riderName: riderName.trim() || undefined,
@@ -242,7 +248,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                 <div className="flex items-center gap-3">
                   <span className="text-xs uppercase font-extrabold text-blue-400 tracking-wider">Tracking Code</span>
                   <span className="font-mono text-xs bg-slate-800/80 px-2 py-0.5 rounded text-slate-300 select-all">
-                    {formatTrackingCode(shipment.packageId)}
+                    {shipment.trackingCode || formatTrackingCode(shipment._id)}
                   </span>
                 </div>
                 <h1 className="text-xl font-bold tracking-tight">
@@ -275,7 +281,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                     disabled={!lastHandoverResult?.courierPin}
                     onClick={() => {
                       if (lastHandoverResult) return;
-                      const trackingCode = formatTrackingCode(shipment.packageId);
+                      const trackingCode = shipment.trackingCode || formatTrackingCode(shipment._id);
                       const origin = typeof window !== "undefined" ? window.location.origin : "";
                       setLastHandoverResult({
                         riderLink: `${origin}/scan/${trackingCode}`,
@@ -291,7 +297,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                     <Share2 className="w-3 h-3" /> Share Links
                   </button>
                   <Link
-                    href={`/scan/${formatTrackingCode(shipment.packageId)}`}
+                    href={`/scan/${shipment.trackingCode || formatTrackingCode(shipment._id)}`}
                     target="_blank"
                     className="inline-flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-white transition-colors"
                   >

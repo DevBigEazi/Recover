@@ -32,8 +32,9 @@ export async function POST(
     let effectiveRecipientAddress = recipientAddress || recipientName || null;
     let isTestKey = apiKeyToken?.startsWith("rec_test_") || false;
 
-    if (apiKeyToken) {
-      const authResult = await getShipperFromApiKey(apiKeyToken);
+    const xOwnerAddress = request.headers.get("x-owner-address");
+    if (apiKeyToken || xOwnerAddress) {
+      const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
@@ -78,7 +79,7 @@ export async function POST(
       );
     }
 
-    const targetPackageId = (shipment.packageId || shipment._id) as `0x${string}`;
+    const targetPackageId = shipment._id as `0x${string}`;
 
     // Normalize input code & stored secret for case-insensitive matching
     const rawSecret = String(secretCode).trim();
@@ -192,7 +193,7 @@ export async function POST(
     shipment.events.push({
       event: "Verified",
       operator: effectiveRecipientAddress || (shipment.metadata?.receiverName as string) || "Package Recipient",
-      location: location || null,
+      location: typeof location === "object" && location !== null ? JSON.stringify(location) : location || null,
       locationContext: locationContext || null,
       timestamp: new Date(),
       onChainTxHash: txHash,
