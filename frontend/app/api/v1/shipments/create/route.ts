@@ -238,11 +238,19 @@ export async function POST(request: Request) {
       }
     }
 
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
+    const scanUrl = `${appBaseUrl}/shipments/${trackingCode}/verify`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(scanUrl)}`;
+    const qrApiUrl = `${appBaseUrl}/api/v1/shipments/${trackingCode}/qr`;
+
     return NextResponse.json({
       success: true,
       mode: isTest ? "sandbox" : "live",
       isTest,
       trackingCode,
+      scanUrl,
+      qrImageUrl,
+      qrApiUrl,
       onChainId: packageId,
       innerSecret,
       shipment: newShipment,

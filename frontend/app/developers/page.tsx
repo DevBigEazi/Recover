@@ -4,18 +4,16 @@ import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { Code, Terminal, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, Truck, ShieldCheck, Play, Loader2 } from "lucide-react";
+import { Code, Terminal, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, ShieldCheck, Play, Loader2, QrCode } from "lucide-react";
 
 
 export default function DevelopersPage() {
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
   const [activeLang, setActiveLang] = useState<"curl" | "javascript" | "python">("curl");
 
-
-
   // Interactive REST API Console State
   const [apiTestKey, setApiTestKey] = useState<string>("");
-  const [selectedConsoleEndpoint, setSelectedConsoleEndpoint] = useState<"create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get">("create");
+  const [selectedConsoleEndpoint, setSelectedConsoleEndpoint] = useState<"create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr">("create");
   const [reqParamId, setReqParamId] = useState<string>("RCV-DEMOPKG123");
   const [reqBodyText, setReqBodyText] = useState<string>(
     JSON.stringify({
@@ -75,10 +73,11 @@ export default function DevelopersPage() {
       reason: "Package contents damaged on arrival",
       location: "Lekki Phase 1"
     }, null, 2),
-    health_get: ""
+    health_get: "",
+    shipment_qr: ""
   };
 
-  const handleEndpointSelect = (ep: "create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get") => {
+  const handleEndpointSelect = (ep: "create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr") => {
     setSelectedConsoleEndpoint(ep);
     setReqBodyText(defaultConsoleBodies[ep] || "");
     setTestRespStatus(null);
@@ -93,7 +92,7 @@ export default function DevelopersPage() {
       const secret = lastCreatedInnerSecret || "RCVR-59DBE11D";
       setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
       setReqBodyText(JSON.stringify({ innerSecret: secret, reason: "Package contents damaged on arrival", location: "Lekki Phase 1" }, null, 2));
-    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get") {
+    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get" || ep === "shipment_qr") {
       setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
     }
   };
@@ -170,6 +169,10 @@ export default function DevelopersPage() {
         url = `/api/v1/shipments/${reqParamId.trim()}/dispute`;
         method = "POST";
         bodyData = reqBodyText;
+     
+      } else if (selectedConsoleEndpoint === "shipment_qr") {
+        url = `/api/v1/shipments/${reqParamId.trim()}/qr`;
+        method = "GET";
       } else if (selectedConsoleEndpoint === "health_get") {
         url = "/api/v1/health";
         method = "GET";
@@ -266,6 +269,17 @@ payload = {
 
 response = requests.post(url, json=payload, headers=headers)
 print(response.json())`,
+    },
+    getQrCode: {
+      curl: `curl -X GET "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/qr?format=json"`,
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/qr?format=json');
+const qrData = await res.json();
+console.log('QR Code Image Link:', qrData.qrImageUrl); // PNG format for labels
+console.log('Public Verification Scan Link:', qrData.scanUrl);`,
+      python: `import requests
+
+res = requests.get("https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/qr?format=json")
+print(res.json())`,
     },
     verifyShipment: {
       curl: `curl -X GET "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D/verify"`,
@@ -430,9 +444,9 @@ print(res.json())`,
     },
     {
       step: 4,
-      icon: <Truck className="w-5 h-5 text-blue-600" />,
-      title: "Print & Affix QR Sticker to Package",
-      description: "Use the tracking code URL to generate or print a tamper-proof label onto the shipping box or poly-mailer. When anyone (rider, warehouse, recipient) scans the QR, Recover shows the live package status without any app install.",
+      icon: <QrCode className="w-5 h-5 text-indigo-600" />,
+      title: "Print & Affix API-Generated QR Sticker",
+      description: "Every shipment creation call automatically returns ready-to-print `qrImageUrl` and `scanUrl` links, plus a dedicated `GET /api/v1/shipments/[id]/qr` endpoint for SVG/PNG label printing onto boxes or poly-mailers.",
     },
     {
       step: 5,
@@ -680,6 +694,19 @@ print(res.json())`,
 
                 <button
                   type="button"
+                  onClick={() => handleEndpointSelect("shipment_qr")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "shipment_qr"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/shipments/[id]/qr</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEndpointSelect("verify_post")}
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedConsoleEndpoint === "verify_post"
@@ -719,6 +746,19 @@ print(res.json())`,
 
                 <button
                   type="button"
+                  onClick={() => handleEndpointSelect("shipment_qr")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "shipment_qr"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">GET</span>
+                  <span>/shipments/[id]/qr</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEndpointSelect("health_get")}
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedConsoleEndpoint === "health_get"
@@ -736,7 +776,7 @@ print(res.json())`,
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <div className="space-y-3">
                 {/* ID param input if endpoint has [id] */}
-                {(selectedConsoleEndpoint === "verify_get" || selectedConsoleEndpoint === "handover_post" || selectedConsoleEndpoint === "verify_post" || selectedConsoleEndpoint === "history_get" || selectedConsoleEndpoint === "dispute_post") && (
+                {(selectedConsoleEndpoint === "verify_get" || selectedConsoleEndpoint === "handover_post" || selectedConsoleEndpoint === "verify_post" || selectedConsoleEndpoint === "history_get" || selectedConsoleEndpoint === "dispute_post" || selectedConsoleEndpoint === "shipment_qr") && (
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-primary block">
                       {selectedConsoleEndpoint === "verify_post"
@@ -758,7 +798,7 @@ print(res.json())`,
                 )}
 
                 {/* Request Body JSON textarea */}
-                {selectedConsoleEndpoint !== "list" && selectedConsoleEndpoint !== "verify_get" && selectedConsoleEndpoint !== "history_get" && selectedConsoleEndpoint !== "health_get" && (
+                {selectedConsoleEndpoint !== "list" && selectedConsoleEndpoint !== "verify_get" && selectedConsoleEndpoint !== "history_get" && selectedConsoleEndpoint !== "health_get" && selectedConsoleEndpoint !== "shipment_qr" && (
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-primary block">Request JSON Body:</label>
                     <textarea
@@ -819,9 +859,39 @@ print(res.json())`,
                       <span>Executing request...</span>
                     </div>
                   ) : testRespData !== null ? (
-                    <pre className="text-emerald-300 whitespace-pre-wrap">
-                      {JSON.stringify(testRespData, null, 2)}
-                    </pre>
+                    <div className="space-y-4">
+                      {testRespStatus !== null && testRespStatus >= 200 && testRespStatus < 300 && !((testRespData as Record<string, unknown>)?.error) && ((testRespData as Record<string, unknown>)?.qrImageUrl || selectedConsoleEndpoint === "shipment_qr") && (
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-col sm:flex-row items-center gap-4">
+                          <img
+                            src={
+                              ((testRespData as Record<string, unknown>)?.qrImageUrl as string) ||
+                              `https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=10&data=${encodeURIComponent(`https://userecover.xyz/shipments/${reqParamId}/verify`)}`
+                            }
+                            alt="Generated Package QR Code"
+                            className="w-24 h-24 bg-white p-1 rounded-lg border border-slate-700 shadow-sm"
+                          />
+                          <div className="space-y-1 text-center sm:text-left">
+                            <span className="text-xs font-bold text-white block items-center justify-center sm:justify-start gap-1">
+                              <QrCode className="w-3.5 h-3.5 text-indigo-400" /> API-Generated Package QR Sticker
+                            </span>
+                            <p className="text-[11px] text-slate-400">
+                              Scan URL: <code className="text-emerald-400 font-mono font-normal">{((testRespData as Record<string, unknown>)?.scanUrl as string) || `https://userecover.xyz/shipments/${reqParamId}/verify`}</code>
+                            </p>
+                            <a
+                              href={((testRespData as Record<string, unknown>)?.qrImageUrl as string) || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(`https://userecover.xyz/shipments/${reqParamId}/verify`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-block text-[11px] text-indigo-400 font-bold hover:underline pt-0.5"
+                            >
+                              Download PNG Label Image →
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      <pre className="text-emerald-300 whitespace-pre-wrap">
+                        {JSON.stringify(testRespData, null, 2)}
+                      </pre>
+                    </div>
                   ) : (
                     <div className="text-slate-500 text-center py-16 text-xs">
                       Click &quot;Execute API Request&quot; above to test this endpoint live and inspect response output.
@@ -928,6 +998,9 @@ print(res.json())`,
                     <li>• <strong className="text-emerald-600">success</strong>: true</li>
                     <li>• <strong className="text-emerald-600">packageId</strong>: &quot;0x4a91b2...&quot; (internal package ID)</li>
                     <li>• <strong className="text-emerald-600">trackingCode</strong>: &quot;RCV-4A91B2C3E8F0&quot; (consumer-facing tracking code)</li>
+                    <li>• <strong className="text-emerald-600">scanUrl</strong>: &quot;https://userecover.xyz/shipments/RCV-4A91B2C3E8F0/verify&quot;</li>
+                    <li>• <strong className="text-emerald-600">qrImageUrl</strong>: &quot;https://api.qrserver.com/v1/create-qr-code/...&quot; (ready-to-print PNG link)</li>
+                    <li>• <strong className="text-emerald-600">qrApiUrl</strong>: &quot;https://userecover.xyz/api/v1/shipments/RCV-4A91B2C3E8F0/qr&quot; (dedicated SVG/PNG QR endpoint)</li>
                     <li>• <strong className="text-emerald-600">innerSecret</strong>: &quot;RCVR-A8F2B1C0&quot; (8-character RCVR-prefixed hex handover secret)</li>
                     <li>• <strong className="text-emerald-600">shipment</strong>: Full Shipment Object (status: &quot;Created&quot;, metadata, events)</li>
                   </ul>
@@ -1123,6 +1196,37 @@ print(res.json())`,
             </div>
 
             {/* Endpoint 8: API Health Status Check */}
+            <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-blue-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg uppercase">
+                    GET
+                  </span>
+                  <code className="text-sm font-mono font-bold text-primary">/shipments/[id]/qr</code>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Public QR Generator
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                Generates a QR code image or returns JSON metadata containing direct scan links, ready-to-print PNG/SVG URLs, and caption text for any registered package or item. Supports query parameters <code className="bg-neutral-mist px-1 rounded">?format=json|png|svg</code> and <code className="bg-neutral-mist px-1 rounded">?size=300</code>.
+              </p>
+
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(codeExamples.getQrCode[activeLang], "getQrCode")}
+                  className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Copy code"
+                >
+                  {copiedSnippet === "getQrCode" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre>{codeExamples.getQrCode[activeLang]}</pre>
+              </div>
+            </div>
+
+            {/* Endpoint 9: API Health Status Check */}
             <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
                 <div className="flex items-center gap-2.5">
