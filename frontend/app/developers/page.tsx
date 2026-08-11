@@ -871,7 +871,7 @@ print(res.json())`,
                             className="w-24 h-24 bg-white p-1 rounded-lg border border-slate-700 shadow-sm"
                           />
                           <div className="space-y-1 text-center sm:text-left">
-                            <span className="text-xs font-bold text-white block flex items-center justify-center sm:justify-start gap-1">
+                            <span className="text-xs font-bold text-white block items-center justify-center sm:justify-start gap-1">
                               <QrCode className="w-3.5 h-3.5 text-indigo-400" /> API-Generated Package QR Sticker
                             </span>
                             <p className="text-[11px] text-slate-400">

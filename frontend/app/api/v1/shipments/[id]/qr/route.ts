@@ -46,16 +46,6 @@ export async function GET(
     }
 
     if (format === "svg") {
-      const svgRes = await fetch(qrSvgUrl);
-      if (svgRes.ok) {
-        const svgContent = await svgRes.text();
-        return new Response(svgContent, {
-          headers: {
-            "Content-Type": "image/svg+xml",
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
-      }
       return NextResponse.redirect(qrSvgUrl, { status: 307 });
     }
 
