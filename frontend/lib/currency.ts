@@ -58,25 +58,65 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
       const ipRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
       if (ipRes.ok) {
         const geoData = await ipRes.json();
-        if (geoData.currency) {
+        if (geoData && !geoData.error && geoData.currency) {
           detectedCurrency = geoData.currency.toUpperCase();
+          if (geoData.country_code) {
+            detectedCountry = geoData.country_code.toUpperCase();
+          }
+        } else {
+          throw new Error("Invalid or rate-limited ipapi response");
         }
-        if (geoData.country_code) {
-          detectedCountry = geoData.country_code.toUpperCase();
-        }
+      } else {
+        throw new Error("ipapi HTTP request failed");
       }
     } catch {
-      // Fallback: detect via browser timezone
+      // Fallback: detect via browser timezone & locale
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-      if (tz.includes("Lagos") || tz.includes("Abidjan")) {
+      if (tz.includes("Lagos") || tz.includes("Nigeria")) {
         detectedCurrency = "NGN";
         detectedCountry = "NG";
-      } else if (tz.includes("London")) {
+      } else if (tz.includes("London") || tz.includes("Belfast")) {
         detectedCurrency = "GBP";
         detectedCountry = "GB";
-      } else if (tz.includes("Paris") || tz.includes("Berlin") || tz.includes("Rome") || tz.includes("Madrid") || tz.includes("Amsterdam")) {
+      } else if (
+        tz.includes("Paris") ||
+        tz.includes("Berlin") ||
+        tz.includes("Rome") ||
+        tz.includes("Madrid") ||
+        tz.includes("Amsterdam") ||
+        tz.includes("Brussels") ||
+        tz.includes("Vienna") ||
+        tz.includes("Dublin") ||
+        tz.includes("Lisbon") ||
+        tz.includes("Helsinki") ||
+        tz.includes("Athens") ||
+        tz.includes("Warsaw") ||
+        tz.includes("Prague") ||
+        tz.startsWith("Europe/")
+      ) {
         detectedCurrency = "EUR";
         detectedCountry = "EU";
+      } else if (
+        tz.includes("Toronto") ||
+        tz.includes("Vancouver") ||
+        tz.includes("Montreal") ||
+        tz.includes("Edmonton") ||
+        tz.includes("Winnipeg") ||
+        tz.includes("Halifax") ||
+        tz.startsWith("Canada/")
+      ) {
+        detectedCurrency = "CAD";
+        detectedCountry = "CA";
+      } else if (
+        tz.includes("Sydney") ||
+        tz.includes("Melbourne") ||
+        tz.includes("Brisbane") ||
+        tz.includes("Perth") ||
+        tz.includes("Adelaide") ||
+        tz.startsWith("Australia/")
+      ) {
+        detectedCurrency = "AUD";
+        detectedCountry = "AU";
       } else if (tz.includes("Accra")) {
         detectedCurrency = "GHS";
         detectedCountry = "GH";
@@ -86,6 +126,46 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
       } else if (tz.includes("Johannesburg")) {
         detectedCurrency = "ZAR";
         detectedCountry = "ZA";
+      } else if (tz.includes("Kolkata") || tz.includes("Calcutta")) {
+        detectedCurrency = "INR";
+        detectedCountry = "IN";
+      } else if (tz.includes("Tokyo")) {
+        detectedCurrency = "JPY";
+        detectedCountry = "JP";
+      } else if (tz.includes("Dubai")) {
+        detectedCurrency = "AED";
+        detectedCountry = "AE";
+      } else if (tz.includes("Sao_Paulo")) {
+        detectedCurrency = "BRL";
+        detectedCountry = "BR";
+      } else if (
+        tz.includes("New_York") ||
+        tz.includes("Chicago") ||
+        tz.includes("Denver") ||
+        tz.includes("Los_Angeles") ||
+        tz.includes("Phoenix") ||
+        tz.includes("Anchorage") ||
+        tz.includes("Honolulu") ||
+        tz.startsWith("America/") ||
+        tz.startsWith("US/")
+      ) {
+        detectedCurrency = "USD";
+        detectedCountry = "US";
+      } else if (typeof navigator !== "undefined" && navigator.language) {
+        const lang = navigator.language.toUpperCase();
+        if (lang.endsWith("-NG")) {
+          detectedCurrency = "NGN";
+          detectedCountry = "NG";
+        } else if (lang.endsWith("-GB")) {
+          detectedCurrency = "GBP";
+          detectedCountry = "GB";
+        } else if (lang.endsWith("-CA")) {
+          detectedCurrency = "CAD";
+          detectedCountry = "CA";
+        } else if (lang.endsWith("-AU")) {
+          detectedCurrency = "AUD";
+          detectedCountry = "AU";
+        }
       }
     }
 
@@ -101,29 +181,35 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
       return result;
     }
 
-    // Fetch live exchange rate against USD
-    let rate = 1.0;
+    // Static fallback rates if FX API times out, rate limits (429), or errors (5xx)
+    const FALLBACK_RATES: Record<string, number> = {
+      NGN: 1480,
+      EUR: 0.92,
+      GBP: 0.79,
+      GHS: 15.5,
+      KES: 130,
+      ZAR: 18.2,
+      CAD: 1.36,
+      AUD: 1.52,
+      INR: 83.5,
+      JPY: 155,
+      AED: 3.67,
+      BRL: 5.4,
+    };
+
+    // Initialize with fallback rate for detected currency, defaulting to 1.0
+    let rate = FALLBACK_RATES[detectedCurrency] || 1.0;
     try {
       const fxRes = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(3000) });
       if (fxRes.ok) {
         const fxData = await fxRes.json();
-        if (fxData.rates && fxData.rates[detectedCurrency]) {
-          rate = fxData.rates[detectedCurrency];
+        const detectedRate = fxData?.rates?.[detectedCurrency];
+        if (typeof detectedRate === "number" && detectedRate > 0 && isFinite(detectedRate)) {
+          rate = detectedRate;
         }
       }
     } catch {
-      // Static fallback rates if FX API times out
-      const FALLBACK_RATES: Record<string, number> = {
-        NGN: 1480,
-        EUR: 0.92,
-        GBP: 0.79,
-        GHS: 15.5,
-        KES: 130,
-        ZAR: 18.2,
-        CAD: 1.36,
-        AUD: 1.52,
-      };
-      rate = FALLBACK_RATES[detectedCurrency] || 1.0;
+      // On fetch exception or timeout, preserve fallback rate
     }
 
     const symbol = CURRENCY_SYMBOLS[detectedCurrency] || `${detectedCurrency} `;

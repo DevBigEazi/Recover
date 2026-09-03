@@ -11,6 +11,7 @@ import RegistrationSuccessCard from "@/components/RegistrationPage/RegistrationS
 import ContactPrivacySection from "@/components/RegistrationPage/ContactPrivacySection";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { detectUserCurrency, UserCurrencyInfo } from "@/lib/currency";
 
 export default function RegisterPage() {
   const { account, isAuthLoading } = useAuthReady();
@@ -38,6 +39,11 @@ export default function RegisterPage() {
   const [keepPrivate, setKeepPrivate] = useState(true);
   const [contactMethod, setContactMethod] = useState<"phone" | "whatsapp" | "email">("phone");
   const [singleContactValue, setSingleContactValue] = useState("");
+  const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+
+  useEffect(() => {
+    detectUserCurrency().then(setUserCurrency);
+  }, []);
 
   // Sync single contact value when method or profile changes
   useEffect(() => {
@@ -541,7 +547,11 @@ export default function RegisterPage() {
                       id="reward"
                       value={reward}
                       onChange={(e) => setReward(e.target.value)}
-                      placeholder="e.g. 5,000 NGN, a cup of coffee, or custom token reward details"
+                      placeholder={
+                        userCurrency?.currency === "NGN"
+                          ? "e.g. 5,000 NGN, a cup of coffee, or custom reward details"
+                          : "e.g. $20 USD, a cup of coffee, or custom reward details"
+                      }
                       className="block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent bg-neutral-mist/30"
                       required={rewardType === "custom"}
                       disabled={isSubmitting}

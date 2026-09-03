@@ -82,10 +82,10 @@ export async function POST(
 
     const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
 
-    if (shipment.status === "Verified" || shipment.status === "Disputed") {
+    if (shipment.status !== "Created") {
       return NextResponse.json(
-        { error: `Cannot log handover. Shipment status is '${shipment.status}'.` },
-        { status: 409 }
+        { error: `Cannot log handover. Package must be in 'Created' status. Current status is '${shipment.status}'.` },
+        { status: 400 }
       );
     }
 

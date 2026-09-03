@@ -83,11 +83,11 @@ export async function POST(
 
     effectiveRecipientAddress = effectiveRecipientAddress || "Anonymous Recipient";
 
-    // Idempotency guard: cannot dispute a package that is already resolved
-    if (shipment.status === "Verified" || shipment.status === "Disputed") {
+    // Idempotency guard: cannot dispute a package that is not in transit
+    if (shipment.status !== "InTransit") {
       return NextResponse.json(
-        { error: `Cannot file a dispute. Package status is already '${shipment.status}'.` },
-        { status: 409 }
+        { error: `Cannot file a dispute. Package must be 'InTransit' (handed over to a courier). Current status is '${shipment.status}'.` },
+        { status: 400 }
       );
     }
 

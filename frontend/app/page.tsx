@@ -3,7 +3,7 @@
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Truck, Lock, Smartphone, Sparkles } from "lucide-react";
+import { ArrowRight, ShieldCheck, Truck, Lock, Smartphone, Bot } from "lucide-react";
 
 export default function Home() {
   return (
@@ -16,8 +16,14 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center space-y-4 sm:space-y-6 max-w-3xl mx-auto">
               {/* Tagline Badge */}
-              <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold text-accent uppercase tracking-wider select-none shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-accent" /> Dual Protocol · Valuables &amp; Logistics Tracking
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[11px] sm:text-xs text-primary shadow-2xs hover:border-accent/40 transition-all select-none backdrop-blur-xs">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                </span>
+                <span className="font-bold tracking-tight text-primary">Dual Protocol</span>
+                <span className="text-neutral-slate/40 font-light">·</span>
+                <span className="font-medium text-neutral-slate">Valuables &amp; Logistics Tracking</span>
               </div>
 
               <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl lg:text-6xl leading-tight">
@@ -153,7 +159,7 @@ export default function Home() {
               {/* Feature 4 */}
               <div className="bg-neutral-mist/30 border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-3 sm:space-y-4 hover:border-accent/40 transition-colors shadow-xs">
                 <div className="p-2.5 bg-accent/10 rounded-xl w-max text-accent">
-                  <Sparkles className="w-6 h-6" />
+                  <Bot className="w-6 h-6" />
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-primary font-display">AI Recovery Assistance</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">

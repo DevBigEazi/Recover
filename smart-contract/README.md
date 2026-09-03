@@ -79,11 +79,12 @@ forge script scripts/RecoverShipment.s.sol:RecoverShipmentScript --rpc-url elect
 * **Recover (Lost & Found) Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
 * **Recover Implementation (v2 with Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2` (Verified)
 * **RecoverShipment (Delivery Verification) Proxy Address:** `0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012`
-* **RecoverShipment Implementation:** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59` (Verified)
+* **RecoverShipment Implementation v2 (Current):** `0xC5c262ddF9e730ABD6eF57d45316777c919Ff5A4`
+* **RecoverShipment Implementation v1 (Historical):** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59` (Verified)
 
 ### Electroneum Testnet (Chain ID `5201420`)
 * **Recover (Lost & Found) Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
 * **Recover Implementation (v2 with Deletion):** `0x0a637c959cAc325b8a422d4E17EE0f1b7F57Af3b`
-* **RecoverShipment (Delivery Verification) Proxy Address:** `0x61af0c64B539D3b4F0EB3A0243445a925c4A30D5`
-* **RecoverShipment Implementation:** `0xDdc482bCCa5c539069e215e6887EEdFFbD90c871` (Verified)
+* **RecoverShipment (Delivery Verification) Proxy Address:** `0x0d59e2f70F093B227Eb8f730A81f638bcc6A48f0`
+* **RecoverShipment Implementation:** `0xe65F27Eaa6b1496ACa468e918A57f61B3f563fAf` (Not Verified)
 

@@ -125,9 +125,17 @@ export default function ItemInfoCard({
         </div>
 
         <div className="space-y-2">
-          <span className="inline-flex items-center gap-1 bg-green-50 border border-green-200 px-3 py-1 rounded-full text-xs font-bold text-accent uppercase tracking-wider">
-            ✅ Verified Active
-          </span>
+          {item.status === "Recovered" ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-semibold text-blue-700 shadow-2xs select-none">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Recovered
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-700 shadow-2xs select-none">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Verified Active
+            </span>
+          )}
           <h2 className="text-2xl font-bold text-primary font-display mt-2">Verified Owner Ownership</h2>
           <p className="text-sm text-neutral-slate max-w-md mx-auto">
             This item is secured in Recover's decentralized registry. It belongs to the verified owner below.
@@ -179,8 +187,12 @@ export default function ItemInfoCard({
       </div>
 
       <div className="space-y-2">
-        <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold text-warning uppercase tracking-wider">
-          ⚠️ Reported Lost
+        <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-xs font-semibold text-amber-800 shadow-2xs select-none">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
+          </span>
+          Reported Missing
         </span>
         <h2 className="text-2xl font-bold text-primary font-display mt-2">This Item is Missing</h2>
         <p className="text-sm text-neutral-slate max-w-md mx-auto">

@@ -42,21 +42,21 @@ sequenceDiagram
 
 ## 🚀 Application Pages & Feature Matrix
 
-| Page Route | Purpose & Key Features |
-| :--- | :--- |
-| **`/`** | **Landing Page**: Product overview, dual-value proposition, live feature showcases, and getting started CTAs. |
-| **`/register`** | **Item Registration**: Register personal items with category validation (Phone, Electronics, Keys, Wallets, Bags, Vehicles, Pets, Other). Enforces trusted alternate contacts for Phones and leverages Google Gemini 2.0 to draft item descriptions. |
-| **`/dashboard`** | **Owner Dashboard**: Central hub displaying registered items, loss status toggles, active QR limits, subscription status, and Sticker Studio quick links. |
-| **`/items/[id]`** | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other). |
-| **`/verify/[id]`** | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/courier report submission form. |
-| **`/shipments`** | **Logistics Merchant Dashboard**: Commercial dispatch portal for creating tamper-proof package shipments (`RCV-` followed by 12 hexadecimal characters), scratch-off inner secret generation (`RCVR-` followed by 8 hexadecimal characters), log custody handovers to dispatch riders, dual WhatsApp link generation, subscription plan paywall cards, and dispatch logs. |
-| **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Private company tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), courier dispatch PINs, Google Maps location tracking, and custody handover tools. |
-| **`/scan/[id]`** | **Dual Public & Courier Scan View**: No-auth mobile interface serving two dedicated roles: (1) **Rider Link (`?pin=XXXX`)**: Unlocks Courier Delivery Manifest (Recipient Name, Contact Phone with one-tap Call button, Delivery Destination); (2) **Recipient Link**: Public tracking view displaying dispatched courier contact info and account-free physical scratch-off PIN verification. |
-| **`/developers`** | **Logistics Developer Portal**: Comprehensive REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization headers (`x-api-key`), and webhook payload formats. |
-| **`/settings`** | **Account & Merchant Settings**: Profile management, API key generation & rolling, and Logistics Subscription Upgrade Modal with live FX currency conversion and downgrade protection. |
-| **`/pricing`** | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Logistics Pro Tiers (Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees. |
-| **`/about`** | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless blockchain architecture, privacy standards, and common user questions. |
-| **`/notifications`** | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions. |
+| Page Route            | Purpose & Key Features                                                                                                                                                                                                                                                                                                                                                                         |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`/`**               | **Landing Page**: Product overview, dual-value proposition, live feature showcases, and getting started CTAs.                                                                                                                                                                                                                                                                                  |
+| **`/register`**       | **Item Registration**: Register personal items with category validation (Phone, Electronics, Keys, Wallets, Bags, Vehicles, Pets, Other). Enforces trusted alternate contacts for Phones and leverages Google Gemini 2.0 to draft item descriptions.                                                                                                                                           |
+| **`/dashboard`**      | **Owner Dashboard**: Central hub displaying registered items, loss status toggles, active QR limits, subscription status, and Sticker Studio quick links.                                                                                                                                                                                                                                      |
+| **`/items/[id]`**     | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other).                                                                                                                                                |
+| **`/verify/[id]`**    | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/courier report submission form.                                                                                                                                                                        |
+| **`/shipments`**      | **Logistics Merchant Dashboard**: Commercial dispatch portal for creating tamper-proof package shipments (`RCV-` followed by 12 hexadecimal characters), scratch-off inner secret generation (`RCVR-` followed by 8 hexadecimal characters), log custody handovers to dispatch riders, dual WhatsApp link generation, subscription plan paywall cards, and dispatch logs.                      |
+| **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Private company tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), courier dispatch PINs, Google Maps location tracking, and custody handover tools.                                                                                                                                              |
+| **`/scan/[id]`**      | **Dual Public & Courier Scan View**: No-auth mobile interface serving two dedicated roles: (1) **Rider Link (`?pin=XXXX`)**: Unlocks Courier Delivery Manifest (Recipient Name, Contact Phone with one-tap Call button, Delivery Destination); (2) **Recipient Link**: Public tracking view displaying dispatched courier contact info and account-free physical scratch-off PIN verification. |
+| **`/developers`**     | **Logistics Developer Portal**: Comprehensive REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization headers (`x-api-key`), and webhook payload formats.                                                                                                                                                                                              |
+| **`/settings`**       | **Account & Merchant Settings**: Profile management, API key generation & rolling, and Logistics Subscription Upgrade Modal with live FX currency conversion and downgrade protection.                                                                                                                                                                                                         |
+| **`/pricing`**        | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Logistics Pro Tiers (Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees.                                                                                                                                                                                                                         |
+| **`/about`**          | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless blockchain architecture, privacy standards, and common user questions.                                                                                                                                                                                                                                                |
+| **`/notifications`**  | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions.                                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -64,18 +64,18 @@ sequenceDiagram
 
 Recover features a seamless payment engine powered by **Stripe Checkout & Stripe Adaptive Pricing**:
 
-* **Personal Item Report Detail Unlocks**:
+- **Personal Item Report Detail Unlocks**:
   - **Phone Category**: **$3.50 USD** base price
   - **Other Categories**: **$1.50 USD** base price
-* **Enterprise Logistics SaaS Subscriptions**:
+- **Enterprise Logistics SaaS Subscriptions**:
   - **Pro Lite**: **$6 / month** (or **$64.80 / year** — Save 10%) · Up to 2,500 dispatches/mo
   - **Pro Starter**: **$15 / month** (or **$162 / year** — Save 10%) · Up to 10,000 dispatches/mo
   - **Pro Growth**: **$45 / month** (or **$486 / year** — Save 10%) · Up to 100,000 dispatches/mo
   - **Pro Scale**: **$100 / month** (or **$1,080 / year** — Save 10%) · Up to 500,000 dispatches/mo
-* **Dynamic FX Currency Converter (`lib/currency.ts`)**:
+- **Dynamic FX Currency Converter (`lib/currency.ts`)**:
   - Automatically detects the user's country and local currency via IP geolocation and browser locale.
   - Converts base USD prices dynamically into local currency displays (e.g., `₦5,000 NGN ($3.50 USD)`, `€3.20 EUR`, `£2.75 GBP`).
-* **Subscription Rules & Quota Protection**:
+- **Subscription Rules & Quota Protection**:
   - **10% Discount** on all annual billing cycles with explicit mode labeling (`Annual Billing` vs `Monthly Billing`).
   - **Unused Quota Rollover**: Remaining unused shipment quota automatically rolls over to the next month upon renewal.
   - **Uninterrupted Metered Overage**: When a paid plan quota is exhausted, service is **never cut off**; additional shipments transition to low-cost overage billing ($0.02, $0.015, or $0.01 USD per package).
@@ -87,37 +87,38 @@ Recover features a seamless payment engine powered by **Stripe Checkout & Stripe
 
 Recover includes an integrated **Printable QR Sticker Studio**:
 
-* **Standardized Sizes**:
-  - **Mini (~10mm x 10mm)** — *(Recommended, equivalent to medical drug carton code)*
+- **Standardized Sizes**:
+  - **Mini (~10mm x 10mm)** — _(Recommended, equivalent to medical drug carton code)_
   - **Standard (~25mm x 25mm)**
   - **Large (~50mm x 50mm)**
-* **Top-Aligned Sticker Caption**:
+- **Top-Aligned Sticker Caption**:
   All generated QR stickers include the clear caption printed above the code:
-  > *"This item might be lost. If found, please scan to contact the owner."*
-* **Batch Printing**: Logistics merchants can export bulk high-resolution vector PDF/PNG sticker sheets for commercial packaging.
+  > _"This item might be lost. If found, please scan to contact the owner."_
+- **Batch Printing**: Logistics merchants can export bulk high-resolution vector PDF/PNG sticker sheets for commercial packaging.
 
 ---
 
 ## 🔒 Security, Privacy & Web3 Infrastructure
 
-* **Electroneum Mainnet Deployed Contracts (`52014`)**:
+- **Electroneum Mainnet Deployed Contracts (`52014`)**:
   - **Recover Item Registry Contract (`Recover.sol`)**:
     - **Proxy Address:** `0x67648938d99bd1809987F18a09f427D8da6C88fd`
     - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2`
   - **Recover Shipment Logistics Contract (`RecoverShipment.sol`)**:
     - **Proxy Address:** `0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012`
-    - **Implementation:** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59`
-* **Gasless Backend Relayer Pattern**:
+    - **Implementation v2 (Current):** `0xC5c262ddF9e730ABD6eF57d45316777c919Ff5A4`
+    - **Implementation v1 (Historical):** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59`
+- **Gasless Backend Relayer Pattern**:
   - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
   - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
-* **Cryptographic Signed Wallet Challenge Session Auth (`/api/auth/token`)**:
+- **Cryptographic Signed Wallet Challenge Session Auth (`/api/auth/token`)**:
   - Enforces cryptographic signature proof (SIWE login payload or signed challenge nonce) before issuing HTTP-only session JWT tokens, preventing unauthorized token generation from address strings alone.
-* **Consumer-Friendly Copy & Privacy Default**:
+- **Consumer-Friendly Copy & Privacy Default**:
   - Raw EVM hashes (`0x...`) are formatted into consumer tracking codes (`PKG-8F912A`).
   - User wallet addresses are hidden behind Display Names and Company Names.
   - Private key exports require explicit client-side "Click to Reveal" actions and are never cached or logged.
   - Alternate contact details for phones are stored securely off-chain and only revealed to verified finders.
-* **AI Location Insights (Google Gemini 2.0 Flash)**:
+- **AI Location Insights (Google Gemini 2.0 Flash)**:
   - Generates real-time contextual location summaries when finders submit coordinates.
 
 ---
@@ -146,11 +147,12 @@ recover/
 
 Run these commands from the root directory:
 
-* **`npm run dev`**: Start the Next.js development server
-* **`npm run build`**: Lint and compile the production Next.js build
-* **`npm run lint`**: Run ESLint analysis
-* **`npm run compile`**: Compile smart contracts (`forge build`)
-* **`npm run test`**: Run smart contract test suite (`forge test`)
+- **`npm run dev`**: Start the Next.js development server
+- **`npm run build`**: Lint and compile the production Next.js build
+- **`npm run lint`**: Run ESLint analysis
+- **`npm run compile`**: Compile smart contracts (`forge build`)
+- **`npm run test`**: Run smart contract test suite (`forge test`)
 
 ### Database Setup
+
 Configure `MONGODB_URI` in `frontend/.env.local` pointing to your MongoDB instance. Mongoose automatically initializes collection indexes on connection.

@@ -521,11 +521,13 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm shadow-xl space-y-5">
               <h2 className="text-sm font-bold tracking-tight">Delivery History</h2>
 
-              {shipment.events.length === 0 ? (
+              {shipment.events.filter((evt) => (evt.event as string) !== "MetadataUpdated").length === 0 ? (
                 <p className="text-slate-500 text-xs text-center py-4">No events recorded yet.</p>
               ) : (
                 <div className="relative border-l border-slate-800 pl-5 space-y-6 ml-2">
-                  {shipment.events.map((evt, idx) => (
+                  {shipment.events
+                    .filter((evt) => (evt.event as string) !== "MetadataUpdated")
+                    .map((evt, idx) => (
                     <div key={idx} className="relative">
                       <span className={`absolute -left-7 top-0.5 rounded-full p-1 border ${
                         evt.event === "Verified"

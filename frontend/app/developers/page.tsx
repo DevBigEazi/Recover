@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { Code, Terminal, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, ShieldCheck, Play, Loader2, QrCode } from "lucide-react";
+import { Code, Copy, Check, ArrowRight, Server, Globe, KeyRound, UserPlus, Package, ShieldCheck, Play, Loader2, QrCode } from "lucide-react";
 
 
 export default function DevelopersPage() {
@@ -13,7 +13,7 @@ export default function DevelopersPage() {
 
   // Interactive REST API Console State
   const [apiTestKey, setApiTestKey] = useState<string>("");
-  const [selectedConsoleEndpoint, setSelectedConsoleEndpoint] = useState<"create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr">("create");
+  const [selectedConsoleEndpoint, setSelectedConsoleEndpoint] = useState<"create" | "edit_patch" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr">("create");
   const [reqParamId, setReqParamId] = useState<string>("RCV-DEMOPKG123");
   const [reqBodyText, setReqBodyText] = useState<string>(
     JSON.stringify({
@@ -55,6 +55,13 @@ export default function DevelopersPage() {
       destination: "Victoria Island, Lagos",
       weight: "0.85"
     }, null, 2),
+    edit_patch: JSON.stringify({
+      packageName: "Updated Express Parcel",
+      receiverName: "Alex Morgan",
+      receiverPhone: "+2348099887766",
+      destination: "Lekki Phase 1, Lagos",
+      weight: "1.20"
+    }, null, 2),
     list: "",
     verify_get: "",
     handover_post: JSON.stringify({
@@ -77,7 +84,7 @@ export default function DevelopersPage() {
     shipment_qr: ""
   };
 
-  const handleEndpointSelect = (ep: "create" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr") => {
+  const handleEndpointSelect = (ep: "create" | "edit_patch" | "list" | "verify_get" | "handover_post" | "verify_post" | "history_get" | "dispute_post" | "health_get" | "shipment_qr") => {
     setSelectedConsoleEndpoint(ep);
     setReqBodyText(defaultConsoleBodies[ep] || "");
     setTestRespStatus(null);
@@ -92,7 +99,7 @@ export default function DevelopersPage() {
       const secret = lastCreatedInnerSecret || "RCVR-59DBE11D";
       setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
       setReqBodyText(JSON.stringify({ innerSecret: secret, reason: "Package contents damaged on arrival", location: "Lekki Phase 1" }, null, 2));
-    } else if (ep === "verify_get" || ep === "handover_post" || ep === "history_get" || ep === "shipment_qr") {
+    } else if (ep === "edit_patch" || ep === "verify_get" || ep === "handover_post" || ep === "history_get" || ep === "shipment_qr") {
       setReqParamId(lastCreatedTrackingCode || "RCV-DEMOPKG123");
     }
   };
@@ -139,6 +146,10 @@ export default function DevelopersPage() {
       if (selectedConsoleEndpoint === "create") {
         url = "/api/v1/shipments/create";
         method = "POST";
+        bodyData = reqBodyText;
+      } else if (selectedConsoleEndpoint === "edit_patch") {
+        url = `/api/v1/shipments/${reqParamId.trim()}`;
+        method = "PATCH";
         bodyData = reqBodyText;
       } else if (selectedConsoleEndpoint === "list") {
         url = "/api/v1/shipments";
@@ -400,6 +411,31 @@ res = requests.get(
 )
 print(res.json())`,
     },
+
+    editShipment: {
+      curl: `curl -X PATCH "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D" \\
+  -H "Authorization: Bearer rec_live_8f921a4b901e23f..." \\
+  -H "Content-Type: application/json" \\
+  -d '{ "packageName": "Updated Parcel Name", "receiverPhone": "+2348099887766", "destination": "Lekki Phase 1" }'`,
+      javascript: `const res = await fetch('https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer rec_live_8f921a4b901e23f...',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ packageName: 'Updated Parcel Name', receiverPhone: '+2348099887766', destination: 'Lekki Phase 1' })
+});
+const result = await res.json();
+console.log('Updated:', result.success);`,
+      python: `import requests
+
+res = requests.patch(
+    "https://userecover.xyz/api/v1/shipments/RCV-8F912A3B4C5D",
+    headers={"Authorization": "Bearer rec_live_8f921a4b901e23f..."},
+    json={"packageName": "Updated Parcel Name", "receiverPhone": "+2348099887766", "destination": "Lekki Phase 1"}
+)
+print(res.json())`,
+    },
   };
 
   const webhookPayloadExample = `{
@@ -465,8 +501,14 @@ print(res.json())`,
           
           {/* Hero Banner Header */}
           <div className="text-center space-y-4 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3.5 py-1.5 rounded-full text-xs font-bold text-indigo-600 uppercase tracking-wider select-none shadow-xs">
-              <Terminal className="w-3.5 h-3.5 text-indigo-600" /> Developer REST API &amp; Webhooks
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[11px] sm:text-xs text-primary shadow-2xs hover:border-indigo-500/40 transition-all select-none backdrop-blur-xs">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+              </span>
+              <span className="font-bold tracking-tight text-primary">Developer API</span>
+              <span className="text-neutral-slate/40 font-light">·</span>
+              <span className="font-medium text-neutral-slate">REST API &amp; Webhooks</span>
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl">
@@ -668,6 +710,19 @@ print(res.json())`,
 
                 <button
                   type="button"
+                  onClick={() => handleEndpointSelect("edit_patch")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedConsoleEndpoint === "edit_patch"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-neutral-mist/60 border border-neutral-mist text-neutral-slate hover:text-primary"
+                  }`}
+                >
+                  <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.2 rounded font-extrabold">PATCH</span>
+                  <span>/shipments/[id]</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEndpointSelect("verify_get")}
                   className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedConsoleEndpoint === "verify_get"
@@ -762,7 +817,7 @@ print(res.json())`,
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <div className="space-y-3">
                 {/* ID param input if endpoint has [id] */}
-                {(selectedConsoleEndpoint === "verify_get" || selectedConsoleEndpoint === "handover_post" || selectedConsoleEndpoint === "verify_post" || selectedConsoleEndpoint === "history_get" || selectedConsoleEndpoint === "dispute_post" || selectedConsoleEndpoint === "shipment_qr") && (
+                {(selectedConsoleEndpoint === "edit_patch" || selectedConsoleEndpoint === "verify_get" || selectedConsoleEndpoint === "handover_post" || selectedConsoleEndpoint === "verify_post" || selectedConsoleEndpoint === "history_get" || selectedConsoleEndpoint === "dispute_post" || selectedConsoleEndpoint === "shipment_qr") && (
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-primary block">
                       {selectedConsoleEndpoint === "verify_post"
@@ -971,7 +1026,7 @@ print(res.json())`,
                   <ul className="space-y-1 text-neutral-slate font-mono">
                     <li>• <strong className="text-primary">packageName</strong> (string, required): Reference title</li>
                     <li>• <strong className="text-primary">receiverName</strong> (string, optional): Recipient full name</li>
-                    <li>• <strong className="text-primary">receiverPhone</strong> (string, optional): Recipient phone number</li>
+                    <li>• <strong className="text-primary">receiverPhone</strong> (string, required): Recipient phone number</li>
                     <li>• <strong className="text-primary">destination</strong> (string, optional): Destination city / area</li>
                     <li>• <strong className="text-primary">weight</strong> (string, optional): Weight in kg</li>
                     <li>• <strong className="text-primary">metadata</strong> (object, optional): Custom key-value data</li>
@@ -1165,7 +1220,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Files a formal delivery dispute for damaged, stolen, or missing contents. Updates package status to &quot;Disputed&quot;, records an on-chain event, and triggers a <code className="bg-neutral-mist px-1 rounded">shipment.disputed</code> webhook.
+                Files a formal delivery dispute for damaged, stolen, or missing contents. <strong>Requires the package to be in &quot;InTransit&quot; status</strong> (i.e. handed over to a courier). Updates package status to &quot;Disputed&quot;, records an on-chain event, and triggers a <code className="bg-neutral-mist px-1 rounded">shipment.disputed</code> webhook.
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -1178,6 +1233,37 @@ print(res.json())`,
                   {copiedSnippet === "dispute" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </button>
                 <pre>{codeExamples.disputeShipment[activeLang]}</pre>
+              </div>
+            </div>
+
+            {/* Endpoint 8: Edit Package Details */}
+            <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-mist pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-amber-500 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg uppercase">
+                    PATCH
+                  </span>
+                  <code className="text-sm font-mono font-bold text-primary">/shipments/[id]</code>
+                </div>
+                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  🔑 API Key Required
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                Updates package metadata (name, receiver name, receiver phone, destination, weight) and webhook URL. Only the package creator can edit details. Cannot modify packages in &quot;Verified&quot; or &quot;Disputed&quot; status. <code className="bg-neutral-mist px-1 rounded">receiverPhone</code> cannot be set to empty.
+              </p>
+
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(codeExamples.editShipment[activeLang], "edit")}
+                  className="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Copy code"
+                >
+                  {copiedSnippet === "edit" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre>{codeExamples.editShipment[activeLang]}</pre>
               </div>
             </div>
 

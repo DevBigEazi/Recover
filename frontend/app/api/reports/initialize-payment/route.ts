@@ -42,8 +42,8 @@ export async function POST(request: Request) {
 
     const isPhoneCategory = (item.category || "").toLowerCase() === "phone";
     const unlockAmountCents = isPhoneCategory
-      ? STRIPE_PRICES.REPORT_UNLOCK_PHONE_USD_CENTS // $3.50 USD (~₦5,000)
-      : STRIPE_PRICES.REPORT_UNLOCK_OTHER_USD_CENTS; // $1.50 USD (~₦2,000)
+      ? STRIPE_PRICES.REPORT_UNLOCK_PHONE_USD_CENTS // $3.50 USD
+      : STRIPE_PRICES.REPORT_UNLOCK_OTHER_USD_CENTS; // $1.50 USD
 
     // 3. Create Stripe Checkout session with USD base pricing & adaptive location currency
     const session = await stripe.checkout.sessions.create({

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { detectUserCurrency, UserCurrencyInfo } from "@/lib/currency";
 
 interface LocalItem {
   registrationId: string;
@@ -63,6 +64,11 @@ export default function EditItemModal({
   const [showPublicContactState, setShowPublicContactState] = useState(Boolean(item.showPublicContact));
   const [contactMethod, setContactMethod] = useState<"phone" | "whatsapp" | "email">("phone");
   const [singleContactValue, setSingleContactValue] = useState("");
+  const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+
+  useEffect(() => {
+    detectUserCurrency().then(setUserCurrency);
+  }, []);
 
   // Sync state when modal opens or item changes
   useEffect(() => {
@@ -400,7 +406,11 @@ export default function EditItemModal({
                 id="edit_reward"
                 value={reward}
                 onChange={(e) => setReward(e.target.value)}
-                placeholder="e.g. 5,000 NGN or Coffee on me!"
+                placeholder={
+                  userCurrency?.currency === "NGN"
+                    ? "e.g. 5,000 NGN or Coffee on me!"
+                    : "e.g. $20 USD or Coffee on me!"
+                }
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-accent focus:outline-hidden bg-neutral-mist/30"
               />
             </div>
