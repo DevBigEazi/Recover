@@ -25,14 +25,37 @@ export async function PATCH(
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
-    const apiKeyToken = bearerToken || xApiKeyHeader;
-    const xOwnerAddress = request.headers.get("x-owner-address");
 
-    const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
+    // Check cookie-based session token if present
+    const cookieHeader = request.headers.get("cookie");
+    const authTokenFromCookie = cookieHeader
+      ?.split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith("auth_token="))
+      ?.split("=")[1];
+
+    const apiKeyToken = bearerToken || xApiKeyHeader || authTokenFromCookie;
+
+    if (!apiKeyToken) {
+      return NextResponse.json(
+        { error: "Authentication required. A valid API key or verified session token is required to modify shipment details." },
+        { status: 401 }
+      );
+    }
+
+    const authResult = await getShipperFromApiKey(apiKeyToken);
     if (!authResult.shipper) {
       return NextResponse.json(
-        { error: authResult.error || "Unauthorized API key or owner session required." },
+        { error: authResult.error || "Unauthorized API key or session token provided." },
         { status: authResult.status || 401 }
+      );
+    }
+
+    const xOwnerAddress = request.headers.get("x-owner-address");
+    if (xOwnerAddress && authResult.shipper._id.toLowerCase() !== xOwnerAddress.trim().toLowerCase()) {
+      return NextResponse.json(
+        { error: "Forbidden: x-owner-address header does not match authenticated credentials." },
+        { status: 403 }
       );
     }
 
@@ -95,22 +118,16 @@ export async function PATCH(
       ...existingMetadata,
       ...(packageName !== undefined ? { name: packageName } : {}),
       ...(receiverName !== undefined ? { receiverName } : {}),
-      ...(updatedReceiverPhone !== undefined ? { receiverPhone: String(updatedReceiverPhone).trim() } : {}),
       ...(destination !== undefined ? { destination } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(metadata || {}),
+      ...(updatedReceiverPhone !== undefined ? { receiverPhone: String(updatedReceiverPhone).trim() } : {}),
     };
 
     shipment.metadata = updatedMetadata;
     if (webhookUrl !== undefined) {
       shipment.webhookUrl = webhookUrl || null;
     }
-
-    shipment.events.push({
-      event: "MetadataUpdated",
-      operator: authenticatedShipper._id,
-      timestamp: new Date(),
-    });
 
     await shipment.save();
 

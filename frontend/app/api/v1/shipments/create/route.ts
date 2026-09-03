@@ -37,10 +37,10 @@ export async function POST(request: Request) {
     const finalMetadata = {
       name: packageName || metadata?.name || "General Package",
       weight: weight || metadata?.weight || "unknown",
-      receiverPhone: String(effectiveReceiverPhone).trim(),
       receiverName: receiverName || metadata?.receiverName || null,
       destination: destination || metadata?.destination || null,
       ...(metadata || {}),
+      receiverPhone: String(effectiveReceiverPhone).trim(),
     };
 
     const authHeader = request.headers.get("authorization");

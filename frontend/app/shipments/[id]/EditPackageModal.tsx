@@ -69,6 +69,12 @@ export default function EditPackageModal({
     setIsSubmitting(true);
     try {
       const sessionToken = typeof window !== "undefined" && ownerAddress ? sessionStorage.getItem(`recover_session_jwt_${ownerAddress.toLowerCase()}`) : null;
+      if (!sessionToken && (!apiKey || apiKey.includes("•"))) {
+        toast.error("Authentication required: Please reconnect your wallet to establish a verified session.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };

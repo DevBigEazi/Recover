@@ -181,33 +181,35 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
       return result;
     }
 
-    // Fetch live exchange rate against USD
-    let rate = 1.0;
+    // Static fallback rates if FX API times out, rate limits (429), or errors (5xx)
+    const FALLBACK_RATES: Record<string, number> = {
+      NGN: 1480,
+      EUR: 0.92,
+      GBP: 0.79,
+      GHS: 15.5,
+      KES: 130,
+      ZAR: 18.2,
+      CAD: 1.36,
+      AUD: 1.52,
+      INR: 83.5,
+      JPY: 155,
+      AED: 3.67,
+      BRL: 5.4,
+    };
+
+    // Initialize with fallback rate for detected currency, defaulting to 1.0
+    let rate = FALLBACK_RATES[detectedCurrency] || 1.0;
     try {
       const fxRes = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(3000) });
       if (fxRes.ok) {
         const fxData = await fxRes.json();
-        if (fxData.rates && fxData.rates[detectedCurrency]) {
-          rate = fxData.rates[detectedCurrency];
+        const detectedRate = fxData?.rates?.[detectedCurrency];
+        if (typeof detectedRate === "number" && detectedRate > 0 && isFinite(detectedRate)) {
+          rate = detectedRate;
         }
       }
     } catch {
-      // Static fallback rates if FX API times out
-      const FALLBACK_RATES: Record<string, number> = {
-        NGN: 1480,
-        EUR: 0.92,
-        GBP: 0.79,
-        GHS: 15.5,
-        KES: 130,
-        ZAR: 18.2,
-        CAD: 1.36,
-        AUD: 1.52,
-        INR: 83.5,
-        JPY: 155,
-        AED: 3.67,
-        BRL: 5.4,
-      };
-      rate = FALLBACK_RATES[detectedCurrency] || 1.0;
+      // On fetch exception or timeout, preserve fallback rate
     }
 
     const symbol = CURRENCY_SYMBOLS[detectedCurrency] || `${detectedCurrency} `;

@@ -125,10 +125,17 @@ export default function ItemInfoCard({
         </div>
 
         <div className="space-y-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-700 shadow-2xs select-none">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            Verified Active
-          </span>
+          {item.status === "Recovered" ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-semibold text-blue-700 shadow-2xs select-none">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Recovered
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-700 shadow-2xs select-none">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Verified Active
+            </span>
+          )}
           <h2 className="text-2xl font-bold text-primary font-display mt-2">Verified Owner Ownership</h2>
           <p className="text-sm text-neutral-slate max-w-md mx-auto">
             This item is secured in Recover's decentralized registry. It belongs to the verified owner below.

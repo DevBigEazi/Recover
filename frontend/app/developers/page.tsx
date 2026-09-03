@@ -1026,7 +1026,7 @@ print(res.json())`,
                   <ul className="space-y-1 text-neutral-slate font-mono">
                     <li>• <strong className="text-primary">packageName</strong> (string, required): Reference title</li>
                     <li>• <strong className="text-primary">receiverName</strong> (string, optional): Recipient full name</li>
-                    <li>• <strong className="text-primary">receiverPhone</strong> (string, optional): Recipient phone number</li>
+                    <li>• <strong className="text-primary">receiverPhone</strong> (string, required): Recipient phone number</li>
                     <li>• <strong className="text-primary">destination</strong> (string, optional): Destination city / area</li>
                     <li>• <strong className="text-primary">weight</strong> (string, optional): Weight in kg</li>
                     <li>• <strong className="text-primary">metadata</strong> (object, optional): Custom key-value data</li>

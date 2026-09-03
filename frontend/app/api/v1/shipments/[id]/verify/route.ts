@@ -71,6 +71,19 @@ export async function POST(
 
     const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
 
+    // In sandbox mode, automatically simulate handover to InTransit if newly created
+    if (isSandboxMode && shipment.status === "Created") {
+      shipment.status = "InTransit";
+      shipment.events.push({
+        event: "InTransit",
+        operator: shipment.shipperAddress,
+        locationContext: "Sandbox Auto Handover",
+        timestamp: new Date(),
+        onChainTxHash: `0xsimulated_handover_${Date.now()}`,
+      });
+      await shipment.save();
+    }
+
     // Idempotency guard: package must be in transit to be verified
     if (shipment.status !== "InTransit") {
       return NextResponse.json(

@@ -106,7 +106,8 @@ Recover includes an integrated **Printable QR Sticker Studio**:
     - **Implementation v2 (Item Deletion):** `0x86eeD26665114ECCdD2DbbCE880f968D3A908fb2`
   - **Recover Shipment Logistics Contract (`RecoverShipment.sol`)**:
     - **Proxy Address:** `0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012`
-    - **Implementation v2:** `0xC5c262ddF9e730ABD6eF57d45316777c919Ff5A4`
+    - **Implementation v2 (Current):** `0xC5c262ddF9e730ABD6eF57d45316777c919Ff5A4`
+    - **Implementation v1 (Historical):** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59`
 - **Gasless Backend Relayer Pattern**:
   - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
   - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
