@@ -129,7 +129,7 @@ contract RecoverShipment is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         Shipment storage shipment = _shipments[packageId];
         if (shipment.packageId == bytes32(0)) revert ShipmentNotFound(packageId);
-        if (shipment.status != Status.Created && shipment.status != Status.InTransit) {
+        if (shipment.status != Status.Created) {
             revert InvalidStatusTransition(packageId, shipment.status, Status.InTransit);
         }
 
@@ -166,7 +166,7 @@ contract RecoverShipment is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         Shipment storage shipment = _shipments[packageId];
         if (shipment.packageId == bytes32(0)) revert ShipmentNotFound(packageId);
-        if (shipment.status != Status.Created && shipment.status != Status.InTransit) {
+        if (shipment.status != Status.InTransit) {
             revert InvalidStatusTransition(packageId, shipment.status, Status.Verified);
         }
 
@@ -209,7 +209,7 @@ contract RecoverShipment is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         Shipment storage shipment = _shipments[packageId];
         if (shipment.packageId == bytes32(0)) revert ShipmentNotFound(packageId);
-        if (shipment.status != Status.Created && shipment.status != Status.InTransit) {
+        if (shipment.status != Status.InTransit) {
             revert InvalidStatusTransition(packageId, shipment.status, Status.Disputed);
         }
 

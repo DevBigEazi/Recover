@@ -182,6 +182,39 @@ contract RecoverShipmentTest is Test {
         assertEq(uint8(s.status), uint8(RecoverShipment.Status.InTransit));
     }
 
+    function test_LogHandover_RevertIfAlreadyInTransit() public {
+        // Register
+        uint256 nonce = recoverShipment.userNonces(shipper);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = getRegisterSignature(shipper, TEST_PACKAGE_ID, TEST_PACKAGE_HASH, nonce, deadline);
+
+        vm.prank(shipper);
+        recoverShipment.registerShipment(TEST_PACKAGE_ID, TEST_PACKAGE_HASH, deadline, signature);
+
+        // First handover (Created -> InTransit)
+        uint256 handoverNonce1 = recoverShipment.userNonces(shipper);
+        bytes memory handoverSig1 = getHandoverSignature(shipper, TEST_PACKAGE_ID, handler, handoverNonce1, deadline);
+        vm.prank(shipper);
+        recoverShipment.logHandover(TEST_PACKAGE_ID, handler, deadline, handoverSig1);
+
+        // Second handover attempt (InTransit -> InTransit) should revert
+        address secondHandler = makeAddr("secondHandler");
+        uint256 handoverNonce2 = recoverShipment.userNonces(shipper);
+        bytes memory handoverSig2 =
+            getHandoverSignature(shipper, TEST_PACKAGE_ID, secondHandler, handoverNonce2, deadline);
+
+        vm.prank(shipper);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RecoverShipment.InvalidStatusTransition.selector,
+                TEST_PACKAGE_ID,
+                RecoverShipment.Status.InTransit,
+                RecoverShipment.Status.InTransit
+            )
+        );
+        recoverShipment.logHandover(TEST_PACKAGE_ID, secondHandler, deadline, handoverSig2);
+    }
+
     function test_VerifyDelivery_Success() public {
         // Register
         uint256 nonce = recoverShipment.userNonces(shipper);
@@ -217,6 +250,12 @@ contract RecoverShipmentTest is Test {
         vm.prank(shipper);
         recoverShipment.registerShipment(TEST_PACKAGE_ID, TEST_PACKAGE_HASH, deadline, signature);
 
+        // Handover to handler
+        uint256 handoverNonce = recoverShipment.userNonces(shipper);
+        bytes memory handoverSig = getHandoverSignature(shipper, TEST_PACKAGE_ID, handler, handoverNonce, deadline);
+        vm.prank(shipper);
+        recoverShipment.logHandover(TEST_PACKAGE_ID, handler, deadline, handoverSig);
+
         // Recipient tries to verify with incorrect secret
         uint256 recipientNonce = recoverShipment.userNonces(recipient);
         bytes memory verifySig =
@@ -236,6 +275,12 @@ contract RecoverShipmentTest is Test {
         vm.prank(shipper);
         recoverShipment.registerShipment(TEST_PACKAGE_ID, TEST_PACKAGE_HASH, deadline, signature);
 
+        // Handover to handler (InTransit)
+        uint256 handoverNonce = recoverShipment.userNonces(shipper);
+        bytes memory handoverSig = getHandoverSignature(shipper, TEST_PACKAGE_ID, handler, handoverNonce, deadline);
+        vm.prank(shipper);
+        recoverShipment.logHandover(TEST_PACKAGE_ID, handler, deadline, handoverSig);
+
         // Dispute
         string memory reason = "Tamper sticker broken!";
         uint256 disputeNonce = recoverShipment.userNonces(recipient);
@@ -246,5 +291,31 @@ contract RecoverShipmentTest is Test {
 
         RecoverShipment.Shipment memory s = recoverShipment.getShipment(TEST_PACKAGE_ID);
         assertEq(uint8(s.status), uint8(RecoverShipment.Status.Disputed));
+    }
+
+    function test_DisputeDelivery_RevertIfNotInTransit() public {
+        // Register (status is Created)
+        uint256 nonce = recoverShipment.userNonces(shipper);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = getRegisterSignature(shipper, TEST_PACKAGE_ID, TEST_PACKAGE_HASH, nonce, deadline);
+
+        vm.prank(shipper);
+        recoverShipment.registerShipment(TEST_PACKAGE_ID, TEST_PACKAGE_HASH, deadline, signature);
+
+        // Dispute directly from Created status -> should revert
+        string memory reason = "Tamper sticker broken!";
+        uint256 disputeNonce = recoverShipment.userNonces(recipient);
+        bytes memory disputeSig = getDisputeSignature(recipient, TEST_PACKAGE_ID, reason, disputeNonce, deadline);
+
+        vm.prank(recipient);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RecoverShipment.InvalidStatusTransition.selector,
+                TEST_PACKAGE_ID,
+                RecoverShipment.Status.Created,
+                RecoverShipment.Status.Disputed
+            )
+        );
+        recoverShipment.disputeDelivery(TEST_PACKAGE_ID, reason, deadline, disputeSig);
     }
 }

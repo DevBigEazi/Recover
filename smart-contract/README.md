@@ -84,6 +84,6 @@ forge script scripts/RecoverShipment.s.sol:RecoverShipmentScript --rpc-url elect
 ### Electroneum Testnet (Chain ID `5201420`)
 * **Recover (Lost & Found) Proxy Address:** `0xb7D165292dA19BE617d7E0C6b983CFA2b3716BFE`
 * **Recover Implementation (v2 with Deletion):** `0x0a637c959cAc325b8a422d4E17EE0f1b7F57Af3b`
-* **RecoverShipment (Delivery Verification) Proxy Address:** `0x61af0c64B539D3b4F0EB3A0243445a925c4A30D5`
-* **RecoverShipment Implementation:** `0xDdc482bCCa5c539069e215e6887EEdFFbD90c871` (Verified)
+* **RecoverShipment (Delivery Verification) Proxy Address:** `0x0d59e2f70F093B227Eb8f730A81f638bcc6A48f0`
+* **RecoverShipment Implementation:** `0xe65F27Eaa6b1496ACa468e918A57f61B3f563fAf` (Not Verified)
 
