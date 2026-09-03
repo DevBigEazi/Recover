@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { Check, HelpCircle, ArrowRight, ShieldCheck, Zap, Sparkles, Truck } from "lucide-react";
+import { Check, HelpCircle, ArrowRight, ShieldCheck, Zap, Truck } from "lucide-react";
 import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
 
 export default function PricingPage() {
@@ -62,8 +62,14 @@ export default function PricingPage() {
           
           {/* Page Banner Header */}
           <div className="text-center space-y-4 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 px-3.5 py-1.5 rounded-full text-xs font-bold text-accent uppercase tracking-wider select-none shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-accent" /> Transparent &amp; Flexible Pricing
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[11px] sm:text-xs text-primary shadow-2xs hover:border-accent/40 transition-all select-none backdrop-blur-xs">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+              </span>
+              <span className="font-bold tracking-tight text-primary">Transparent Pricing</span>
+              <span className="text-neutral-slate/40 font-light">·</span>
+              <span className="font-medium text-neutral-slate">Pay-As-You-Go &amp; Logistics SaaS</span>
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl">
@@ -122,9 +128,9 @@ export default function PricingPage() {
                 <p className="text-xs text-neutral-slate leading-relaxed">
                   Pay only when your item is found to unmask finder contact details:
                   <br />
-                  • <strong>Phone Category:</strong> $3.50 USD (equivalent to ~₦5,000)
+                  • <strong>Phone Category:</strong> {convertUsdPrice(3.5, userCurrency).formattedLocal}
                   <br />
-                  • <strong>Other Categories:</strong> $1.50 USD (equivalent to ~₦2,000)
+                  • <strong>Other Categories:</strong> {convertUsdPrice(1.5, userCurrency).formattedLocal}
                   <br />
                   <span className="text-[10px] text-neutral-slate font-medium">Stripe Adaptive Pricing presents converted rates in your local currency automatically.</span>
                 </p>
@@ -236,8 +242,9 @@ export default function PricingPage() {
 
               {/* Card 2: Pro Logistics Tier (Interactive Quota Selector) */}
               <div className="bg-neutral-white border-2 border-primary rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-md relative ring-4 ring-primary/10">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-neutral-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full tracking-wider shadow-xs flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Recommended for Businesses
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-linear-to-r from-primary via-[#24335a] to-primary text-neutral-white text-[10px] font-bold tracking-wider uppercase px-3.5 py-1 rounded-full shadow-sm border border-white/20 flex items-center gap-1.5 select-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent"></span>
+                  <span>Recommended for Logistics</span>
                 </div>
 
                 <div className="space-y-4">
