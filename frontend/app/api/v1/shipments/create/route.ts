@@ -26,10 +26,18 @@ export async function POST(request: Request) {
       destination,
     } = body;
 
+    const effectiveReceiverPhone = receiverPhone || metadata?.receiverPhone;
+    if (!effectiveReceiverPhone || !String(effectiveReceiverPhone).trim()) {
+      return NextResponse.json(
+        { error: "receiverPhone is required when registering a shipment." },
+        { status: 400 }
+      );
+    }
+
     const finalMetadata = {
       name: packageName || metadata?.name || "General Package",
       weight: weight || metadata?.weight || "unknown",
-      receiverPhone: receiverPhone || metadata?.receiverPhone || null,
+      receiverPhone: String(effectiveReceiverPhone).trim(),
       receiverName: receiverName || metadata?.receiverName || null,
       destination: destination || metadata?.destination || null,
       ...(metadata || {}),

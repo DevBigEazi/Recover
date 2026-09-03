@@ -155,7 +155,7 @@ export interface IPushSubscription {
 }
 
 export interface IShipmentEvent {
-  event: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
+  event: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed" | "MetadataUpdated";
   operator: string;
   location?: string | null;
   locationContext?: string | null;

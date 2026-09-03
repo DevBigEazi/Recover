@@ -71,11 +71,11 @@ export async function POST(
 
     const isSandboxMode = isTestShipment || shipment.isTest || shipment._id.startsWith("0xsimulated_") || shipment._id.startsWith("0xtest_") || shipment.trackingCode === "RCV-DEMOPKG123";
 
-    // Idempotency guard: only allow verification when the package is actively in transit (or Created in testShipment)
-    if (shipment.status !== "InTransit" && !(isTestShipment && shipment.status === "Created")) {
+    // Idempotency guard: package must be in transit to be verified
+    if (shipment.status !== "InTransit") {
       return NextResponse.json(
-        { error: `Cannot verify delivery. Package status is '${shipment.status}' — expected 'InTransit'.` },
-        { status: 409 }
+        { error: `Cannot verify delivery. Package must be 'InTransit' (handed over to a courier). Current status is '${shipment.status}'.` },
+        { status: 400 }
       );
     }
 

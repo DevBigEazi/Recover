@@ -17,11 +17,13 @@ export async function GET(
     await connectDB();
 
     const xOwnerAddress = request.headers.get("x-owner-address");
+    let authenticatedShipperAddress: string | null = null;
     if (apiKeyToken || xOwnerAddress) {
       const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
       if (!authResult.shipper) {
         return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
       }
+      authenticatedShipperAddress = authResult.shipper._id;
     }
 
     const idFilter = buildShipmentIdFilter(id, false);
@@ -35,8 +37,6 @@ export async function GET(
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
-
-
     const url = new URL(request.url);
     const pinParam = url.searchParams.get("pin");
 
@@ -48,9 +48,14 @@ export async function GET(
     const rawMetadata = { ...(shipmentObj.metadata || {}) } as Record<string, unknown>;
     delete rawMetadata.courierPin;
 
+    const isOwner = Boolean(
+      authenticatedShipperAddress &&
+      authenticatedShipperAddress.toLowerCase() === shipment.shipperAddress.toLowerCase()
+    );
+
     const storedCourierPin = shipmentObj.metadata?.courierPin as string | undefined;
     const isCourierAuthorized = Boolean(
-      pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim()
+      isOwner || (pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim())
     );
 
     const riderInfo = {

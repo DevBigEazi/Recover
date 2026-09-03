@@ -5,23 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Loader2,
-  ShieldAlert,
-  CheckCircle,
-  AlertTriangle,
-  MapPin,
-  Calendar,
-  User,
-  FileText,
-  ChevronLeft,
-  Globe,
-  Download,
-  Lock,
-  ArrowRightLeft,
-  X,
-  Share2,
-} from "lucide-react";
+import { ArrowRightLeft, AlertTriangle, User, MapPin, X, Loader2, FileText, Calendar, CheckCircle, ChevronLeft, Globe, Share2, ShieldAlert, Lock } from "lucide-react";
+import EditPackageModal from "./EditPackageModal";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { isRealTxHash } from "@/lib/chain";
 import { useProfile } from "@/context/ProfileContext";
@@ -74,6 +59,9 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
     riderPhone: string | null;
     riderName: string | null;
   } | null>(null);
+
+  // Edit Package state
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Redirect individual users immediately
   useEffect(() => {
@@ -151,6 +139,8 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
       setIsSubmittingHandover(false);
     }
   };
+
+
 
   // Auth loading
   if (isAuthLoading || !isProfileLoaded) {
@@ -333,17 +323,29 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-md font-bold tracking-tight">Chain of Custody Timeline</h2>
                 {shipment.status !== "Verified" && shipment.status !== "Disputed" && (
-                  <button
-                    onClick={() => setShowHandoverModal(true)}
-                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5" /> Log Custody Handover
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Edit Package
+                    </button>
+                    {shipment.status === "Created" && (
+                      <button
+                        onClick={() => setShowHandoverModal(true)}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> Log Custody Handover
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               
               <div className="relative border-l border-slate-800 pl-6 space-y-8 ml-3">
-                {shipment.events.map((evt, idx) => (
+                {shipment.events
+                  .filter((evt) => (evt.event as string) !== "MetadataUpdated")
+                  .map((evt, idx) => (
                   <div key={idx} className="relative">
                     {/* Circle icon marker */}
                     <span className={`absolute -left-9 top-0.5 rounded-full p-1 border ${
@@ -632,6 +634,26 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             </button>
           </div>
         </div>
+      )}
+
+      {/* Edit Package Modal */}
+      {showEditModal && shipment && (
+        <EditPackageModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          shipmentId={id}
+          initialValues={{
+            packageName: (shipment.metadata?.name as string) || (shipment.metadata?.packageName as string) || null,
+            receiverName: (shipment.metadata?.receiverName as string) || (shipment.metadata?.recipientName as string) || null,
+            receiverPhone: (shipment.metadata?.receiverPhone as string) || (shipment.metadata?.recipientPhone as string) || "",
+            destination: (shipment.metadata?.destination as string) || (shipment.metadata?.deliveryAddress as string) || null,
+            weight: (shipment.metadata?.weight as string) || (shipment.metadata?.weightKg != null ? String(shipment.metadata.weightKg) : null),
+          }}
+          ownerAddress={account?.address}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["shipment-tracking", id] });
+          }}
+        />
       )}
     </div>
   );
