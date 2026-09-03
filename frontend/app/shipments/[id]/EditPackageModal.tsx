@@ -16,6 +16,7 @@ interface EditPackageModalProps {
     weight?: string | number | null;
   };
   ownerAddress?: string;
+  apiKey?: string | null;
   onSuccess: () => void;
 }
 
@@ -36,6 +37,7 @@ export default function EditPackageModal({
   shipmentId,
   initialValues,
   ownerAddress,
+  apiKey,
   onSuccess,
 }: EditPackageModalProps) {
   const [packageName, setPackageName] = useState(initialValues.packageName || "");
@@ -66,12 +68,22 @@ export default function EditPackageModal({
 
     setIsSubmitting(true);
     try {
+      const sessionToken = typeof window !== "undefined" && ownerAddress ? sessionStorage.getItem(`recover_session_jwt_${ownerAddress.toLowerCase()}`) : null;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      } else if (apiKey && !apiKey.includes("•")) {
+        headers["x-api-key"] = apiKey;
+      }
+      if (ownerAddress) {
+        headers["x-owner-address"] = ownerAddress;
+      }
+
       const response = await fetch(`/api/v1/shipments/${shipmentId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(ownerAddress ? { "x-owner-address": ownerAddress } : {}),
-        },
+        headers,
         body: JSON.stringify({
           packageName: packageName.trim() || undefined,
           receiverName: receiverName.trim() || undefined,

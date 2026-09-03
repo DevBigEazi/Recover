@@ -13,6 +13,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import { formatTrackingCode, formatOperatorName, formatWeight } from "@/lib/format";
+import { ensureSessionAuth } from "@/lib/auth-client";
 
 
 
@@ -43,7 +44,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const queryClient = useQueryClient();
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { role, companyName, isProfileLoaded } = useProfile();
+  const { role, companyName, isProfileLoaded, apiKey } = useProfile();
 
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [riderName, setRiderName] = useState("");
@@ -72,10 +73,22 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
   // Fetch shipment details — only for merchants
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
-    queryKey: ["shipment-tracking", id],
+    queryKey: ["shipment-tracking", id, account?.address],
     queryFn: async () => {
+      const sessionToken = await ensureSessionAuth(account);
+
+      const headers: Record<string, string> = {};
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      } else if (apiKey && !apiKey.includes("•")) {
+        headers["x-api-key"] = apiKey;
+      }
+      if (account?.address) {
+        headers["x-owner-address"] = account.address;
+      }
+
       const response = await fetch(`/api/v1/shipments/${id}/history`, {
-        headers: account?.address ? { "x-owner-address": account.address } : {},
+        headers,
       });
       if (!response.ok) throw new Error("Failed to load shipment details");
       return response.json();
@@ -650,6 +663,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             weight: (shipment.metadata?.weight as string) || (shipment.metadata?.weightKg != null ? String(shipment.metadata.weightKg) : null),
           }}
           ownerAddress={account?.address}
+          apiKey={apiKey}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["shipment-tracking", id] });
           }}

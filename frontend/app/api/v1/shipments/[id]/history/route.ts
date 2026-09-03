@@ -12,18 +12,40 @@ export async function GET(
     const authHeader = request.headers.get("authorization");
     const xApiKeyHeader = request.headers.get("x-api-key");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : null;
-    const apiKeyToken = bearerToken || xApiKeyHeader;
+
+    // Check cookie-based session token if present
+    const cookieHeader = request.headers.get("cookie");
+    const authTokenFromCookie = cookieHeader
+      ?.split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith("auth_token="))
+      ?.split("=")[1];
+
+    const apiKeyToken = bearerToken || xApiKeyHeader || authTokenFromCookie;
 
     await connectDB();
 
     const xOwnerAddress = request.headers.get("x-owner-address");
     let authenticatedShipperAddress: string | null = null;
-    if (apiKeyToken || xOwnerAddress) {
-      const authResult = await getShipperFromApiKey(apiKeyToken, xOwnerAddress);
+    if (apiKeyToken) {
+      // Require a valid API key or cryptographically verified JWT/session.
+      // Do not pass x-owner-address as a fallback so an unverified header alone cannot authenticate.
+      const authResult = await getShipperFromApiKey(apiKeyToken);
       if (!authResult.shipper) {
-        return NextResponse.json({ error: authResult.error || "Invalid or unauthorized API key provided." }, { status: authResult.status || 401 });
+        return NextResponse.json(
+          { error: authResult.error || "Invalid or unauthorized API key provided." },
+          { status: authResult.status || 401 }
+        );
       }
       authenticatedShipperAddress = authResult.shipper._id;
+
+      // If x-owner-address was supplied alongside valid credentials, ensure they match
+      if (xOwnerAddress && authenticatedShipperAddress.toLowerCase() !== xOwnerAddress.trim().toLowerCase()) {
+        return NextResponse.json(
+          { error: "Forbidden: x-owner-address header does not match authenticated credentials." },
+          { status: 403 }
+        );
+      }
     }
 
     const idFilter = buildShipmentIdFilter(id, false);
