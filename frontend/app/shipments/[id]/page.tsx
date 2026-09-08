@@ -33,7 +33,6 @@ interface Shipment {
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   metadata?: Record<string, unknown> | null;
   events: ShipmentEvent[];
-  webhookUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

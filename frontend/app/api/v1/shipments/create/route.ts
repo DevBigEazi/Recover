@@ -17,7 +17,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      webhookUrl,
       metadata,
       packageName,
       weight,
@@ -211,7 +210,6 @@ export async function POST(request: Request) {
       innerSecret: innerSecret,
       innerSecretHash: packageHash,
       metadata: finalMetadata,
-      webhookUrl: webhookUrl || null,
       trackingCode: trackingCode,
       isTest: isTest,
       events: [
@@ -248,6 +246,37 @@ export async function POST(request: Request) {
         );
       } catch (err) {
         console.error("Failed to dispatch shipment_created notification:", err);
+      }
+    }
+
+    // 9. Dispatch shipment.created webhook if shipper has configured a webhookUrl
+    if (shipper?.webhookUrl) {
+      try {
+        fetch(shipper.webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Recover-Webhook-Delivery/1.0",
+          },
+          body: JSON.stringify({
+            event: "shipment.created",
+            timestamp: new Date().toISOString(),
+            data: {
+              trackingCode,
+              packageName: (finalMetadata.name as string) || "General Package",
+              shipperAddress: shipperAddress.toLowerCase(),
+              companyName: shipper.companyName || null,
+              status: "Created",
+              onChainTxHash: txHash,
+              isTest,
+            },
+          }),
+          signal: AbortSignal.timeout(5000),
+        }).catch((err) => {
+          console.warn(`[Webhook] Creation dispatch failed for ${trackingCode}:`, err?.message || err);
+        });
+      } catch (webhookErr) {
+        console.warn("[Webhook] Failed to initiate creation webhook fetch:", webhookErr);
       }
     }
 

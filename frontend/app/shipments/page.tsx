@@ -12,6 +12,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { toast } from "react-hot-toast";
 import { formatTrackingCode } from "@/lib/format";
 import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
+import WebhookConfigCard from "@/components/WebhookConfigCard/WebhookConfigCard";
 
 const TIER_RANKS: Record<string, number> = {
   free: 0,
@@ -47,7 +48,6 @@ interface Shipment {
   innerSecret?: string | null;
   metadata?: Record<string, unknown> | null;
   events: ShipmentEvent[];
-  webhookUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,7 +75,6 @@ export default function ShipmentsPage() {
   useEffect(() => {
     detectUserCurrency().then(setUserCurrency);
   }, []);
-  const [webhookUrl, setWebhookUrl] = useState("");
   const [packageName, setPackageName] = useState("");
   const [packageWeight, setPackageWeight] = useState("");
   const [receiverName, setReceiverName] = useState("");
@@ -489,11 +488,6 @@ export default function ShipmentsPage() {
       return;
     }
 
-    if (webhookUrl && !webhookUrl.startsWith("http://") && !webhookUrl.startsWith("https://")) {
-      toast.error("Webhook URL must start with http:// or https://");
-      return;
-    }
-
     setIsRegistering(true);
     try {
       let activeApiKey = apiKey;
@@ -525,7 +519,6 @@ export default function ShipmentsPage() {
         headers,
         body: JSON.stringify({
           shipperAddress: account.address,
-          webhookUrl: webhookUrl || null,
           packageName: packageName.trim() || "General Package",
           weight: packageWeight.trim() || "unknown",
           receiverName: receiverName.trim() || null,
@@ -558,7 +551,6 @@ export default function ShipmentsPage() {
       setReceiverName("");
       setReceiverPhone("");
       setDestination("");
-      setWebhookUrl("");
       queryClient.invalidateQueries({ queryKey: ["shipments"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       refetchProfile();
@@ -608,7 +600,11 @@ export default function ShipmentsPage() {
             <p className="text-slate-400 text-xs">Redirecting...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-8">
+            {/* Merchant Webhook Configuration - Straight Full-Width Line */}
+            <WebhookConfigCard variant="dark" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left/Middle Column: Shipment List (Appears 2nd on mobile, 1st on desktop) */}
             <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
               {(() => {
@@ -1208,6 +1204,8 @@ export default function ShipmentsPage() {
                 </div>
               </div>
             )}
+
+          </div>
           </div>
           </div>
         )}

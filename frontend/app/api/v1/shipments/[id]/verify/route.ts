@@ -214,21 +214,21 @@ export async function POST(
 
     await shipment.save();
 
-    // 5. Fire webhook if configured
-    if (shipment.webhookUrl) {
-      try {
-        const shipperUser = await db.user.findOne({
-          $or: [
-            { _id: shipment.shipperAddress },
-            { _id: shipment.shipperAddress.toLowerCase() },
-            { _id: { $regex: new RegExp(`^${shipment.shipperAddress}$`, "i") } },
-          ],
-        });
-        await fetch(shipment.webhookUrl, {
+    // 5. Fire webhook if merchant has configured a global webhook URL
+    try {
+      const shipperUser = await db.user.findOne({
+        $or: [
+          { _id: shipment.shipperAddress },
+          { _id: shipment.shipperAddress.toLowerCase() },
+          { _id: { $regex: new RegExp(`^${shipment.shipperAddress}$`, "i") } },
+        ],
+      });
+      if (shipperUser?.webhookUrl) {
+        await fetch(shipperUser.webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event: "package.delivered",
+            event: "shipment.delivered",
             timestamp: new Date().toISOString(),
             data: {
               packageId: id,
@@ -242,9 +242,9 @@ export async function POST(
             },
           }),
         });
-      } catch (err) {
-        console.error("Webhook notification failed:", err);
       }
+    } catch (err) {
+      console.error("Webhook notification failed:", err);
     }
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -24,6 +24,7 @@ interface ProfileContextType {
   testApiKey: string | null;
   apiKeyMasked: string | null;
   testApiKeyMasked: string | null;
+  webhookUrl: string | null;
   isProfileLoaded: boolean;
   isNewUser: boolean;
   isOpenSetup: boolean;
@@ -46,7 +47,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     data: profileData,
     isLoading,
     isError,
-    error,
   } = useQuery({
     queryKey: ["profile", walletAddress],
     queryFn: async () => {
@@ -70,16 +70,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const isProfileLoaded = !isLoading;
   const isNewUser = !!walletAddress && isProfileLoaded && profileData && "isNotFound" in profileData && profileData.isNotFound;
 
-  console.log("ProfileProvider state:", {
-    walletAddress,
-    isLoading,
-    isError,
-    error: error?.message,
-    profileData,
-    isNewUser,
-    isOpenSetup,
-  });
-
   // Auto-open modal if the user is logged in but doesn't have a profile yet
   useEffect(() => {
     if (isNewUser) {
@@ -89,14 +79,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
   }, [isNewUser]);
 
-  const openProfileSetup = () => setIsOpenSetup(true);
-  const closeProfileSetup = () => setIsOpenSetup(false);
+  const openProfileSetup = useCallback(() => setIsOpenSetup(true), []);
+  const closeProfileSetup = useCallback(() => setIsOpenSetup(false), []);
 
-  const refetchProfile = () => {
+  const refetchProfile = useCallback(() => {
     if (walletAddress) {
       queryClient.invalidateQueries({ queryKey: ["profile", walletAddress] });
     }
-  };
+  }, [walletAddress, queryClient]);
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const companyName = profileData && !("isNotFound" in profileData) ? profileData.companyName || null : null;
@@ -116,37 +106,69 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const testApiKey = profileData && !("isNotFound" in profileData) ? profileData.testApiKey || null : null;
   const apiKeyMasked = profileData && !("isNotFound" in profileData) ? profileData.apiKeyMasked || (apiKey ? `${apiKey.substring(0, 13)}••••${apiKey.slice(-4)}` : null) : null;
   const testApiKeyMasked = profileData && !("isNotFound" in profileData) ? profileData.testApiKeyMasked || (testApiKey ? `${testApiKey.substring(0, 13)}••••${testApiKey.slice(-4)}` : null) : null;
+  const webhookUrl = profileData && !("isNotFound" in profileData) ? profileData.webhookUrl || null : null;
+
+  const contextValue = useMemo(
+    () => ({
+      fullName,
+      companyName,
+      username,
+      phone,
+      whatsapp,
+      email,
+      subscriptionActive,
+      role,
+      plan,
+      billingCycle,
+      billingCycleStart,
+      shipmentsThisMonth,
+      rolloverQuota,
+      overageCharges,
+      apiKey,
+      testApiKey,
+      apiKeyMasked,
+      testApiKeyMasked,
+      webhookUrl,
+      isProfileLoaded,
+      isNewUser,
+      isOpenSetup,
+      isError,
+      openProfileSetup,
+      closeProfileSetup,
+      refetchProfile,
+    }),
+    [
+      fullName,
+      companyName,
+      username,
+      phone,
+      whatsapp,
+      email,
+      subscriptionActive,
+      role,
+      plan,
+      billingCycle,
+      billingCycleStart,
+      shipmentsThisMonth,
+      rolloverQuota,
+      overageCharges,
+      apiKey,
+      testApiKey,
+      apiKeyMasked,
+      testApiKeyMasked,
+      webhookUrl,
+      isProfileLoaded,
+      isNewUser,
+      isOpenSetup,
+      isError,
+      openProfileSetup,
+      closeProfileSetup,
+      refetchProfile,
+    ]
+  );
 
   return (
-    <ProfileContext.Provider
-      value={{
-        fullName,
-        companyName,
-        username,
-        phone,
-        whatsapp,
-        email,
-        subscriptionActive,
-        role,
-        plan,
-        billingCycle,
-        billingCycleStart,
-        shipmentsThisMonth,
-        rolloverQuota,
-        overageCharges,
-        apiKey,
-        testApiKey,
-        apiKeyMasked,
-        testApiKeyMasked,
-        isProfileLoaded,
-        isNewUser,
-        isOpenSetup,
-        isError,
-        openProfileSetup,
-        closeProfileSetup,
-        refetchProfile,
-      }}
-    >
+    <ProfileContext.Provider value={contextValue}>
       {children}
     </ProfileContext.Provider>
   );

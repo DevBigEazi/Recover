@@ -16,7 +16,6 @@ export async function PATCH(
       receiverPhone,
       destination,
       weight,
-      webhookUrl,
       metadata,
     } = body;
 
@@ -125,9 +124,6 @@ export async function PATCH(
     };
 
     shipment.metadata = updatedMetadata;
-    if (webhookUrl !== undefined) {
-      shipment.webhookUrl = webhookUrl || null;
-    }
 
     await shipment.save();
 

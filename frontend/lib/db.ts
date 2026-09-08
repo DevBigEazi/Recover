@@ -85,6 +85,7 @@ export interface IUser {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripePriceId?: string | null;
+  webhookUrl?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -216,6 +217,7 @@ const UserSchema = new Schema<IUser>(
     stripeCustomerId: { type: String, default: null, index: true },
     stripeSubscriptionId: { type: String, default: null, index: true },
     stripePriceId: { type: String, default: null },
+    webhookUrl: { type: String, default: null },
   },
   {
     timestamps: true,

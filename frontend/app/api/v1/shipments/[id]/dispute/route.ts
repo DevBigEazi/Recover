@@ -177,25 +177,43 @@ export async function POST(
 
     await shipment.save();
 
-    // 5. Fire webhook if configured
-    if (shipment.webhookUrl) {
-      try {
-        await fetch(shipment.webhookUrl, {
+    // 5. Fire webhook if merchant has configured a global webhook URL
+    try {
+      const shipperUser = await db.user.findOne({
+        $or: [
+          { _id: shipment.shipperAddress },
+          { _id: shipment.shipperAddress.toLowerCase() },
+          { _id: { $regex: new RegExp(`^${shipment.shipperAddress}$`, "i") } },
+        ],
+      });
+      if (shipperUser?.webhookUrl) {
+        await fetch(shipperUser.webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event: "shipment.disputed",
+            timestamp: new Date().toISOString(),
             packageId: id,
             status: "Disputed",
+            companyName: shipperUser?.companyName || shipperUser?.fullName || "Merchant",
             recipient: effectiveRecipientAddress,
             reason,
             location,
-            timestamp: new Date(),
+            data: {
+              packageId: id,
+              trackingCode: shipment.trackingCode || id,
+              status: "Disputed",
+              companyName: shipperUser?.companyName || shipperUser?.fullName || "Merchant",
+              recipient: effectiveRecipientAddress,
+              reason,
+              location,
+              onChainTxHash: txHash,
+            },
           }),
         });
-      } catch (err) {
-        console.error("Webhook notification failed:", err);
       }
+    } catch (err) {
+      console.error("Webhook notification failed:", err);
     }
 
     // 6. Dispatch in-app notification in DB & Web Push alert
