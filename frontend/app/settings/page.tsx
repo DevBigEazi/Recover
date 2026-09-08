@@ -9,12 +9,12 @@ import { useProfile } from "@/context/ProfileContext";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-import ProfileDetailsCard from "./components/ProfileDetailsCard";
-import SubscriptionPlanCard from "./components/SubscriptionPlanCard";
-import ApiKeyCard from "./components/ApiKeyCard";
+import ProfileDetailsCard from "../../components/Settings/ProfileDetailsCard";
+import SubscriptionPlanCard from "../../components/Settings/SubscriptionPlanCard";
+import ApiKeyCard from "../../components/Settings/ApiKeyCard";
 import WebhookConfigCard from "@/components/WebhookConfigCard/WebhookConfigCard";
-import CredentialsBackupCard from "./components/CredentialsBackupCard";
-import SessionAndDangerCard from "./components/SessionAndDangerCard";
+import CredentialsBackupCard from "../../components/Settings/CredentialsBackupCard";
+import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard";
 
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
