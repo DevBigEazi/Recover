@@ -439,7 +439,7 @@ print(res.json())`,
   };
 
   const webhookPayloadExample = `{
-  "event": "package.delivered",
+  "event": "shipment.delivered",
   "timestamp": "2026-08-03T14:30:00Z",
   "data": {
     "packageId": "RCV-8F912A3B4C5D",
@@ -451,7 +451,7 @@ print(res.json())`,
     "location": "Lagos, NG",
     "onChainTxHash": "0x8f912a3b4c5d..."
   }
-}`;
+};`;
 
   const gettingStartedSteps = [
     {
@@ -1126,7 +1126,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Transfers package custody to a courier, rider, or warehouse handler. Updates status to &quot;InTransit&quot;, logs an on-chain event, and fires a <code className="bg-neutral-mist px-1 rounded">package.handover</code> webhook callback.
+                Transfers package custody to a courier, rider, or warehouse handler. Updates status to &quot;InTransit&quot;, logs an on-chain event, and fires a <code className="bg-neutral-mist px-1 rounded">shipment.handover</code> webhook callback.
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -1157,7 +1157,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Verifies the 8-character Secret Handover PIN at physical delivery. On a match, status updates to &quot;Verified&quot; and a <code className="bg-neutral-mist px-1 rounded">package.delivered</code> webhook callback fires with company details.
+                Verifies the 8-character Secret Handover PIN at physical delivery. On a match, status updates to &quot;Verified&quot; and a <code className="bg-neutral-mist px-1 rounded">shipment.delivered</code> webhook callback fires with company details.
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -1392,13 +1392,29 @@ print(res.json())`,
               <div className="space-y-3 text-xs sm:text-sm text-neutral-slate">
                 <h4 className="font-bold text-primary text-base">Supported Event Types:</h4>
                 <ul className="space-y-2">
-                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
-                    <span className="font-mono font-bold text-emerald-600">package.delivered</span>
-                    <span className="text-xs text-neutral-slate">— Triggered on successful PIN verification & delivery</span>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-blue-600 text-xs shrink-0">recover.ping</span>
+                    <span className="text-xs text-neutral-slate">— Connectivity &amp; latency test ping</span>
                   </li>
-                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2.5 rounded-lg border border-neutral-mist">
-                    <span className="font-mono font-bold text-red-600">shipment.disputed</span>
-                    <span className="text-xs text-neutral-slate">— Triggered when a delivery dispute is logged</span>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-indigo-600 text-xs shrink-0">shipment.created</span>
+                    <span className="text-xs text-neutral-slate">— New package registered via API or Dashboard</span>
+                  </li>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-purple-600 text-xs shrink-0">shipment.scanned</span>
+                    <span className="text-xs text-neutral-slate">— QR sticker scanned in the field</span>
+                  </li>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-amber-600 text-xs shrink-0">shipment.handover</span>
+                    <span className="text-xs text-neutral-slate">— Custody transferred to courier / rider</span>
+                  </li>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-emerald-600 text-xs shrink-0">shipment.delivered</span>
+                    <span className="text-xs text-neutral-slate">— Successful PIN verification &amp; physical delivery</span>
+                  </li>
+                  <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
+                    <span className="font-mono font-bold text-red-600 text-xs shrink-0">shipment.disputed</span>
+                    <span className="text-xs text-neutral-slate">— Delivery dispute reported for damage / tampering</span>
                   </li>
                 </ul>
                 <p className="pt-2 text-xs leading-relaxed">

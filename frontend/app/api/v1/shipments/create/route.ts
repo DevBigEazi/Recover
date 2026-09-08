@@ -249,6 +249,37 @@ export async function POST(request: Request) {
       }
     }
 
+    // 9. Dispatch shipment.created webhook if shipper has configured a webhookUrl
+    if (shipper?.webhookUrl) {
+      try {
+        fetch(shipper.webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Recover-Webhook-Delivery/1.0",
+          },
+          body: JSON.stringify({
+            event: "shipment.created",
+            timestamp: new Date().toISOString(),
+            data: {
+              trackingCode,
+              packageName: (finalMetadata.name as string) || "General Package",
+              shipperAddress: shipperAddress.toLowerCase(),
+              companyName: shipper.companyName || null,
+              status: "Created",
+              onChainTxHash: txHash,
+              isTest,
+            },
+          }),
+          signal: AbortSignal.timeout(5000),
+        }).catch((err) => {
+          console.warn(`[Webhook] Creation dispatch failed for ${trackingCode}:`, err?.message || err);
+        });
+      } catch (webhookErr) {
+        console.warn("[Webhook] Failed to initiate creation webhook fetch:", webhookErr);
+      }
+    }
+
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
     const scanUrl = `${appBaseUrl}/shipments/${trackingCode}/verify`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(scanUrl)}`;

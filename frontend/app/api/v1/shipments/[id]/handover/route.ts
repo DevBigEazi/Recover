@@ -234,7 +234,7 @@ export async function POST(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event: "package.handover",
+            event: "shipment.handover",
             timestamp: new Date().toISOString(),
             data: {
               packageId: id,

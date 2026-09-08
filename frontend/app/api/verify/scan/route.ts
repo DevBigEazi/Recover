@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     let titleText = "Item Sticker Scanned!";
     let messageText = "";
     let targetUrl = "";
+    let packageName = "";
 
     if (item) {
       targetOwnerAddress = item.ownerAddress;
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
       const cleanPkgId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
       const trackingCode = `RCV-${cleanPkgId.slice(0, 12).toUpperCase()}`;
-      const packageName = (shipment.metadata?.name as string) || "General Package";
+      packageName = (shipment.metadata?.name as string) || "General Package";
 
       targetOwnerAddress = shipment.shipperAddress;
       targetRegistrationId = trackingCode;
@@ -92,6 +93,40 @@ export async function POST(request: Request) {
       messageText,
       targetUrl
     );
+
+    // 4. Dispatch Webhook Event if shipper has configured a webhookUrl
+    if (notificationType === "shipment_scan" && targetOwnerAddress) {
+      try {
+        const shipperUser = await db.user.findOne({
+          walletAddress: targetOwnerAddress.toLowerCase(),
+        });
+        if (shipperUser?.webhookUrl) {
+          fetch(shipperUser.webhookUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "Recover-Webhook-Delivery/1.0",
+            },
+            body: JSON.stringify({
+              event: "shipment.scanned",
+              timestamp: new Date().toISOString(),
+              data: {
+                trackingCode: targetRegistrationId,
+                packageName: packageName || "General Package",
+                shipperAddress: targetOwnerAddress.toLowerCase(),
+                companyName: shipperUser.companyName || null,
+                status: "InTransit",
+              },
+            }),
+            signal: AbortSignal.timeout(5000),
+          }).catch((err) => {
+            console.warn(`[Webhook] Scan dispatch failed for ${targetRegistrationId}:`, err?.message || err);
+          });
+        }
+      } catch (webhookErr) {
+        console.warn("[Webhook] Failed to initiate scan webhook fetch:", webhookErr);
+      }
+    }
 
     return NextResponse.json(notification, { status: 201 });
   } catch (err: unknown) {

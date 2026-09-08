@@ -192,13 +192,23 @@ export async function POST(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event: "shipment.disputed",
+            timestamp: new Date().toISOString(),
             packageId: id,
             status: "Disputed",
             companyName: shipperUser?.companyName || shipperUser?.fullName || "Merchant",
             recipient: effectiveRecipientAddress,
             reason,
             location,
-            timestamp: new Date().toISOString(),
+            data: {
+              packageId: id,
+              trackingCode: shipment.trackingCode || id,
+              status: "Disputed",
+              companyName: shipperUser?.companyName || shipperUser?.fullName || "Merchant",
+              recipient: effectiveRecipientAddress,
+              reason,
+              location,
+              onChainTxHash: txHash,
+            },
           }),
         });
       }
