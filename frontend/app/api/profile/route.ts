@@ -49,6 +49,7 @@ export async function GET(request: Request) {
       userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
       userObj.rolloverQuota = userObj.rolloverQuota || 0;
       userObj.overageCharges = userObj.overageCharges || 0;
+      userObj.webhookUrl = user.webhookUrl || null;
 
       if (user.apiKeyMasked) {
         userObj.apiKeyMasked = user.apiKeyMasked;
@@ -130,7 +131,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { walletAddress, fullName, companyName, username, phone, whatsapp, email, role, plan, billingCycle } = body;
+    const { walletAddress, fullName, companyName, username, phone, whatsapp, email, role, plan, billingCycle, webhookUrl } = body;
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -223,6 +224,26 @@ export async function POST(request: Request) {
       }
     }
 
+    let targetWebhookUrl: string | null = existingUser?.webhookUrl || null;
+    if (webhookUrl !== undefined) {
+      if (webhookUrl && typeof webhookUrl === "string") {
+        const trimmed = webhookUrl.trim();
+        if (trimmed) {
+          if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            return NextResponse.json(
+              { error: "Webhook URL must start with http:// or https://" },
+              { status: 400 }
+            );
+          }
+          targetWebhookUrl = trimmed;
+        } else {
+          targetWebhookUrl = null;
+        }
+      } else {
+        targetWebhookUrl = null;
+      }
+    }
+
     try {
       const targetId = existingUser ? existingUser._id : walletAddress.toLowerCase();
       const user = await db.user.findOneAndUpdate(
@@ -238,6 +259,7 @@ export async function POST(request: Request) {
             role: targetRole,
             plan: targetPlan,
             billingCycle: targetBillingCycle,
+            webhookUrl: targetWebhookUrl,
           },
         },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }

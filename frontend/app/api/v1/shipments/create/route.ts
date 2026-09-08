@@ -17,7 +17,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      webhookUrl,
       metadata,
       packageName,
       weight,
@@ -211,7 +210,6 @@ export async function POST(request: Request) {
       innerSecret: innerSecret,
       innerSecretHash: packageHash,
       metadata: finalMetadata,
-      webhookUrl: webhookUrl || null,
       trackingCode: trackingCode,
       isTest: isTest,
       events: [

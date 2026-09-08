@@ -1030,7 +1030,6 @@ print(res.json())`,
                     <li>• <strong className="text-primary">destination</strong> (string, optional): Destination city / area</li>
                     <li>• <strong className="text-primary">weight</strong> (string, optional): Weight in kg</li>
                     <li>• <strong className="text-primary">metadata</strong> (object, optional): Custom key-value data</li>
-                    <li>• <strong className="text-primary">webhookUrl</strong> (string, optional): Per-shipment callback URL</li>
                   </ul>
                 </div>
                 <div className="bg-neutral-mist/30 p-3.5 rounded-xl border border-neutral-mist space-y-1">
@@ -1251,7 +1250,7 @@ print(res.json())`,
               </div>
 
               <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-                Updates package metadata (name, receiver name, receiver phone, destination, weight) and webhook URL. Only the package creator can edit details. Cannot modify packages in &quot;Verified&quot; or &quot;Disputed&quot; status. <code className="bg-neutral-mist px-1 rounded">receiverPhone</code> cannot be set to empty.
+                Updates package metadata (name, receiver name, receiver phone, destination, weight). Only the package creator can edit details. Cannot modify packages in &quot;Verified&quot; or &quot;Disputed&quot; status. <code className="bg-neutral-mist px-1 rounded">receiverPhone</code> cannot be set to empty.
               </p>
 
               <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -1403,7 +1402,7 @@ print(res.json())`,
                   </li>
                 </ul>
                 <p className="pt-2 text-xs leading-relaxed">
-                  Configure your target webhook URL in your <Link href="/settings" className="font-bold text-accent underline">Settings Page</Link> or pass a per-shipment <code className="bg-neutral-mist px-1 rounded">webhookUrl</code> in the create request body.
+                  Configure your target webhook URL once on your <Link href="/shipments" className="font-bold text-accent underline">Merchant Dashboard</Link> or <Link href="/settings" className="font-bold text-accent underline">Settings Page</Link>. All dispatches created under your merchant profile automatically stream status events to your configured endpoint.
                 </p>
               </div>
 

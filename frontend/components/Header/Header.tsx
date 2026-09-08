@@ -128,7 +128,7 @@ export default function Header() {
                 width={137} 
                 height={40} 
                 className="h-10 w-auto" 
-                priority
+                loading="eager"
               />
             </Link>
           </div>

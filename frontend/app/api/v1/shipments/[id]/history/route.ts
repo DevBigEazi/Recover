@@ -107,7 +107,6 @@ export async function GET(
       status: shipment.status,
       metadata: sanitizedMetadata,
       events: shipment.events,
-      webhookUrl: shipment.webhookUrl,
       isCourierAuthorized,
       riderInfo,
       createdAt: shipment.createdAt,
