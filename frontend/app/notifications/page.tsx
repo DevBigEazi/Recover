@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bell, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Bell, Check } from "lucide-react";
 import Header from "@/components/Header/Header";
 
 export default function NotificationsPage() {
@@ -54,18 +54,7 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  if (isAuthLoading) {
-    return (
-      <main className="min-h-screen bg-neutral-mist">
-        <Header />
-        <div className="flex justify-center items-center py-32">
-          <Loader2 className="animate-spin h-8 w-8 text-primary" />
-        </div>
-      </main>
-    );
-  }
-
-  if (!account) {
+  if (!account && !isAuthLoading) {
     return (
       <main className="min-h-screen bg-neutral-mist">
         <Header />
@@ -126,10 +115,21 @@ export default function NotificationsPage() {
         </div>
 
         {/* Content list */}
-        {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="animate-spin h-6 w-6 text-primary" />
-            <span className="text-xs text-neutral-slate font-medium">Loading notifications...</span>
+        {isAuthLoading || (isLoading && notifications.length === 0) ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-neutral-white border border-neutral-mist rounded-2xl p-4 sm:p-5 shadow-xs animate-pulse space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-24 bg-neutral-mist rounded-md" />
+                  <div className="h-3 w-16 bg-neutral-mist rounded-md" />
+                </div>
+                <div className="h-4 w-3/4 bg-neutral-mist rounded-md" />
+                <div className="h-3 w-32 bg-neutral-mist rounded-md" />
+              </div>
+            ))}
           </div>
         ) : notifications.length === 0 ? (
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-12 text-center shadow-xs space-y-4">
