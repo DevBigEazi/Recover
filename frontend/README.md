@@ -9,7 +9,7 @@ Before starting, create a `.env` or `.env.local` file in the root of the `fronte
 ```env
 # Database, App URL & Web3
 MONGODB_URI=mongodb+srv://...
-NEXT_PUBLIC_APP_URL=https://recoverprotocol.xyz
+NEXT_PUBLIC_APP_URL=https://userecover.xyz
 NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
 NEXT_PUBLIC_RECOVER_CONTRACT_ADDRESS=0x67648938d99bd1809987F18a09f427D8da6C88fd
 NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS=0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012
@@ -56,5 +56,3 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **AI Suggested Recovery & Location Insights**: Gemini 2.0 Flash integration generating context-aware return instructions and semantic safety analysis for GPS coordinates.
 - **Stripe & Adaptive Multi-Currency Engine**: Dynamic FX conversion (`lib/currency.ts`) formatting subscription plans ($6, $15, $45, $100/mo) and report unlocks into local currencies.
 - **Progressive Web App (PWA)**: Mobile-optimized with service worker (`public/sw.js`) and web manifest (`public/manifest.json`).
-
-
