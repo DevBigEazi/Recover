@@ -96,6 +96,8 @@ export const metadata: Metadata = {
   },
 };
 
+import MobileBottomNav from "@/components/Navigation/MobileBottomNav";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -107,7 +109,10 @@ export default function RootLayout({
         className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <Providers>
-          {children}
+          <div className="pb-20 md:pb-0">
+            {children}
+          </div>
+          <MobileBottomNav />
           <PWARegister />
         </Providers>
       </body>

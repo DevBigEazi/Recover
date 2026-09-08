@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Bell, Home, LayoutDashboard, PlusCircle, Truck, Info, Settings, LogOut, User as UserIcon, Tag } from "lucide-react";
+import { ChevronDown, Bell } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useActiveWallet, useDisconnect } from "thirdweb/react";
@@ -12,7 +12,6 @@ import { useProfile } from "@/context/ProfileContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const pathname = usePathname();
@@ -82,27 +81,6 @@ export default function Header() {
       ];
 
   const isActive = (href: string) => pathname === href;
-
-  const getNavLinkIcon = (href: string) => {
-    switch (href) {
-      case "/":
-        return <Home className="w-4 h-4 text-accent" />;
-      case "/dashboard":
-        return <LayoutDashboard className="w-4 h-4 text-blue-500" />;
-      case "/register":
-        return <PlusCircle className="w-4 h-4 text-emerald-500" />;
-      case "/shipments":
-        return <Truck className="w-4 h-4 text-indigo-500" />;
-      case "/pricing":
-        return <Tag className="w-4 h-4 text-emerald-500" />;
-      case "/developers":
-        return <Info className="w-4 h-4 text-indigo-500" />;
-      case "/about":
-        return <Info className="w-4 h-4 text-amber-500" />;
-      default:
-        return null;
-    }
-  };
 
   const handleDisconnect = () => {
     if (activeWallet) {
@@ -321,9 +299,9 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile menu and notifications buttons */}
+          {/* Mobile header action: Notifications or Sign In */}
           <div className="flex items-center md:hidden gap-2">
-            {account && (
+            {account ? (
               <Link
                 href="/notifications"
                 className="p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-lg transition-colors relative cursor-pointer"
@@ -334,161 +312,16 @@ export default function Header() {
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-critical rounded-full" />
                 )}
               </Link>
+            ) : (
+              <button
+                onClick={openLogin}
+                className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-3.5 py-1.5 text-xs transition-colors shadow-xs cursor-pointer"
+              >
+                Sign In
+              </button>
             )}
-
-            <button
-              onClick={() => {
-                setIsMenuOpen(!isMenuOpen);
-                setIsNotificationsOpen(false);
-              }}
-              className="inline-flex items-center justify-center rounded-md p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors focus:outline-hidden"
-              aria-label="Toggle navigation menu"
-            >
-              {!isMenuOpen ? (
-                <Menu className="h-6 w-6" />
-              ) : (
-                <X className="h-6 w-6" />
-              )}
-            </button>
           </div>
         </div>
-
-        {/* Mobile Navigation Sidebar Drawer */}
-        {isMenuOpen && (
-          <>
-            {/* Backdrop Overlay */}
-            <div
-              className="fixed inset-0 bg-neutral-slate/60 backdrop-blur-xs z-50 transition-opacity duration-300 md:hidden"
-              onClick={() => setIsMenuOpen(false)}
-            />
-
-            {/* Sidebar Drawer */}
-            <aside className="fixed top-0 right-0 bottom-0 w-[85%] max-w-xs bg-neutral-white shadow-2xl z-50 flex flex-col justify-between p-6 transition-transform duration-300 ease-in-out md:hidden overflow-y-auto animate-slide-left border-l border-neutral-mist">
-              <div className="space-y-6">
-                {/* Header Row: Logo & Close Button */}
-                <div className="flex items-center justify-between border-b border-neutral-mist pb-4">
-                  <Link href="/" onClick={() => setIsMenuOpen(false)}>
-                    <Image
-                      src="/logo-full.svg"
-                      alt="Recover Logo"
-                      width={120}
-                      height={35}
-                      className="h-8 w-auto"
-                    />
-                  </Link>
-                  <button
-                    onClick={() => setIsMenuOpen(false)}
-                    className="p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-xl transition-colors cursor-pointer"
-                    aria-label="Close sidebar navigation"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* User Profile Info Card (if logged in) */}
-                {account && (
-                  <div className="bg-neutral-mist/50 border border-neutral-mist rounded-xl p-3.5 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm font-bold shrink-0">
-                      <UserIcon className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="overflow-hidden min-w-0">
-                      <div className="text-xs font-bold text-primary truncate">
-                        {fullName || username || "Registered User"}
-                      </div>
-                      <div className="text-[10px] font-mono text-neutral-slate truncate">
-                        {account.address.slice(0, 6)}...{account.address.slice(-4)}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Navigation Items */}
-                <nav className="space-y-1.5">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.name}
-                      href={link.href}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                        isActive(link.href)
-                          ? "text-primary bg-neutral-mist font-semibold"
-                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                      }`}
-                    >
-                      {getNavLinkIcon(link.href)}
-                      <span>{link.name}</span>
-                    </Link>
-                  ))}
-
-                  {account && (
-                    <Link
-                      href="/notifications"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                        isActive("/notifications")
-                          ? "text-primary bg-neutral-mist font-semibold"
-                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Bell className="w-4 h-4 text-accent" />
-                        <span>Notifications</span>
-                      </div>
-                      {unreadCount > 0 && (
-                        <span className="bg-critical text-neutral-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </Link>
-                  )}
-
-                  {account && (
-                    <Link
-                      href="/settings"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors ${
-                        isActive("/settings")
-                          ? "text-primary bg-neutral-mist font-semibold"
-                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                      }`}
-                    >
-                      <Settings className="w-4 h-4 text-accent" />
-                      <span>{role === "merchant" ? "Company Settings" : "Settings"}</span>
-                    </Link>
-                  )}
-                </nav>
-              </div>
-
-              {/* Sidebar Footer Action */}
-              <div className="border-t border-neutral-mist pt-4 mt-6">
-                {isAuthLoading ? (
-                  <div className="w-full h-11 bg-neutral-mist animate-pulse rounded-xl" />
-                ) : !account ? (
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      openLogin();
-                    }}
-                    className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors text-center cursor-pointer shadow-xs"
-                  >
-                    Sign In
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleDisconnect();
-                    }}
-                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer border border-red-100"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
-                  </button>
-                )}
-              </div>
-            </aside>
-          </>
-        )}
       </nav>
     </header>
   );
