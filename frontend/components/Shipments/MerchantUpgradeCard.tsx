@@ -82,7 +82,7 @@ export default function MerchantUpgradeCard({
   const targetName = TIER_NAMES[selectedTier] || "Selected Plan";
 
   return (
-    <div className="bg-linear-to-b from-indigo-950/40 to-slate-950 border border-indigo-900/40 rounded-2xl p-6 backdrop-blur-md shadow-2xl space-y-4">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
       <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
         <AlertTriangle className="w-5 h-5 text-indigo-400" />
       </div>
@@ -248,7 +248,7 @@ export default function MerchantUpgradeCard({
           targetRank < currentRank ||
           isCycleDowngrade
         }
-        className="w-full text-center font-bold text-xs py-3 rounded-lg transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white"
+        className="w-full text-center font-bold text-xs py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer bg-primary hover:bg-primary-hover text-white"
       >
         {isUpgrading ? (
           <>

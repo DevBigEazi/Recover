@@ -9,7 +9,7 @@ import {
   Code,
   LayoutDashboard,
   PlusCircle,
-  Truck,
+  Store,
   Settings,
   MoreHorizontal,
 } from "lucide-react";
@@ -23,8 +23,8 @@ export default function MobileBottomNav() {
   const { role } = useProfile();
   const [isExploreOpen, setIsExploreOpen] = useState(false);
 
-  // Do not show bottom nav on physical QR scan verification pages
-  if (pathname.startsWith("/verify") || pathname.startsWith("/scan")) {
+  // Do not show bottom nav on physical QR scan verification pages or public receipts
+  if (pathname.startsWith("/verify") || pathname.startsWith("/scan") || pathname.startsWith("/r/")) {
     return null;
   }
 
@@ -42,15 +42,21 @@ export default function MobileBottomNav() {
               /* Merchant Bottom Navigation Tabs */
               <>
                 <Link
-                  href="/shipments"
+                  href="/workspace"
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
-                    isActive("/shipments")
+                    isActive("/workspace") || isActive("/receipts") || isActive("/shipments")
                       ? "text-primary font-bold"
                       : "text-neutral-slate hover:text-primary"
                   }`}
                 >
-                  <Truck className={`w-5 h-5 ${isActive("/shipments") ? "text-indigo-600" : ""}`} />
-                  <span className="text-[10px] mt-0.5 tracking-tight">Shipments</span>
+                  <Store
+                    className={`w-5 h-5 ${
+                      isActive("/workspace") || isActive("/receipts") || isActive("/shipments")
+                        ? "text-primary"
+                        : ""
+                    }`}
+                  />
+                  <span className="text-[10px] mt-0.5 tracking-tight">Workspace</span>
                 </Link>
 
                 <Link
