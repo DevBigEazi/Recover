@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
       discount = 0,
       tax = 0,
       paymentMethod = "Cash",
+      amountPaid = null,
+      creditDueDate = null,
+      creditNotes = null,
       customerName = null,
       customerPhone = null,
       customerEmail = null,
@@ -68,6 +71,34 @@ export async function POST(req: NextRequest) {
     const numDiscount = Math.max(0, Number(discount) || 0);
     const numTax = Math.max(0, Number(tax) || 0);
     const total = Math.max(0, subtotal - numDiscount + numTax);
+
+    // Validate Credit payment channel requirements
+    if (paymentMethod === "Credit") {
+      const trimmedCustomerName = customerName ? String(customerName).trim() : "";
+      if (!trimmedCustomerName) {
+        return NextResponse.json(
+          { error: "Customer name is required when issuing items on Store Credit so you can track who owes you." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const numAmountPaid =
+      paymentMethod === "Credit"
+        ? Math.max(0, Number(amountPaid) || 0)
+        : total;
+
+    const paymentStatus: "paid" | "unpaid" | "partially_paid" =
+      paymentMethod === "Credit"
+        ? numAmountPaid >= total
+          ? "paid"
+          : numAmountPaid > 0
+          ? "partially_paid"
+          : "unpaid"
+        : "paid";
+
+    const parsedCreditDueDate = creditDueDate ? new Date(creditDueDate) : null;
+    const parsedCreditNotes = creditNotes ? String(creditNotes).trim() : null;
 
     // Generate unique receipt number e.g. RCVR-REC-2026-XXXXXXX
     const year = new Date().getFullYear();
@@ -233,6 +264,11 @@ export async function POST(req: NextRequest) {
       tax: numTax,
       total,
       paymentMethod,
+      paymentStatus,
+      amountPaid: numAmountPaid,
+      creditDueDate: parsedCreditDueDate,
+      creditSettledAt: paymentStatus === "paid" && paymentMethod === "Credit" ? new Date() : null,
+      creditNotes: parsedCreditNotes,
       customerName,
       customerPhone,
       customerEmail,
@@ -295,6 +331,8 @@ export async function GET(req: NextRequest) {
     const q = (searchParams.get("q") || "").trim();
     const statusFilter = searchParams.get("status");
     const paymentFilter = searchParams.get("paymentMethod");
+    const paymentStatusFilter = searchParams.get("paymentStatus");
+    const unpaidCreditOnly = searchParams.get("unpaidCreditOnly") === "true";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 30));
@@ -305,12 +343,22 @@ export async function GET(req: NextRequest) {
       merchantAddress: merchant._id.toLowerCase(),
     };
 
-    if (statusFilter && (statusFilter === "Issued" || statusFilter === "Voided")) {
-      query.status = statusFilter;
-    }
+    if (unpaidCreditOnly) {
+      query.paymentMethod = "Credit";
+      query.paymentStatus = { $ne: "paid" };
+      query.status = "Issued";
+    } else {
+      if (statusFilter && (statusFilter === "Issued" || statusFilter === "Voided")) {
+        query.status = statusFilter;
+      }
 
-    if (paymentFilter && ["Cash", "Bank Transfer", "Card/POS", "Other"].includes(paymentFilter)) {
-      query.paymentMethod = paymentFilter;
+      if (paymentFilter && ["Cash", "Bank Transfer", "Card/POS", "Credit", "Other"].includes(paymentFilter)) {
+        query.paymentMethod = paymentFilter;
+      }
+
+      if (paymentStatusFilter && ["paid", "unpaid", "partially_paid"].includes(paymentStatusFilter)) {
+        query.paymentStatus = paymentStatusFilter;
+      }
     }
 
     if (startDate || endDate) {

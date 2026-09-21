@@ -50,10 +50,12 @@ export interface IUser {
   /** Personal/contact name for individuals; primary contact person name for merchants. */
   fullName: string;
   /**
-   * Company display name — merchants only. Always distinct from fullName.
+   * Business display name — merchants only. Always distinct from fullName.
    * null for individual (role === "user") accounts.
    */
   companyName: string | null;
+  /** Optional business logo image (Base64 data URL or URL) for merchants */
+  businessLogo?: string | null;
   username: string;
   phone: string | null;
   whatsapp: string | null;
@@ -197,7 +199,12 @@ export interface IReceipt {
   discount: number;
   tax: number;
   total: number;
-  paymentMethod: "Cash" | "Bank Transfer" | "Card/POS" | "Other";
+  paymentMethod: "Cash" | "Bank Transfer" | "Card/POS" | "Credit" | "Other";
+  paymentStatus?: "paid" | "unpaid" | "partially_paid";
+  amountPaid?: number;
+  creditDueDate?: Date | null;
+  creditSettledAt?: Date | null;
+  creditNotes?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   customerEmail?: string | null;
@@ -236,6 +243,8 @@ const UserSchema = new Schema<IUser>(
      * Always distinct from fullName so company identity is never mixed with personal identity.
      */
     companyName: { type: String, default: null },
+    /** Business logo Base64 data URL or external URL (merchants only) */
+    businessLogo: { type: String, default: null },
     username: { type: String, required: true, unique: true, index: true },
     phone: { type: String, default: null },
     whatsapp: { type: String, default: null },
@@ -477,10 +486,20 @@ const ReceiptSchema = new Schema<IReceipt>(
     total: { type: Number, required: true },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "Bank Transfer", "Card/POS", "Other"],
+      enum: ["Cash", "Bank Transfer", "Card/POS", "Credit", "Other"],
       default: "Cash",
       index: true,
     },
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "unpaid", "partially_paid"],
+      default: "paid",
+      index: true,
+    },
+    amountPaid: { type: Number, default: 0 },
+    creditDueDate: { type: Date, default: null },
+    creditSettledAt: { type: Date, default: null },
+    creditNotes: { type: String, default: null },
     customerName: { type: String, default: null },
     customerPhone: { type: String, default: null },
     customerEmail: { type: String, default: null },
@@ -514,6 +533,7 @@ ReceiptSchema.virtual("receiptNumber").get(function (this: { _id: string }) {
 
 ReceiptSchema.index({ merchantAddress: 1, createdAt: -1 });
 ReceiptSchema.index({ merchantAddress: 1, status: 1 });
+ReceiptSchema.index({ merchantAddress: 1, paymentMethod: 1, paymentStatus: 1 });
 ReceiptSchema.index({ createdAt: -1 });
 
 const ProductPresetSchema = new Schema<IProductPreset>(

@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
       cash: { total: 0, count: 0 },
       bankTransfer: { total: 0, count: 0 },
       cardPos: { total: 0, count: 0 },
+      credit: { total: 0, count: 0, unpaidTotal: 0, unpaidCount: 0, paidTotal: 0 },
       other: { total: 0, count: 0 },
     };
 
@@ -87,6 +88,17 @@ export async function GET(req: NextRequest) {
         } else if (r.paymentMethod === "Card/POS") {
           paymentBreakdown.cardPos.total += r.total;
           paymentBreakdown.cardPos.count += 1;
+        } else if (r.paymentMethod === "Credit") {
+          paymentBreakdown.credit.total += r.total;
+          paymentBreakdown.credit.count += 1;
+          const paid = r.amountPaid || 0;
+          const unpaid = Math.max(0, r.total - paid);
+          if (r.paymentStatus === "paid" || unpaid === 0) {
+            paymentBreakdown.credit.paidTotal += r.total;
+          } else {
+            paymentBreakdown.credit.unpaidTotal += unpaid;
+            paymentBreakdown.credit.unpaidCount += 1;
+          }
         } else {
           paymentBreakdown.other.total += r.total;
           paymentBreakdown.other.count += 1;
@@ -108,12 +120,72 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Active customer debtors across all active unpaid credit receipts
+    const allUnpaidCreditDocs = (await db.receipt
+      .find({
+        merchantAddress: merchant._id.toLowerCase(),
+        paymentMethod: "Credit",
+        paymentStatus: { $ne: "paid" },
+        status: "Issued",
+      })
+      .sort({ createdAt: -1 })
+      .lean()) as unknown as IReceipt[];
+
+    let totalCreditOwed = 0;
+    const debtorMap = new Map<
+      string,
+      {
+        customerName: string;
+        customerPhone: string;
+        totalOwed: number;
+        receiptsCount: number;
+        receiptNumbers: string[];
+        latestDate: Date | string;
+        dueDate: Date | string | null;
+      }
+    >();
+
+    for (const doc of allUnpaidCreditDocs) {
+      const owed = Math.max(0, doc.total - (doc.amountPaid || 0));
+      if (owed > 0) {
+        totalCreditOwed += owed;
+        const key = (doc.customerPhone || doc.customerName || "unknown").trim().toLowerCase();
+        const existing = debtorMap.get(key);
+        if (existing) {
+          existing.totalOwed += owed;
+          existing.receiptsCount += 1;
+          if (doc._id) existing.receiptNumbers.push(doc._id);
+        } else {
+          debtorMap.set(key, {
+            customerName: doc.customerName || "Unspecified Customer",
+            customerPhone: doc.customerPhone || "No Phone",
+            totalOwed: owed,
+            receiptsCount: 1,
+            receiptNumbers: doc._id ? [doc._id] : [],
+            latestDate: doc.createdAt || new Date(),
+            dueDate: doc.creditDueDate || null,
+          });
+        }
+      }
+    }
+
+    const debtors = Array.from(debtorMap.values()).sort((a, b) => b.totalOwed - a.totalOwed);
+
     const averageOrderValue = issuedCount > 0 ? Math.round(netRevenue / issuedCount) : 0;
     const topItems = Array.from(itemMap.values()).sort((a, b) => b.unitsSold - a.unitsSold);
 
     return NextResponse.json({
       success: true,
       period,
+      merchant: {
+        address: merchant._id.toLowerCase(),
+        name: merchant.companyName || merchant.fullName || "Merchant Store",
+        companyName: merchant.companyName || null,
+        businessLogo: merchant.businessLogo || null,
+        fullName: merchant.fullName || null,
+        phone: merchant.phone || null,
+        email: merchant.email || null,
+      },
       timeframe: {
         start: startTime.toISOString(),
         end: endTime.toISOString(),
@@ -127,7 +199,10 @@ export async function GET(req: NextRequest) {
         voidedCount,
         totalUnitsSold,
         averageOrderValue,
+        totalCreditOwed,
+        debtorsCount: debtors.length,
       },
+      debtors,
       paymentBreakdown,
       topItems,
       receipts,
