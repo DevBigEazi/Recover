@@ -108,6 +108,9 @@ Recover includes an integrated **Printable QR Sticker Studio**:
     - **Proxy Address:** `0xce4bF97e85212d9121e52c3F6fb2C8021Bf30012`
     - **Implementation v2 (Current):** `0xC5c262ddF9e730ABD6eF57d45316777c919Ff5A4`
     - **Implementation v1 (Historical):** `0x80fD76Cb87077144d45ed077EBB12B94161A6d59`
+  - **Recover Digital Receipt Contract (`RecoverReceipt.sol`)**:
+    - **Proxy Address:** `0xe7Fd5C712BA26cd3a25faaDE4Be258585D0879c2`
+    - **Implementation (Current):** `0xB4A1901C719c8100F15168B580828e9a15e6E5ef` (Verified)
 - **Gasless Backend Relayer Pattern**:
   - Uses an authorized backend signer witness (`ECDSAUpgradeable`) to execute write transactions on-chain.
   - Sponsoring gas fees provides a 100% Web2-like user experience without requiring users to hold native tokens (ETN) or handle crypto transactions.
