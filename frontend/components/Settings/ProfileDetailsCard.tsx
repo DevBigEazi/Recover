@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useProfile } from "@/context/ProfileContext";
 import { toast } from "react-hot-toast";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
 
 interface ProfileDetailsCardProps {
   walletAddress: string;
@@ -12,6 +13,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   const {
     fullName,
     companyName,
+    businessLogo,
     username,
     phone,
     whatsapp,
@@ -22,6 +24,8 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
   const [nameInput, setNameInput] = useState("");
   const [companyNameInput, setCompanyNameInput] = useState("");
+  const [logoInput, setLogoInput] = useState<string | null>(null);
+  const [isReadingLogo, setIsReadingLogo] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [whatsappInput, setWhatsappInput] = useState("");
@@ -37,11 +41,74 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   useEffect(() => {
     if (fullName) setNameInput(fullName);
     if (companyName) setCompanyNameInput(companyName);
+    if (businessLogo !== undefined) setLogoInput(businessLogo);
     if (username) setUsernameInput(username);
     if (phone) setPhoneInput(phone);
     if (whatsapp) setWhatsappInput(whatsapp);
     if (email) setEmailInput(email);
-  }, [fullName, companyName, username, phone, whatsapp, email]);
+  }, [fullName, companyName, businessLogo, username, phone, whatsapp, email]);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, or WebP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image file must be under 5MB.");
+      return;
+    }
+
+    setIsReadingLogo(true);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const img = new window.Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_DIM = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height = Math.round(height * (MAX_DIM / width));
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width = Math.round(width * (MAX_DIM / height));
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        setLogoInput(dataUrl);
+        setIsReadingLogo(false);
+      };
+      img.onerror = () => {
+        toast.error("Failed to process image.");
+        setIsReadingLogo(false);
+      };
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file.");
+      setIsReadingLogo(false);
+    };
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoInput(null);
+  };
 
   // Check current Web Push subscription status
   useEffect(() => {
@@ -168,8 +235,8 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     }
 
     if (role === "merchant" && (cleanedCompanyName.length === 0 || cleanedCompanyName.length > 80)) {
-      setProfileError("Company Name must be between 1 and 80 characters.");
-      toast.error("Company Name must be between 1 and 80 characters.");
+      setProfileError("Business Name must be between 1 and 80 characters.");
+      toast.error("Business Name must be between 1 and 80 characters.");
       setIsSaving(false);
       return;
     }
@@ -213,6 +280,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           walletAddress,
           fullName: role === "merchant" ? (cleanedName || undefined) : cleanedName,
           companyName: role === "merchant" ? cleanedCompanyName : undefined,
+          businessLogo: role === "merchant" ? logoInput : undefined,
           username: cleanedUsername,
           phone: cleanedPhone,
           whatsapp: role === "merchant" ? undefined : cleanedWhatsapp,
@@ -242,7 +310,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   return (
     <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 shadow-xs">
       <h2 className="text-lg font-bold text-primary font-display mb-2">
-        {role === "merchant" ? "Company Profile Details" : "Profile Details"}
+        {role === "merchant" ? "Merchant Profile Details" : "Profile Details"}
       </h2>
       <div className="flex items-center gap-2 mb-3">
         <span
@@ -252,12 +320,12 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
               : "bg-green-50 text-green-700 border-green-200"
           }`}
         >
-          {role === "merchant" ? "🏢 Company Account" : "👤 Individual Account"}
+          {role === "merchant" ? "🏪 Merchant Account" : "👤 Individual Account"}
         </span>
       </div>
       <p className="text-xs text-neutral-slate mb-6">
         {role === "merchant"
-          ? "Manage your company name and logistics dispatch username."
+          ? "Manage your business name, official store logo, contact channels, and dispatch username."
           : "Manage your display name and username associated with physical sticker reports."}
       </p>
 
@@ -280,18 +348,82 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           </div>
         )}
 
+        {/* Business Logo Upload (Merchants Only) */}
+        {role === "merchant" && (
+          <div className="p-4 rounded-xl border border-neutral-mist bg-neutral-cream/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-primary">
+                  Business Logo
+                </label>
+                <p className="text-[11px] text-neutral-slate">
+                  This logo will appear on your digital receipts, counter QR displays, and sales reports.
+                </p>
+              </div>
+              {logoInput && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4">
+              {logoInput ? (
+                <div className="relative w-16 h-16 rounded-xl border border-neutral-mist bg-neutral-white overflow-hidden shrink-0 shadow-xs flex items-center justify-center p-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoInput}
+                    alt="Business Logo Preview"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-xl border-2 border-dashed border-neutral-mist bg-neutral-white flex items-center justify-center text-neutral-slate/60 shrink-0">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0">
+                <label
+                  htmlFor="business-logo-upload"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-slate/20 bg-neutral-white hover:bg-neutral-mist/50 text-xs font-bold text-primary shadow-xs cursor-pointer transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{isReadingLogo ? "Processing..." : logoInput ? "Change Logo" : "Upload Business Logo"}</span>
+                  <input
+                    id="business-logo-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleLogoChange}
+                    disabled={isReadingLogo}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-neutral-slate/70 mt-1">
+                  Supported formats: PNG, JPG, WebP. Resized and optimized automatically.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {role === "merchant" && (
             <div className="md:col-span-2">
               <label htmlFor="companyName" className="block text-xs font-semibold text-primary mb-2">
-                Company Name *
+                Business Name *
               </label>
               <input
                 type="text"
                 id="companyName"
                 value={companyNameInput}
                 onChange={(e) => setCompanyNameInput(e.target.value)}
-                placeholder="e.g. Acme Logistics Ltd"
+                placeholder="e.g. Acme Supermarket or Big Eazi Logistics"
                 className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent font-semibold"
                 required
                 maxLength={80}
@@ -316,7 +448,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
           <div>
             <label htmlFor="username" className="block text-xs font-semibold text-primary mb-2">
-              {role === "merchant" ? "Logistics ID / Username" : "Username"}
+              {role === "merchant" ? "Merchant ID / Username" : "Username"}
             </label>
             <input
               type="text"

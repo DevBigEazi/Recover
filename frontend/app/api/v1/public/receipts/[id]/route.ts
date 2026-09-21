@@ -19,11 +19,13 @@ export async function GET(
     // Lookup merchant business info
     const merchantUser = await db.user.findById(receipt.merchantAddress.toLowerCase()).lean();
     const merchantName = merchantUser?.companyName || merchantUser?.fullName || "Verified Merchant";
+    const merchantLogo = merchantUser?.businessLogo || null;
 
     // Public sanitized receipt record (exclude customer phone/email from public responses)
     const publicReceipt = {
       receiptNumber: receipt._id,
       merchantName,
+      merchantLogo,
       merchantAddress: receipt.merchantAddress,
       items: receipt.items,
       currency: receipt.currency || "NGN",
@@ -32,6 +34,9 @@ export async function GET(
       tax: receipt.tax || 0,
       total: receipt.total,
       paymentMethod: receipt.paymentMethod,
+      paymentStatus: receipt.paymentStatus || "paid",
+      amountPaid: receipt.amountPaid ?? receipt.total,
+      creditDueDate: receipt.creditDueDate,
       fulfillmentType: receipt.fulfillmentType,
       linkedShipmentId: receipt.linkedShipmentId,
       status: receipt.status,

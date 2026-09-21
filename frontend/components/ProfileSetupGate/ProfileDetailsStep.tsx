@@ -79,11 +79,11 @@ export default function ProfileDetailsStep({
             }`}
           >
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-extrabold text-primary">Logistics / Delivery Company</span>
+              <span className="text-xs font-extrabold text-primary">Merchant / Business Account</span>
               {accountType === "merchant" && <span className="text-xs text-accent">●</span>}
             </div>
             <p className="text-[11px] text-neutral-slate leading-normal">
-              Track tamper-proof deliveries, print dispatch QR codes, and receive webhook triggers.
+              Issue digital receipts, track tamper-proof deliveries, print dispatch QR codes, and receive webhook triggers.
             </p>
           </button>
         </div>
@@ -91,21 +91,21 @@ export default function ProfileDetailsStep({
 
       {/* Standard Profile Fields */}
       <div className="space-y-4 pt-2 border-t border-neutral-mist">
-        {/* Company Name — merchants only */}
+        {/* Business Name — merchants only */}
         {accountType === "merchant" && (
           <div className="space-y-1.5">
             <label
               htmlFor="gate-company-name"
               className="block text-xs font-semibold text-neutral-slate uppercase tracking-wider"
             >
-              Company Name *
+              Business Name *
             </label>
             <input
               id="gate-company-name"
               type="text"
               required
               maxLength={80}
-              placeholder="e.g. Acme Logistics Ltd"
+              placeholder="e.g. Acme Supermarket or Big Eazi Logistics"
               value={companyName}
               onChange={(e) => {
                 const val = e.target.value;

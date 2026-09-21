@@ -22,7 +22,7 @@ export default function Header() {
   const { disconnect } = useDisconnect();
   // Keep useActiveAccount for wallet-specific hooks that need the raw account
   const { openLogin } = useAuth();
-  const { fullName, companyName, username, role, plan, billingCycle } = useProfile();
+  const { fullName, companyName, businessLogo, username, role, plan, billingCycle } = useProfile();
 
   // 1. Fetch notifications via TanStack Query (polls every 5s for real-time alerts)
   const { data: notifications = [] } = useQuery<Array<{
@@ -66,7 +66,7 @@ export default function Header() {
   const navLinks = role === "merchant"
     ? [
         { name: "Home", href: "/" },
-        { name: "Shipments", href: "/shipments" },
+        { name: "Workspace", href: "/workspace" },
         { name: "Pricing", href: "/pricing" },
         { name: "Developers", href: "/developers" },
         { name: "About", href: "/about" },
@@ -80,7 +80,15 @@ export default function Header() {
         { name: "About", href: "/about" },
       ];
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    if (
+      href === "/workspace" &&
+      (pathname.startsWith("/workspace") || pathname.startsWith("/receipts") || pathname.startsWith("/shipments"))
+    ) {
+      return true;
+    }
+    return pathname === href;
+  };
 
   const handleDisconnect = () => {
     if (activeWallet) {
@@ -97,7 +105,7 @@ export default function Header() {
           {/* Logo / Wordmark lockup */}
           <div className="flex items-center">
             <Link
-              href={role === "merchant" ? "/shipments" : account ? "/dashboard" : "/"}
+              href={role === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
               className="flex items-center space-x-2"
             >
               <Image 
@@ -218,8 +226,13 @@ export default function Header() {
                       }}
                       className="flex items-center space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer"
                     >
-                      <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200">
-                        {role === "merchant" ? "🏢" : "👤"}
+                      <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200 overflow-hidden">
+                        {role === "merchant" && businessLogo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={businessLogo} alt="" className="w-full h-full object-contain" />
+                        ) : (
+                          role === "merchant" ? "🏪" : "👤"
+                        )}
                       </div>
                       <span className={`${(role === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
                         {role === "merchant"
@@ -245,18 +258,18 @@ export default function Header() {
                               </div>
                             </div>
                             <Link
-                              href="/shipments"
+                              href="/workspace"
                               className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
                               onClick={() => setIsUserMenuOpen(false)}
                             >
-                              Shipments Workspace
+                              Merchant Workspace
                             </Link>
                             <Link
                               href="/settings"
                               className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
                               onClick={() => setIsUserMenuOpen(false)}
                             >
-                              Company Settings
+                              Merchant Settings
                             </Link>
                           </>
                         ) : (

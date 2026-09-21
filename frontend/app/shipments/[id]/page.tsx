@@ -214,10 +214,10 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
       <main className="max-w-4xl mx-auto px-4 pt-8">
         <div className="mb-6">
           <Link
-            href="/shipments"
+            href="/workspace"
             className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" /> Back to Shipments
+            <ChevronLeft className="w-4 h-4" /> Back to Workspace
           </Link>
         </div>
 
@@ -238,8 +238,8 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             <p className="text-slate-400 text-xs max-w-sm mx-auto">
               This shipment belongs to a different company account. Only the registered shipper can view private tracking details.
             </p>
-            <Link href="/shipments" className="inline-block mt-2 text-xs text-blue-400 hover:text-blue-300">
-              ← Back to my Shipments
+            <Link href="/workspace" className="inline-block mt-2 text-xs text-blue-400 hover:text-blue-300">
+              ← Back to Workspace
             </Link>
           </div>
         ) : (

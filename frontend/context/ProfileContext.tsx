@@ -6,8 +6,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileContextType {
   fullName: string | null;
-  /** Company display name — non-null only for role === "merchant" accounts. */
+  /** Company/business display name — non-null only for role === "merchant" accounts. */
   companyName: string | null;
+  /** Business logo Base64 or URL — non-null only for role === "merchant" accounts. */
+  businessLogo: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
@@ -90,6 +92,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const companyName = profileData && !("isNotFound" in profileData) ? profileData.companyName || null : null;
+  const businessLogo = profileData && !("isNotFound" in profileData) ? profileData.businessLogo || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
@@ -112,6 +115,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     () => ({
       fullName,
       companyName,
+      businessLogo,
       username,
       phone,
       whatsapp,
@@ -140,6 +144,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [
       fullName,
       companyName,
+      businessLogo,
       username,
       phone,
       whatsapp,

@@ -32,7 +32,7 @@ export default function MobileExploreDrawer({
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
   const { openLogin } = useAuth();
-  const { fullName, companyName, username, role, plan } = useProfile();
+  const { fullName, companyName, businessLogo, username, role, plan } = useProfile();
 
   if (!isOpen) return null;
 
@@ -92,8 +92,13 @@ export default function MobileExploreDrawer({
           {account && (
             <div className="bg-neutral-mist/50 border border-neutral-mist rounded-xl p-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs font-bold shrink-0">
-                  {role === "merchant" ? "🏢" : <UserIcon className="w-4 h-4 text-primary" />}
+                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs font-bold shrink-0 overflow-hidden">
+                  {role === "merchant" && businessLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={businessLogo} alt="" className="w-full h-full object-contain" />
+                  ) : (
+                    role === "merchant" ? "🏪" : <UserIcon className="w-4 h-4 text-primary" />
+                  )}
                 </div>
                 <div className="overflow-hidden min-w-0">
                   <div className="text-xs font-bold text-primary truncate">

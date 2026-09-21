@@ -114,6 +114,7 @@ export async function GET(request: Request) {
       walletAddress: user._id,
       fullName: user.fullName,
       companyName: user.companyName || null,
+      businessLogo: user.businessLogo || null,
       username: user.username,
       subscriptionActive: user.subscriptionActive !== undefined ? Boolean(user.subscriptionActive) : (user.plan !== "free"),
       role: user.role,
@@ -131,7 +132,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { walletAddress, fullName, companyName, username, phone, whatsapp, email, role, plan, billingCycle, webhookUrl } = body;
+    const { walletAddress, fullName, companyName, businessLogo, username, phone, whatsapp, email, role, plan, billingCycle, webhookUrl } = body;
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -244,6 +245,33 @@ export async function POST(request: Request) {
       }
     }
 
+    let targetBusinessLogo: string | null = existingUser?.businessLogo || null;
+    if (businessLogo !== undefined) {
+      if (!businessLogo || (typeof businessLogo === "string" && businessLogo.trim() === "")) {
+        targetBusinessLogo = null;
+      } else if (typeof businessLogo === "string") {
+        const trimmedLogo = businessLogo.trim();
+        if (trimmedLogo.length > 500_000) {
+          return NextResponse.json(
+            { error: "Business logo must be under 500KB." },
+            { status: 400 }
+          );
+        }
+        if (
+          trimmedLogo.startsWith("data:image/") ||
+          trimmedLogo.startsWith("http://") ||
+          trimmedLogo.startsWith("https://")
+        ) {
+          targetBusinessLogo = trimmedLogo;
+        } else {
+          return NextResponse.json(
+            { error: "Invalid business logo format. Must be an image data URL or HTTPS image link." },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     try {
       const targetId = existingUser ? existingUser._id : walletAddress.toLowerCase();
       const user = await db.user.findOneAndUpdate(
@@ -252,6 +280,7 @@ export async function POST(request: Request) {
           $set: {
             fullName: targetFullName,
             companyName: targetCompanyName,
+            businessLogo: targetRole === "merchant" ? targetBusinessLogo : null,
             username: targetUsername,
             phone: targetPhone || null,
             whatsapp: targetRole === "merchant" ? null : (targetWhatsapp || null),
