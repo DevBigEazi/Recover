@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB, db, IReceipt } from "@/lib/db";
+import { getMerchantFromAuth } from "@/lib/auth-api";
+
+export async function GET(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    if (!merchant) {
+      return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const period = searchParams.get("period") || "daily";
+    const dateParam = searchParams.get("date");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+
+    const now = dateParam ? new Date(dateParam) : new Date();
+    let startTime = new Date();
+    let endTime = new Date();
+
+    if (period === "daily") {
+      startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === "weekly") {
+      // Last 7 days
+      startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      startTime.setHours(0, 0, 0, 0);
+      endTime = new Date(now);
+      endTime.setHours(23, 59, 59, 999);
+    } else if (period === "monthly") {
+      // 1st of month to end of month
+      startTime = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endTime = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (period === "yearly") {
+      // Jan 1 to Dec 31
+      startTime = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      endTime = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    } else if (period === "custom" && startDateParam && endDateParam) {
+      startTime = new Date(startDateParam);
+      startTime.setHours(0, 0, 0, 0);
+      endTime = new Date(endDateParam);
+      endTime.setHours(23, 59, 59, 999);
+    }
+
+    const receipts = (await db.receipt
+      .find({
+        merchantAddress: merchant._id.toLowerCase(),
+        createdAt: { $gte: startTime, $lte: endTime },
+      })
+      .sort({ createdAt: -1 })
+      .lean()) as unknown as IReceipt[];
+
+    let grossRevenue = 0;
+    let netRevenue = 0;
+    let voidedRevenue = 0;
+    let issuedCount = 0;
+    let voidedCount = 0;
+    let totalUnitsSold = 0;
+
+    const paymentBreakdown = {
+      cash: { total: 0, count: 0 },
+      bankTransfer: { total: 0, count: 0 },
+      cardPos: { total: 0, count: 0 },
+      other: { total: 0, count: 0 },
+    };
+
+    const itemMap = new Map<string, { name: string; unitsSold: number; grossSales: number }>();
+
+    for (const r of receipts) {
+      grossRevenue += r.total;
+      const isIssued = r.status === "Issued";
+
+      if (isIssued) {
+        netRevenue += r.total;
+        issuedCount += 1;
+
+        // Payment method breakdown
+        if (r.paymentMethod === "Cash") {
+          paymentBreakdown.cash.total += r.total;
+          paymentBreakdown.cash.count += 1;
+        } else if (r.paymentMethod === "Bank Transfer") {
+          paymentBreakdown.bankTransfer.total += r.total;
+          paymentBreakdown.bankTransfer.count += 1;
+        } else if (r.paymentMethod === "Card/POS") {
+          paymentBreakdown.cardPos.total += r.total;
+          paymentBreakdown.cardPos.count += 1;
+        } else {
+          paymentBreakdown.other.total += r.total;
+          paymentBreakdown.other.count += 1;
+        }
+
+        // Units sold and product breakdown
+        if (Array.isArray(r.items)) {
+          for (const it of r.items) {
+            totalUnitsSold += it.quantity;
+            const existing = itemMap.get(it.name) || { name: it.name, unitsSold: 0, grossSales: 0 };
+            existing.unitsSold += it.quantity;
+            existing.grossSales += it.lineTotal;
+            itemMap.set(it.name, existing);
+          }
+        }
+      } else {
+        voidedRevenue += r.total;
+        voidedCount += 1;
+      }
+    }
+
+    const averageOrderValue = issuedCount > 0 ? Math.round(netRevenue / issuedCount) : 0;
+    const topItems = Array.from(itemMap.values()).sort((a, b) => b.unitsSold - a.unitsSold);
+
+    return NextResponse.json({
+      success: true,
+      period,
+      timeframe: {
+        start: startTime.toISOString(),
+        end: endTime.toISOString(),
+      },
+      summary: {
+        grossRevenue,
+        netRevenue,
+        voidedRevenue,
+        receiptsCount: receipts.length,
+        issuedCount,
+        voidedCount,
+        totalUnitsSold,
+        averageOrderValue,
+      },
+      paymentBreakdown,
+      topItems,
+      receipts,
+    });
+  } catch (err: unknown) {
+    console.error("Sales analytics error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

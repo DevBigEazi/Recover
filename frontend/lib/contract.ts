@@ -4,6 +4,7 @@ import { client } from "./client";
 import { electroneum } from "./chain";
 import recoverAbiJson from "./Recover.json";
 import recoverShipmentAbiJson from "./RecoverShipment.json";
+import recoverReceiptAbiJson from "./RecoverReceipt.json";
 
 export const recoverContract = getContract({
   client,
@@ -18,3 +19,11 @@ export const recoverShipmentContract = getContract({
   address: process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as string,
   abi: recoverShipmentAbiJson.abi as unknown as Abi,
 });
+
+export const recoverReceiptContract = getContract({
+  client,
+  chain: electroneum,
+  address: process.env.NEXT_PUBLIC_RECOVER_RECEIPT_CONTRACT_ADDRESS as string,
+  abi: recoverReceiptAbiJson.abi as unknown as Abi,
+});
+

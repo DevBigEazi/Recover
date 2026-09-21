@@ -180,6 +180,51 @@ export interface IShipment {
   updatedAt?: Date;
 }
 
+export interface IReceiptItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface IReceipt {
+  _id: string; // receiptNumber e.g., "RCVR-REC-2026-0004829"
+  receiptNumber?: string; // virtual
+  merchantAddress: string; // lowercase wallet address
+  items: IReceiptItem[];
+  currency: string; // default "NGN"
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paymentMethod: "Cash" | "Bank Transfer" | "Card/POS" | "Other";
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  fulfillmentType: "spot" | "dispatch";
+  linkedShipmentId?: string | null;
+  status: "Issued" | "Voided";
+  voidReason?: string | null;
+  voidedAt?: Date | null;
+  parentReceiptNumber?: string | null;
+  receiptHash: string; // 0x... keccak256 hash
+  onChainTxHash?: string | null;
+  onChainTimestamp?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IProductPreset {
+  _id: string;
+  merchantAddress: string; // lowercase wallet address
+  name: string;
+  defaultPrice: number;
+  salesCount: number;
+  lastSoldAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 // Schemas
 const UserSchema = new Schema<IUser>(
   {
@@ -410,6 +455,83 @@ ShipmentSchema.index({ shipperAddress: 1, createdAt: -1 });
 ShipmentSchema.index({ trackingCode: 1 });
 ShipmentSchema.index({ status: 1 });
 
+const ReceiptItemSchema = new Schema<IReceiptItem>(
+  {
+    name: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    unitPrice: { type: Number, required: true, min: 0 },
+    lineTotal: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
+const ReceiptSchema = new Schema<IReceipt>(
+  {
+    _id: { type: String, required: true },
+    merchantAddress: { type: String, required: true, lowercase: true, index: true },
+    items: { type: [ReceiptItemSchema], required: true },
+    currency: { type: String, default: "NGN" },
+    subtotal: { type: Number, required: true },
+    discount: { type: Number, default: 0 },
+    tax: { type: Number, default: 0 },
+    total: { type: Number, required: true },
+    paymentMethod: {
+      type: String,
+      enum: ["Cash", "Bank Transfer", "Card/POS", "Other"],
+      default: "Cash",
+      index: true,
+    },
+    customerName: { type: String, default: null },
+    customerPhone: { type: String, default: null },
+    customerEmail: { type: String, default: null },
+    fulfillmentType: { type: String, enum: ["spot", "dispatch"], default: "spot" },
+    linkedShipmentId: { type: String, default: null, index: true },
+    status: { type: String, enum: ["Issued", "Voided"], default: "Issued", index: true },
+    voidReason: { type: String, default: null },
+    voidedAt: { type: Date, default: null },
+    parentReceiptNumber: { type: String, default: null },
+    receiptHash: { type: String, required: true, index: true },
+    onChainTxHash: { type: String, default: null },
+    onChainTimestamp: { type: Date, default: null },
+  },
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: Record<string, unknown>) => {
+        ret.receiptNumber = ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: { virtuals: true },
+  }
+);
+
+ReceiptSchema.virtual("receiptNumber").get(function (this: { _id: string }) {
+  return this._id;
+});
+
+ReceiptSchema.index({ merchantAddress: 1, createdAt: -1 });
+ReceiptSchema.index({ merchantAddress: 1, status: 1 });
+ReceiptSchema.index({ createdAt: -1 });
+
+const ProductPresetSchema = new Schema<IProductPreset>(
+  {
+    merchantAddress: { type: String, required: true, lowercase: true, index: true },
+    name: { type: String, required: true },
+    defaultPrice: { type: Number, required: true, min: 0 },
+    salesCount: { type: Number, default: 1 },
+    lastSoldAt: { type: Date, default: Date.now },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+ProductPresetSchema.index({ merchantAddress: 1, name: 1 }, { unique: true });
+ProductPresetSchema.index({ merchantAddress: 1, salesCount: -1 });
+
 // Clear cached User model in development to force re-compilation with updated schema
 if (process.env.NODE_ENV !== "production" && mongoose.models.User) {
   delete mongoose.models.User;
@@ -423,6 +545,8 @@ const NotificationModel = mongoose.models.Notification || mongoose.model<INotifi
 const PushSubscriptionModel = mongoose.models.PushSubscription || mongoose.model<IPushSubscription>("PushSubscription", PushSubscriptionSchema);
 const ShipmentModel = mongoose.models.Shipment || mongoose.model<IShipment>("Shipment", ShipmentSchema);
 const TestShipmentModel = mongoose.models.TestShipment || mongoose.model<IShipment>("TestShipment", ShipmentSchema);
+const ReceiptModel = mongoose.models.Receipt || mongoose.model<IReceipt>("Receipt", ReceiptSchema);
+const ProductPresetModel = mongoose.models.ProductPreset || mongoose.model<IProductPreset>("ProductPreset", ProductPresetSchema);
 
 // Export db object matching Prisma collection access patterns where possible
 export const db = {
@@ -433,4 +557,7 @@ export const db = {
   pushSubscription: PushSubscriptionModel as Model<IPushSubscription>,
   shipment: ShipmentModel as Model<IShipment>,
   testShipment: TestShipmentModel as Model<IShipment>,
+  receipt: ReceiptModel as Model<IReceipt>,
+  productPreset: ProductPresetModel as Model<IProductPreset>,
 };
+

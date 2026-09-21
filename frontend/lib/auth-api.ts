@@ -103,3 +103,17 @@ export async function getShipperFromApiKey(
     status: 401,
   };
 }
+
+export async function getMerchantFromAuth(req: Request): Promise<AuthApiResult> {
+  const authHeader = req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("x-api-key");
+  const ownerAddressHeader = req.headers.get("x-owner-address");
+
+  let token = apiKeyHeader;
+  if (!token && authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  }
+
+  return getShipperFromApiKey(token, ownerAddressHeader);
+}
+
