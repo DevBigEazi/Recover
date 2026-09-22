@@ -20,13 +20,18 @@ export async function GET(
     const merchantUser = await db.user.findById(receipt.merchantAddress.toLowerCase()).lean();
     const merchantName = merchantUser?.companyName || merchantUser?.fullName || "Verified Merchant";
     const merchantLogo = merchantUser?.businessLogo || null;
+    const merchantPhone = merchantUser?.phone || merchantUser?.whatsapp || null;
+    const merchantEmail = merchantUser?.email || null;
 
     // Public sanitized receipt record (exclude customer phone/email from public responses)
     const publicReceipt = {
       receiptNumber: receipt._id,
       merchantName,
       merchantLogo,
+      merchantPhone,
+      merchantEmail,
       merchantAddress: receipt.merchantAddress,
+      customerName: receipt.customerName || null,
       items: receipt.items,
       currency: receipt.currency || "NGN",
       subtotal: receipt.subtotal,

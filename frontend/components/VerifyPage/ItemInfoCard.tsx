@@ -64,7 +64,7 @@ export default function ItemInfoCard({
           <div>
             {phoneVal ? (
               <a
-                href={`tel:${phoneVal}`}
+                href={`Phone no:${phoneVal}`}
                 className="w-full bg-primary hover:bg-primary-light text-neutral-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <span className="text-base">📞</span>

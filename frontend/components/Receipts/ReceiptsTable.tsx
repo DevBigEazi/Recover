@@ -17,6 +17,7 @@ import {
   User,
   Phone,
   Check,
+  ReceiptText,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -281,15 +282,6 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                   {/* Left Section: Receipt Info, Items & Customer */}
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        href={`/r/${r.receiptNumber || r._id}`}
-                        target="_blank"
-                        className="font-mono font-bold text-xs sm:text-sm text-blue-400 hover:underline flex items-center gap-1"
-                      >
-                        <span>{r.receiptNumber || r._id}</span>
-                        <ExternalLink className="w-3 h-3 text-blue-400/60" />
-                      </Link>
-
                       {/* Status Badges */}
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${
@@ -399,7 +391,7 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                         title="View Public Receipt"
                         className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-colors min-h-8.5 flex items-center justify-center"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <ReceiptText className="w-3.5 h-3.5" />
                       </Link>
 
                       {/* Void Receipt Button */}

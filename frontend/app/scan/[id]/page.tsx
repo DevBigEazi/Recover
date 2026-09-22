@@ -321,7 +321,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                         </span>
                       </div>
                       <a
-                        href={`tel:${shipment.metadata.receiverPhone as string}`}
+                        href={`Phone no:${shipment.metadata.receiverPhone as string}`}
                         className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shrink-0"
                       >
                         <Phone className="w-3.5 h-3.5" /> Call
@@ -370,7 +370,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                   </div>
 
                   <a
-                    href={`tel:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
+                    href={`Phone no:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
                     className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md shrink-0 cursor-pointer"
                   >
                     <Phone className="w-3.5 h-3.5" /> Call Rider / Driver

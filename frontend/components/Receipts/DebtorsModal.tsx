@@ -179,7 +179,7 @@ export default function DebtorsModal({
                     <div className="flex items-center gap-1 text-[11px] text-slate-400">
                       <Phone className="w-3 h-3 text-slate-500" />
                       <a
-                        href={`tel:${debtor.customerPhone}`}
+                        href={`Phone no:${debtor.customerPhone}`}
                         className="hover:text-blue-400 hover:underline"
                       >
                         {debtor.customerPhone}

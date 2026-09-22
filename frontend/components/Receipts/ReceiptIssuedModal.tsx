@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { CheckCircle2, Copy, Share2, Printer, PlusCircle, X, ExternalLink } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { CheckCircle2, Copy, Share2, Download, PlusCircle, X, ExternalLink, Loader2, AlertCircle, Calendar, User, FileImage } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { useProfile } from "@/context/ProfileContext";
+import { generateReceiptPdf, generateReceiptImage } from "@/lib/pdf-generator";
+import { RetailReceiptSlip } from "@/components/Receipts/RetailReceiptSlip";
 
 export interface ReceiptIssuedData {
   _id: string;
@@ -20,8 +22,11 @@ export interface ReceiptIssuedData {
   amountPaid?: number;
   creditDueDate?: string | null;
   customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
   fulfillmentType: string;
   onChainTxHash?: string | null;
+  createdAt?: string;
 }
 
 interface ReceiptIssuedModalProps {
@@ -36,12 +41,20 @@ export default function ReceiptIssuedModal({
   onNewSale,
 }: ReceiptIssuedModalProps) {
   const [copied, setCopied] = useState(false);
-  const { businessLogo, companyName } = useProfile();
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+  const { businessLogo, companyName, phone, email, whatsapp } = useProfile();
 
   const receiptId = receipt.receiptNumber || receipt._id;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const publicUrl = `${origin}/r/${receiptId}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=${encodeURIComponent(publicUrl)}`;
+
+  const hiddenReceiptRef = useRef<HTMLDivElement>(null);
+  const isCredit = receipt.paymentMethod === "Credit";
+  const isCreditUnpaid = isCredit && receipt.paymentStatus !== "paid";
+  const amountPaid = receipt.amountPaid || 0;
+  const balanceDue = isCreditUnpaid ? Math.max(0, receipt.total - amountPaid) : 0;
 
   const handleCopyLink = async () => {
     try {
@@ -55,106 +68,63 @@ export default function ReceiptIssuedModal({
   };
 
   const handleWhatsAppShare = () => {
-    const text = `Here is your verified receipt for ₦${receipt.total.toLocaleString()} from your purchase: ${publicUrl}`;
+    const text = `Here is your verified receipt for ₦${receipt.total.toLocaleString()} from ${companyName || "Merchant"}: ${publicUrl}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      toast.error("Please allow popups to print receipt.");
-      return;
+  const getReceiptData = () => ({
+    receiptNumber: receiptId,
+    merchantName: companyName || "Merchant Store",
+    merchantLogo: businessLogo,
+    merchantPhone: phone || whatsapp || null,
+    merchantEmail: email || null,
+    items: receipt.items,
+    currency: receipt.currency || "NGN",
+    subtotal: receipt.subtotal,
+    discount: receipt.discount,
+    tax: receipt.tax,
+    total: receipt.total,
+    paymentMethod: receipt.paymentMethod,
+    paymentStatus: (receipt.paymentStatus || "paid") as "paid" | "unpaid" | "partially_paid",
+    amountPaid: receipt.amountPaid,
+    creditDueDate: receipt.creditDueDate,
+    customerName: receipt.customerName,
+    fulfillmentType: receipt.fulfillmentType,
+    status: "Issued" as const,
+    createdAt: receipt.createdAt || new Date().toISOString(),
+  });
+
+  const handleDownloadPdf = async () => {
+    if (!hiddenReceiptRef.current) return;
+    try {
+      setIsDownloadingPdf(true);
+      await generateReceiptPdf(hiddenReceiptRef.current, `receipt-${receiptId}`);
+      toast.success("Receipt PDF downloaded!");
+    } catch (err: unknown) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsDownloadingPdf(false);
     }
+  };
 
-    const itemsHtml = receipt.items
-      .map(
-        (it) => `
-        <tr>
-          <td style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0;">
-            <div style="font-weight: 600; font-size: 13px;">${it.name}</div>
-            <div style="font-size: 11px; color: #64748b;">${it.quantity} × ₦${it.unitPrice.toLocaleString()}</div>
-          </td>
-          <td style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; text-align: right; font-weight: 600; font-size: 13px;">
-            ₦${it.lineTotal.toLocaleString()}
-          </td>
-        </tr>`
-      )
-      .join("");
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Receipt ${receiptId}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; color: #1e293b; }
-            .container { max-width: 380px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
-            .header { margin-bottom: 16px; border-bottom: 2px solid #0f172a; padding-bottom: 12px; }
-            .title { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
-            .subtitle { font-size: 12px; color: #64748b; margin-top: 4px; }
-            table { width: 100%; border-collapse: collapse; margin: 16px 0; text-align: left; }
-            .totals { border-top: 2px solid #0f172a; padding-top: 8px; margin-top: 8px; }
-            .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; margin-top: 6px; }
-            .qr-box { margin: 20px 0; }
-            .qr-img { width: 140px; height: 140px; }
-            .footer { font-size: 10px; color: #94a3b8; margin-top: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 class="title">DIGITAL RECEIPT</h1>
-              <div class="subtitle">Proof of Purchase · ${receiptId}</div>
-              <div class="subtitle">${new Date().toLocaleString()}</div>
-            </div>
-
-            <table>
-              <tbody>${itemsHtml}</tbody>
-            </table>
-
-            <div class="totals">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 4px;">
-                <span>Payment Method</span>
-                <span>${receipt.paymentMethod}</span>
-              </div>
-              ${
-                receipt.discount > 0
-                  ? `<div style="display: flex; justify-content: space-between; font-size: 12px; color: #16a34a; margin-bottom: 4px;">
-                      <span>Discount</span>
-                      <span>-₦${receipt.discount.toLocaleString()}</span>
-                    </div>`
-                  : ""
-              }
-              <div class="total-row">
-                <span>TOTAL PAID</span>
-                <span>₦${receipt.total.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div class="qr-box">
-              <img src="${qrUrl}" class="qr-img" alt="QR Code" />
-              <div style="font-size: 11px; font-weight: 600; color: #0f172a; margin-top: 6px;">
-                Scan with phone camera to verify
-              </div>
-            </div>
-
-            <div class="footer">
-              Recorded and verified permanently with tamper-proof security.<br />
-              Verify anytime at: ${publicUrl}
-            </div>
-          </div>
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+  const handleDownloadImage = async () => {
+    if (!hiddenReceiptRef.current) return;
+    try {
+      setIsDownloadingImage(true);
+      await generateReceiptImage(hiddenReceiptRef.current, `receipt-${receiptId}`);
+      toast.success("Receipt image downloaded!");
+    } catch (err: unknown) {
+      console.error("Image download error:", err);
+      toast.error("Failed to generate image");
+    } finally {
+      setIsDownloadingImage(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 overflow-hidden flex flex-col max-h-[92vh] shadow-2xl">
         {/* Header */}
         <div className="p-5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
@@ -192,7 +162,7 @@ export default function ReceiptIssuedModal({
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               Customer Instant QR Scan
             </p>
-            <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-700">
+            <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-700">
               <Image
                 src={qrUrl}
                 alt={`QR code for ${receiptId}`}
@@ -210,11 +180,69 @@ export default function ReceiptIssuedModal({
             </p>
           </div>
 
+          {/* Store Credit Deal Highlight Card */}
+          {isCreditUnpaid && (
+            <div className="p-3.5 rounded-xl bg-slate-900 border border-blue-500/30 space-y-2">
+              <div className="flex items-center gap-1.5 text-blue-400 text-xs font-bold uppercase tracking-wider">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Store Credit Deal</span>
+              </div>
+
+              <div className="flex justify-between items-baseline pt-1 border-t border-slate-800">
+                <span className="text-xs text-slate-300 font-semibold">Remaining Balance Due:</span>
+                <span className="text-base font-black font-mono text-blue-400">
+                  ₦{balanceDue.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+                {receipt.customerName && (
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <User className="w-3 h-3 text-blue-400 shrink-0" />
+                    Customer: <b className="text-white">{receipt.customerName}</b>
+                  </span>
+                )}
+                {amountPaid > 0 && (
+                  <span>
+                    Initial Deposit: <b className="text-white">₦{amountPaid.toLocaleString()}</b>
+                  </span>
+                )}
+              </div>
+
+              {receipt.creditDueDate && (
+                <div className="flex items-center gap-1 text-[11px] text-slate-400 pt-0.5">
+                  <Calendar className="w-3 h-3 text-blue-400 shrink-0" />
+                  <span>
+                    Payment Due Date:{" "}
+                    <b className="text-slate-200">
+                      {new Date(receipt.creditDueDate).toLocaleString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </b>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick Summary */}
           <div className="space-y-2 text-sm border-t border-slate-800 pt-3">
             <div className="flex justify-between items-center text-slate-400 text-xs">
               <span>Items ({receipt.items.length})</span>
-              <span>Payment: {receipt.paymentMethod}</span>
+              <span>
+                Payment:{" "}
+                <b className="text-white font-semibold">
+                  {isCredit
+                    ? `Store Credit (${receipt.paymentStatus === "paid" ? "Settled" : "Pay Later"})`
+                    : receipt.paymentMethod}
+                </b>
+              </span>
             </div>
             <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 text-xs">
               {receipt.items.map((it, idx) => (
@@ -228,13 +256,13 @@ export default function ReceiptIssuedModal({
             </div>
             <div className="flex justify-between items-center pt-2 font-bold text-white text-base">
               <span>
-                {receipt.paymentMethod === "Credit"
+                {isCredit
                   ? receipt.paymentStatus === "paid"
                     ? "Total (Credit Settled)"
-                    : "Total (Credit Owed)"
+                    : "Total Deal Amount"
                   : "Total Received"}
               </span>
-              <span className={`font-mono ${receipt.paymentMethod === "Credit" && receipt.paymentStatus !== "paid" ? "text-amber-400" : "text-blue-400"}`}>
+              <span className={`font-mono ${isCreditUnpaid ? "text-blue-400" : "text-emerald-400"}`}>
                 ₦{receipt.total.toLocaleString()}
               </span>
             </div>
@@ -243,16 +271,7 @@ export default function ReceiptIssuedModal({
 
         {/* Footer Actions */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col gap-2">
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-all cursor-pointer"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>{copied ? "Copied!" : "Copy Link"}</span>
-            </button>
-
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleWhatsAppShare}
@@ -264,35 +283,47 @@ export default function ReceiptIssuedModal({
 
             <button
               type="button"
-              onClick={handlePrint}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-all cursor-pointer"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-all cursor-pointer disabled:opacity-50"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print PDF</span>
+              {isDownloadingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-blue-400" />
+              )}
+              <span>Download PDF</span>
             </button>
-          </div>
-
-          <div className="flex gap-2 mt-1">
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-slate-400 hover:text-blue-400 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open Customer View</span>
-            </a>
 
             <button
               type="button"
+              onClick={handleDownloadImage}
+              disabled={isDownloadingImage}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isDownloadingImage ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+              ) : (
+                <FileImage className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span>Save Image (.png)</span>
+            </button>
+
+             <button
+              type="button"
               onClick={onNewSale}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               <span>+ Next Sale</span>
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Offscreen Rendered Receipt Slip for 1-Click PDF/Image Generation */}
+      <div className="fixed left-[-9999px] top-0 pointer-events-none opacity-0 w-150">
+        <RetailReceiptSlip ref={hiddenReceiptRef} receipt={getReceiptData()} qrUrl={qrUrl} />
       </div>
     </div>
   );
