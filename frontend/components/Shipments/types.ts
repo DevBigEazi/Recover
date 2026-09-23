@@ -23,7 +23,7 @@ export interface Shipment {
 export interface HandoverResult {
   riderLink: string;
   recipientLink: string;
-  courierPin: string;
+  riderPin: string;
   riderPhone: string | null;
   riderName: string | null;
 }

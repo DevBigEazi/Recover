@@ -68,25 +68,25 @@ export async function GET(
 
     const shipmentObj = typeof shipment.toObject === "function" ? shipment.toObject() : shipment;
     const rawMetadata = { ...(shipmentObj.metadata || {}) } as Record<string, unknown>;
-    delete rawMetadata.courierPin;
+    delete rawMetadata.riderPin;
 
     const isOwner = Boolean(
       authenticatedShipperAddress &&
       authenticatedShipperAddress.toLowerCase() === shipment.shipperAddress.toLowerCase()
     );
 
-    const storedCourierPin = shipmentObj.metadata?.courierPin as string | undefined;
-    const isCourierAuthorized = Boolean(
-      isOwner || (pinParam && storedCourierPin && pinParam.trim() === storedCourierPin.trim())
+    const storedRiderPin = shipmentObj.metadata?.riderPin as string | undefined;
+    const isRiderAuthorized = Boolean(
+      isOwner || (pinParam && storedRiderPin && pinParam.trim() === storedRiderPin.trim())
     );
 
     const riderInfo = {
       name: (rawMetadata.riderName as string) || null,
-      phone: isCourierAuthorized ? ((rawMetadata.riderPhone as string) || null) : null,
+      phone: isRiderAuthorized ? ((rawMetadata.riderPhone as string) || null) : null,
       plateNumber: (rawMetadata.riderPlateNumber as string) || null,
     };
 
-    const sanitizedMetadata = isCourierAuthorized ? rawMetadata : {
+    const sanitizedMetadata = isRiderAuthorized ? rawMetadata : {
       ...rawMetadata,
       receiverName: undefined,
       receiverPhone: undefined,
@@ -107,7 +107,7 @@ export async function GET(
       status: shipment.status,
       metadata: sanitizedMetadata,
       events: shipment.events,
-      isCourierAuthorized,
+      isRiderAuthorized,
       riderInfo,
       createdAt: shipment.createdAt,
       updatedAt: shipment.updatedAt,

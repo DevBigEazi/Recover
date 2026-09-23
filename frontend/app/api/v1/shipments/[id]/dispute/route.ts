@@ -86,7 +86,7 @@ export async function POST(
     // Idempotency guard: cannot dispute a package that is not in transit
     if (shipment.status !== "InTransit") {
       return NextResponse.json(
-        { error: `Cannot file a dispute. Package must be 'InTransit' (handed over to a courier). Current status is '${shipment.status}'.` },
+        { error: `Cannot file a dispute. Package must be 'InTransit' (handed over for delivery). Current status is '${shipment.status}'.` },
         { status: 400 }
       );
     }

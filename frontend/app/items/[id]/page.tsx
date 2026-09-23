@@ -184,8 +184,8 @@ export default function ItemDetailPage({ params }: PageProps) {
         location?: string | null;
         locationContext?: string | null;
         unlocked?: boolean;
-        deliveryMethod?: "meetup" | "courier";
-        courierDetails?: string | null;
+        deliveryMethod?: "meetup" | "delivery";
+        deliveryDetails?: string | null;
         createdAt: string;
       }
       const repResponse = await fetch(`/api/reports/item/${itemId}`, {
@@ -201,8 +201,8 @@ export default function ItemDetailPage({ params }: PageProps) {
         location: r.location || "",
         locationContext: r.locationContext || null,
         unlocked: Boolean(r.unlocked),
-        deliveryMethod: r.deliveryMethod || "meetup",
-        courierDetails: r.courierDetails || null,
+        deliveryMethod: (r.deliveryMethod === "delivery" ? "delivery" : "meetup") as "meetup" | "delivery",
+        deliveryDetails: r.deliveryDetails || null,
         timestamp: new Date(r.createdAt).getTime(),
       }));
     },

@@ -133,8 +133,8 @@ export interface IFinderReport {
   locationContext?: string | null;
   photo: string | null;
   unlocked: boolean;
-  deliveryMethod?: "meetup" | "courier";
-  courierDetails?: string | null;
+  deliveryMethod?: "meetup" | "delivery";
+  deliveryDetails?: string | null;
   createdAt?: Date;
 }
 
@@ -433,8 +433,8 @@ const FinderReportSchema = new Schema<IFinderReport>(
     locationContext: { type: String, default: null },
     photo: { type: String, default: null },
     unlocked: { type: Boolean, default: false },
-    deliveryMethod: { type: String, enum: ["meetup", "courier"], default: "meetup" },
-    courierDetails: { type: String, default: null },
+    deliveryMethod: { type: String, enum: ["meetup", "delivery"], default: "meetup" },
+    deliveryDetails: { type: String, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   {

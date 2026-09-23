@@ -14,10 +14,10 @@ interface FinderReportFormProps {
 export default function FinderReportForm({ itemId, itemName, setShowReportForm }: FinderReportFormProps) {
   const [finderMessage, setFinderMessage] = useState("");
   const [finderContact, setFinderContact] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState<"meetup" | "courier">("meetup");
-  const [courierCompany, setCourierCompany] = useState("");
-  const [courierTracking, setCourierTracking] = useState("");
-  const [courierNotes, setCourierNotes] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"meetup" | "delivery">("meetup");
+  const [deliveryCompany, setDeliveryCompany] = useState("");
+  const [deliveryTracking, setDeliveryTracking] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
   const [shareLocation, setShareLocation] = useState(false);
   const [locationCoords, setLocationCoords] = useState("");
   const [isLocating, setIsLocating] = useState(false);
@@ -167,14 +167,14 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       return;
     }
 
-    if (deliveryMethod === "courier" && (!courierCompany.trim() || !courierTracking.trim())) {
-      setReportError("Courier service name and tracking/contact details are required.");
-      toast.error("Courier service name and tracking/contact details are required.");
+    if (deliveryMethod === "delivery" && (!deliveryCompany.trim() || !deliveryTracking.trim())) {
+      setReportError("Delivery service name and tracking/contact details are required.");
+      toast.error("Delivery service name and tracking/contact details are required.");
       return;
     }
 
-    const combinedCourierDetails = deliveryMethod === "courier"
-      ? `Company: ${courierCompany.trim()} | Tracking/Contact: ${courierTracking.trim()}${courierNotes.trim() ? ` | Notes: ${courierNotes.trim()}` : ""}`
+    const combinedDeliveryDetails = deliveryMethod === "delivery"
+      ? `Company: ${deliveryCompany.trim()} | Tracking/Contact: ${deliveryTracking.trim()}${deliveryNotes.trim() ? ` | Notes: ${deliveryNotes.trim()}` : ""}`
       : "";
 
     setIsSubmittingReport(true);
@@ -191,7 +191,7 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
           location: locationCoords,
           photo: photoBase64,
           deliveryMethod,
-          courierDetails: deliveryMethod === "courier" ? combinedCourierDetails.trim() : null,
+          deliveryDetails: deliveryMethod === "delivery" ? combinedDeliveryDetails.trim() : null,
         }),
       });
 
@@ -205,9 +205,9 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
       setFinderMessage("");
       setFinderContact("");
       setDeliveryMethod("meetup");
-      setCourierCompany("");
-      setCourierTracking("");
-      setCourierNotes("");
+      setDeliveryCompany("");
+      setDeliveryTracking("");
+      setDeliveryNotes("");
       setShareLocation(false);
       setLocationCoords("");
       setPhotoBase64("");
@@ -341,9 +341,9 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                     checked={deliveryMethod === "meetup"}
                     onChange={() => {
                       setDeliveryMethod("meetup");
-                      setCourierCompany("");
-                      setCourierTracking("");
-                      setCourierNotes("");
+                      setDeliveryCompany("");
+                      setDeliveryTracking("");
+                      setDeliveryNotes("");
                     }}
                     disabled={isSubmittingReport}
                     className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
@@ -354,13 +354,13 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                   <input
                     type="radio"
                     name="deliveryMethod"
-                    value="courier"
-                    checked={deliveryMethod === "courier"}
-                    onChange={() => setDeliveryMethod("courier")}
+                    value="delivery"
+                    checked={deliveryMethod === "delivery"}
+                    onChange={() => setDeliveryMethod("delivery")}
                     disabled={isSubmittingReport}
                     className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-pointer"
                   />
-                  📦 Send via Courier
+                  📦 Send via Delivery / Rider
                 </label>
                 <label className="flex items-center gap-1.5 text-xs text-neutral-slate font-medium cursor-not-allowed select-none group relative">
                   <input
@@ -370,64 +370,64 @@ export default function FinderReportForm({ itemId, itemName, setShowReportForm }
                     disabled={true}
                     className="h-4 w-4 text-accent focus:ring-accent border-gray-300 cursor-not-allowed opacity-50"
                   />
-                  <span className="opacity-50">🚚 Integrated Courier</span>
-                  <span className="bg-amber-100 text-amber-800 text-[8px] font-bold px-1 py-0.5 rounded-sm uppercase tracking-wide opacity-80">Coming Soon</span>
+                  <span className="opacity-50">🚚 Automated Delivery</span>
+                  <span className="bg-neutral-slate/15 text-neutral-slate text-[8px] font-bold px-1 py-0.5 rounded-sm uppercase tracking-wide opacity-80">Coming Soon</span>
                   <span className="cursor-help text-neutral-slate text-[11px] font-bold">ⓘ</span>
                   <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-56 p-3 bg-[#1e293b] text-[#f8fafc] text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50 leading-relaxed font-normal text-center border border-slate-700">
-                    Coming soon: Dispatches automated courier partners (Uber/DHL) to pick up items anonymously, protecting your home address privacy.
+                    Coming soon: Dispatches automated delivery partners (Uber/DHL) to pick up items anonymously, protecting your home address privacy.
                   </span>
                 </label>
               </div>
             </div>
 
-            {/* Courier Details */}
-            {deliveryMethod === "courier" && (
+            {/* Delivery Details */}
+            {deliveryMethod === "delivery" && (
               <div className="space-y-3 bg-neutral-mist/20 p-3.5 border border-neutral-mist rounded-xl">
                 <h4 className="text-xs font-bold text-primary font-display flex items-center gap-1.5">
-                  📦 Courier Delivery Setup
+                  📦 Delivery &amp; Waybill Setup
                 </h4>
                 
                 <div>
-                  <label htmlFor="courier_company" className="block text-[11px] font-semibold text-neutral-slate">
-                    Courier Service / Company Name <span className="text-accent font-bold">*</span>
+                  <label htmlFor="delivery_company" className="block text-[11px] font-semibold text-neutral-slate">
+                    Delivery Service / Company Name <span className="text-accent font-bold">*</span>
                   </label>
                   <input
                     type="text"
-                    id="courier_company"
-                    value={courierCompany}
-                    onChange={(e) => setCourierCompany(e.target.value)}
+                    id="delivery_company"
+                    value={deliveryCompany}
+                    onChange={(e) => setDeliveryCompany(e.target.value)}
                     placeholder="e.g. GIG Logistics, DHL, Local Dispatch Rider"
-                    required={deliveryMethod === "courier"}
+                    required={deliveryMethod === "delivery"}
                     className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
                     disabled={isSubmittingReport}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="courier_tracking" className="block text-[11px] font-semibold text-neutral-slate">
+                  <label htmlFor="delivery_tracking" className="block text-[11px] font-semibold text-neutral-slate">
                     Tracking Number or Dispatch Contact <span className="text-accent font-bold">*</span>
                   </label>
                   <input
                     type="text"
-                    id="courier_tracking"
-                    value={courierTracking}
-                    onChange={(e) => setCourierTracking(e.target.value)}
+                    id="delivery_tracking"
+                    value={deliveryTracking}
+                    onChange={(e) => setDeliveryTracking(e.target.value)}
                     placeholder="e.g. Waybill ID or rider's phone number"
-                    required={deliveryMethod === "courier"}
+                    required={deliveryMethod === "delivery"}
                     className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
                     disabled={isSubmittingReport}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="courier_notes" className="block text-[11px] font-semibold text-neutral-slate">
+                  <label htmlFor="delivery_notes" className="block text-[11px] font-semibold text-neutral-slate">
                     Additional Delivery Instructions (Optional)
                   </label>
                   <textarea
-                    id="courier_notes"
+                    id="delivery_notes"
                     rows={2}
-                    value={courierNotes}
-                    onChange={(e) => setCourierNotes(e.target.value)}
+                    value={deliveryNotes}
+                    onChange={(e) => setDeliveryNotes(e.target.value)}
                     placeholder="e.g. package details, expected delivery day, or special instructions."
                     className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-accent focus:outline-hidden bg-neutral-white"
                     disabled={isSubmittingReport}

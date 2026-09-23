@@ -105,11 +105,11 @@ export default function Home() {
                     <Truck className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">For Logistics &amp; Couriers</span>
+                    <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">For Logistics &amp; Delivery Teams</span>
                     <h3 className="text-lg font-bold text-primary font-display mt-0.5">Proof of Custody (Shipments)</h3>
                   </div>
                   <p className="text-xs text-neutral-slate leading-relaxed">
-                    Tamperproof package dispatches with dual-layer QR stickers, courier delivery manifests, real-time web push dispatch alerts, and scratch-off PIN handovers.
+                    Tamperproof package dispatches with dual-layer QR stickers, rider delivery manifests, real-time web push dispatch alerts, and scratch-off PIN handovers.
                   </p>
                 </div>
                 <div className="pt-2 border-t border-neutral-mist/60">

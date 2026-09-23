@@ -555,7 +555,7 @@ export default function POSScreen() {
                     <Truck className="w-3 h-3 text-blue-400" />
                     <span>Dispatch</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">Courier tracking label</div>
+                  <div className="text-[10px] text-slate-400">Delivery tracking label</div>
                 </button>
               </div>
             </div>
