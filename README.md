@@ -2,7 +2,7 @@
 
 **Recover** is a privacy-first, QR-code-powered trust and commerce protocol built on the **Electroneum Mainnet** with AI-assisted workflows. By anchoring physical QR stickers to an immutable on-chain registry and rich off-chain metadata, Recover delivers three interconnected value pillars — all without requiring users to hold or spend cryptocurrency:
 
-1. **Proof of Purchase (Recover Digital Receipts):** Fast in-store and e-commerce digital receipt generation for SME merchants, verifiable on-chain sales records, automated sales analytics, and a 1-tap consumer bridge that converts purchased items directly into protected Recover vault items.
+1. **Proof of Purchase (Recover Digital Receipts):** Fast in-store and e-commerce digital receipt generation for SME merchants, verifiable on-chain sales records, automated sales analytics, and a 1-tap consumer bridge that converts purchased items directly into protected Recover vault items. Features full multi-user team collaboration (Owner, Manager, Sales Rep roles), multi-branch operations, and permanent immutable audit trails for every transaction.
 2. **Proof of Custody & Dispatch (Recover Shipments):** Tamper-proof commercial package tracking, dual-layer QR stickers, and scratch-off PIN handovers for logistics and courier operators.
 3. **Proof of Ownership & Recovery (Recover Items):** Decentralized lost-and-found protection connecting finders directly to item owners via scannable QR stickers — without revealing personal data.
 
@@ -84,6 +84,7 @@ sequenceDiagram
 | **`/items/[id]`** | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other). |
 | **`/verify/[id]`** | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/finder report submission form. |
 | **`/workspace`** | **Merchant POS Terminal & Sales Analytics**: Central merchant workspace combining the POS receipt terminal, real-time analytics cards (daily/weekly/monthly/yearly), and receipt ledger in a single unified dashboard. |
+| **`/workspace/login`** | **Staff & Cashier Login Portal**: Fast passwordless email + 6-digit numeric PIN authentication for store managers and sales staff. |
 | **`/receipts`** | **Receipt Ledger**: Full searchable and filterable receipt management table with voiding, audit trail, and status filtering. |
 | **`/receipts/new`** | **POS Receipt Entry**: Rapid multi-item cart entry with product autocomplete quick-pick, quantity steppers, discount/tax fields, payment method selector, and dual fulfillment (in-person handover or Shipment dispatch). |
 | **`/r/[receiptNumber]`** | **Public Customer Receipt Page**: No-auth, zero-barrier receipt verification page showing merchant branding, itemized purchase, on-chain cryptographic proof, PDF download, and the "🛡️ Protect on Recover" 1-tap consumer bridge CTA. |
@@ -91,7 +92,7 @@ sequenceDiagram
 | **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Private tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), courier dispatch PINs, Google Maps location tracking, and custody handover tools. |
 | **`/scan/[id]`** | **Dual Public & Courier Scan View**: No-auth interface serving two roles — (1) **Rider Link (`?pin=XXXX`)**: Unlocks Courier Delivery Manifest; (2) **Recipient Link**: Public tracking + account-free scratch-off PIN verification. |
 | **`/developers`** | **Logistics Developer Portal**: REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization, and webhook payload formats. |
-| **`/settings`** | **Account & Merchant Settings**: Profile management, business logo upload, API key generation & rolling, private key export (client-side only), and Subscription Upgrade Modal with live FX currency conversion. |
+| **`/settings`** | **Account, Merchant, Teams & Branches**: Profile management, business logo upload, API key generation & rolling, private key export (client-side only), Subscription Upgrade Modal, and full Merchant Team Management (invite/remove staff, manage store branches, and assign branch managers). |
 | **`/pricing`** | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Merchant Pro Tiers (Free Bootstrap, Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees. |
 | **`/about`** | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless architecture, privacy standards, and common user questions. |
 | **`/notifications`** | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions. |
