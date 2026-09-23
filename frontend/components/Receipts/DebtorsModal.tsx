@@ -12,6 +12,9 @@ export interface DebtorCustomer {
   receiptNumbers: string[];
   latestDate: string | Date;
   dueDate: string | Date | null;
+  soldBy?: string;
+  soldByRole?: string | null;
+  branchName?: string | null;
 }
 
 interface DebtorsModalProps {
@@ -97,7 +100,7 @@ export default function DebtorsModal({
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/60 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center">
               <Clock className="w-5 h-5" />
             </div>
             <div>
@@ -127,7 +130,7 @@ export default function DebtorsModal({
           </div>
           <div className="text-right">
             <span className="text-[11px] text-slate-400 uppercase tracking-wider block">Total Outstanding</span>
-            <span className="text-base sm:text-lg font-black text-amber-400 font-mono">
+            <span className="text-base sm:text-lg font-black text-blue-400 font-mono">
               ₦{totalCreditOwed.toLocaleString()}
             </span>
           </div>
@@ -165,21 +168,35 @@ export default function DebtorsModal({
                 key={`${debtor.customerPhone}-${idx}`}
                 className="p-3 sm:p-3.5 bg-slate-950/80 border border-slate-800/80 hover:border-slate-700/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all"
               >
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm font-bold text-white">
                       {debtor.customerName}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60 font-semibold">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60 font-semibold">
                       {debtor.receiptsCount} {debtor.receiptsCount === 1 ? "sale" : "sales"}
                     </span>
                   </div>
+
+                  {debtor.soldBy && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+                      <span className="text-slate-500 font-medium">Sold by:</span>
+                      <span className="font-semibold text-slate-200">
+                        {debtor.soldBy}
+                      </span>
+                      {debtor.branchName && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                          {debtor.branchName}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {debtor.customerPhone && debtor.customerPhone !== "No Phone" && (
                     <div className="flex items-center gap-1 text-[11px] text-slate-400">
                       <Phone className="w-3 h-3 text-slate-500" />
                       <a
-                        href={`Phone no:${debtor.customerPhone}`}
+                        href={`tel:${debtor.customerPhone}`}
                         className="hover:text-blue-400 hover:underline"
                       >
                         {debtor.customerPhone}
@@ -197,7 +214,7 @@ export default function DebtorsModal({
                 <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
                   <div className="sm:text-right">
                     <div className="text-[10px] text-slate-400 uppercase">Amount Owed</div>
-                    <div className="text-xs sm:text-sm font-black text-amber-400 font-mono">
+                    <div className="text-xs sm:text-sm font-black text-blue-400 font-mono">
                       ₦{debtor.totalOwed.toLocaleString()}
                     </div>
                   </div>
@@ -238,7 +255,7 @@ export default function DebtorsModal({
 
             <p className="text-xs text-slate-300 leading-relaxed">
               Recording payment from <span className="text-white font-bold">{settleTarget.customerName}</span>. Total owed:{" "}
-              <span className="text-amber-400 font-bold font-mono">₦{settleTarget.totalOwed.toLocaleString()}</span>.
+              <span className="text-blue-400 font-bold font-mono">₦{settleTarget.totalOwed.toLocaleString()}</span>.
             </p>
 
             <div className="space-y-1">

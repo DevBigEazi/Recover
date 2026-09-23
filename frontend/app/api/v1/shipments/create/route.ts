@@ -202,6 +202,8 @@ export async function POST(request: Request) {
     const cleanId = packageId.startsWith("0x") ? packageId.slice(2) : packageId;
     const trackingCode = `RCV-${cleanId.slice(0, 12).toUpperCase()}`;
 
+    const actor = authResult.actor;
+
     // 6. Save to database (live shipment vs isolated test shipment)
     const shipmentData = {
       _id: packageId,
@@ -212,10 +214,27 @@ export async function POST(request: Request) {
       metadata: finalMetadata,
       trackingCode: trackingCode,
       isTest: isTest,
+      createdBy: actor
+        ? {
+            address: actor.address,
+            name: actor.name,
+            role: actor.role,
+            branchId: actor.branchId,
+            branchName: actor.branchName,
+          }
+        : {
+            address: shipperAddress,
+            name: shipper.displayName || shipper.companyName || "Owner",
+            role: "owner",
+            branchId: null,
+            branchName: null,
+          },
       events: [
         {
           event: "Created" as const,
-          operator: shipperAddress,
+          operator: actor ? actor.address : shipperAddress,
+          operatorName: actor?.name || shipper.displayName || shipper.companyName || "Owner",
+          operatorBranch: actor?.branchName || null,
           timestamp: new Date(),
           onChainTxHash: txHash,
         },

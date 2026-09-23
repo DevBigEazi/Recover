@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getShipperFromApiKey } from "@/lib/auth-api";
 import { db, connectDB } from "@/lib/db";
 import { buildShipmentIdFilter } from "@/lib/shipment-lookup";
+import { canUpdateShipment } from "@/lib/permissions";
 
 export async function PATCH(
   request: Request,
@@ -75,11 +76,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
     }
 
-    // Verify creator authorization
-    const isCreator = authenticatedShipper._id.toLowerCase() === shipment.shipperAddress.toLowerCase();
-    if (!isCreator) {
+    // Verify creator authorization via canUpdateShipment
+    const currentActor = authResult.actor || {
+      address: authenticatedShipper._id.toLowerCase(),
+      name: authenticatedShipper.displayName || authenticatedShipper.companyName || "Owner",
+      role: "owner" as const,
+      branchId: null,
+      branchName: null,
+    };
+
+    if (!canUpdateShipment(currentActor, shipment)) {
       return NextResponse.json(
-        { error: "Only the package creator can edit shipment details." },
+        { error: "Creator-Only Rule: Only the staff member or owner who registered this shipment can update its details." },
         { status: 403 }
       );
     }
@@ -124,6 +132,15 @@ export async function PATCH(
     };
 
     shipment.metadata = updatedMetadata;
+
+    shipment.events = shipment.events || [];
+    shipment.events.push({
+      event: "MetadataUpdated",
+      operator: currentActor.address,
+      operatorName: currentActor.name,
+      operatorBranch: currentActor.branchName || null,
+      timestamp: new Date(),
+    });
 
     await shipment.save();
 

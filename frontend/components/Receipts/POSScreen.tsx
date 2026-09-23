@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import toast from "react-hot-toast";
 import ReceiptIssuedModal, { ReceiptIssuedData } from "./ReceiptIssuedModal";
+import { useTeam } from "@/context/TeamContext";
 
 interface CartLineItem {
   id: string;
@@ -38,6 +39,9 @@ export type POSPaymentMethod = "Cash" | "Bank Transfer" | "Card/POS" | "Credit" 
 
 export default function POSScreen() {
   const { account } = useAuthReady();
+  const { can, isStaffMode, workspaceSession } = useTeam();
+  const effectiveAddress = workspaceSession?.merchantAddress || account?.address;
+  const canIssueCredit = can("issue_credit_receipt");
   const queryClient = useQueryClient();
 
   const [items, setItems] = useState<CartLineItem[]>([
@@ -62,16 +66,16 @@ export default function POSScreen() {
 
   // 1. Fetch Product Presets for instant quick-pick
   const { data: presetsData } = useQuery<{ success: boolean; presets: ProductPreset[] }>({
-    queryKey: ["receipt-presets", account?.address],
+    queryKey: ["receipt-presets", effectiveAddress],
     queryFn: async () => {
-      if (!account?.address) return { success: true, presets: [] };
-      const res = await fetch("/api/v1/receipts/presets", {
-        headers: { "x-owner-address": account.address },
-      });
+      if (!effectiveAddress && !isStaffMode) return { success: true, presets: [] };
+      const headers: Record<string, string> = {};
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+      const res = await fetch("/api/v1/receipts/presets", { headers });
       if (!res.ok) throw new Error("Could not fetch presets");
       return res.json();
     },
-    enabled: !!account?.address,
+    enabled: !!effectiveAddress || isStaffMode,
   });
 
   const presets = presetsData?.presets || [];
@@ -150,7 +154,7 @@ export default function POSScreen() {
   // 2. Issue Receipt Mutation
   const issueMutation = useMutation({
     mutationFn: async () => {
-      if (!account?.address) throw new Error("Wallet account required.");
+      if (!effectiveAddress && !isStaffMode) throw new Error("Wallet account or staff session required.");
 
       const validItems = items
         .filter((it) => it.name.trim().length > 0)
@@ -168,12 +172,12 @@ export default function POSScreen() {
         throw new Error("Customer name is required for Credit / Pay Later sales to track the debt.");
       }
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+
       const res = await fetch("/api/v1/receipts", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-owner-address": account.address,
-        },
+        headers,
         body: JSON.stringify({
           items: validItems,
           discount: Math.max(0, Number(discount) || 0),
@@ -196,9 +200,14 @@ export default function POSScreen() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["receipts", account?.address] });
-      queryClient.invalidateQueries({ queryKey: ["receipt-presets", account?.address] });
-      queryClient.invalidateQueries({ queryKey: ["receipt-analytics", account?.address] });
+      queryClient.invalidateQueries({ queryKey: ["receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-presets"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-analytics"] });
+      if (effectiveAddress) {
+        queryClient.invalidateQueries({ queryKey: ["receipts", effectiveAddress] });
+        queryClient.invalidateQueries({ queryKey: ["receipt-presets", effectiveAddress] });
+        queryClient.invalidateQueries({ queryKey: ["receipt-analytics", effectiveAddress] });
+      }
       toast.success(
         paymentMethod === "Credit"
           ? "Credit sale recorded! Customer debt added to ledger."
@@ -411,7 +420,7 @@ export default function POSScreen() {
                     { id: "Cash", label: "Cash", icon: Banknote },
                     { id: "Bank Transfer", label: "Transfer", icon: ArrowRight },
                     { id: "Card/POS", label: "Card/POS", icon: CreditCard },
-                    { id: "Credit", label: "Store Credit", icon: Clock },
+                    ...(canIssueCredit ? [{ id: "Credit", label: "Store Credit", icon: Clock } as const] : []),
                     { id: "Other", label: "Other", icon: ShoppingBag },
                   ] as const
                 ).map(({ id, label, icon: Icon }) => {
@@ -421,9 +430,9 @@ export default function POSScreen() {
                   let buttonStyles = "bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900";
                   if (isSelected) {
                     if (isCredit) {
-                      buttonStyles = "bg-amber-950/80 text-amber-300 border-amber-600 shadow-sm";
+                      buttonStyles = "bg-purple-950/80 text-purple-300 border-purple-600 shadow-xs";
                     } else {
-                      buttonStyles = "bg-blue-600 text-white border-blue-500 shadow-sm";
+                      buttonStyles = "bg-blue-600 text-white border-blue-500 shadow-xs";
                     }
                   }
 
@@ -444,17 +453,17 @@ export default function POSScreen() {
 
             {/* Credit Notice Banner */}
             {paymentMethod === "Credit" && (
-              <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl space-y-2">
+              <div className="p-3 bg-purple-950/30 border border-purple-800/50 rounded-xl space-y-2">
                 <div className="flex items-start gap-2">
-                  <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-200">
+                  <Clock className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-purple-200">
                     <span className="font-bold">Customer Credit (Pay Later):</span> Customer details are required below to track this debt in your ledger.
                   </div>
                 </div>
 
                 {/* Due Date Presets */}
                 <div className="pt-1">
-                  <label className="flex items-center gap-1 text-[11px] font-semibold text-amber-300 mb-1">
+                  <label className="flex items-center gap-1 text-[11px] font-semibold text-purple-300 mb-1">
                     <Calendar className="w-3 h-3" />
                     <span>Repayment Due Date</span>
                   </label>
@@ -473,7 +482,7 @@ export default function POSScreen() {
                         onClick={() => setCreditDueDatePreset(t.id)}
                         className={`py-1 px-1.5 text-[11px] font-bold rounded border cursor-pointer text-center transition-all ${
                           creditDueDatePreset === t.id
-                            ? "bg-amber-600 text-white border-amber-500"
+                            ? "bg-purple-600 text-white border-purple-500"
                             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:text-white"
                         }`}
                       >
@@ -487,14 +496,14 @@ export default function POSScreen() {
                       type="date"
                       value={customDueDate}
                       onChange={(e) => setCustomDueDate(e.target.value)}
-                      className="w-full mt-1.5 text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white outline-none focus:border-amber-500"
+                      className="w-full mt-1.5 text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white outline-hidden focus:border-purple-500"
                     />
                   )}
                 </div>
 
                 {/* Initial Deposit / Down Payment (Optional) */}
                 <div className="pt-1">
-                  <label className="block text-[11px] font-semibold text-amber-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-purple-300 mb-1">
                     Initial Deposit Paid (₦) - Optional
                   </label>
                   <input
@@ -503,10 +512,10 @@ export default function POSScreen() {
                     placeholder="0 (full amount on credit)"
                     value={initialDeposit === 0 ? "" : initialDeposit}
                     onChange={(e) => setInitialDeposit(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="w-full text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono outline-none focus:border-amber-500"
+                    className="w-full text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono outline-hidden focus:border-purple-500"
                   />
                   {initialDeposit > 0 && (
-                    <div className="text-[11px] text-amber-400 mt-1">
+                    <div className="text-[11px] text-purple-300 mt-1">
                       Balance Owed: ₦{remainingCreditBalance.toLocaleString()}
                     </div>
                   )}
@@ -578,7 +587,7 @@ export default function POSScreen() {
                       onChange={(e) => setCustomerName(e.target.value)}
                       className={`w-full text-xs pl-8 pr-3 py-2 bg-slate-950 border rounded-lg focus:outline-hidden text-white placeholder-slate-500 ${
                         paymentMethod === "Credit" && !customerName.trim()
-                          ? "border-amber-600 focus:border-amber-500"
+                          ? "border-purple-600 focus:border-purple-500"
                           : "border-slate-800 focus:border-blue-500"
                       }`}
                     />
@@ -635,7 +644,7 @@ export default function POSScreen() {
               </div>
 
               {paymentMethod === "Credit" && (
-                <div className="flex justify-between items-center text-xs font-bold text-amber-400 pt-1">
+                <div className="flex justify-between items-center text-xs font-bold text-purple-300 pt-1">
                   <span>Balance Owed By Customer:</span>
                   <span className="font-mono text-sm">
                     ₦{remainingCreditBalance.toLocaleString()}
@@ -651,7 +660,7 @@ export default function POSScreen() {
               onClick={() => issueMutation.mutate()}
               className={`w-full py-3 px-4 rounded-xl text-white font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 min-h-12 ${
                 paymentMethod === "Credit"
-                  ? "bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800"
+                  ? "bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800"
                   : "bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800"
               }`}
             >

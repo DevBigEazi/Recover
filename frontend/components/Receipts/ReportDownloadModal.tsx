@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, FileText, Download, Calendar, DollarSign, ShieldCheck, Loader2 } from "lucide-react";
+import { X, FileText, Download, Calendar, DollarSign, ShieldCheck, Loader2, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateSalesReportPdf } from "@/lib/pdf-generator";
+import { useTeam } from "@/context/TeamContext";
+import { canExportPeriod } from "@/lib/permissions";
 
 export interface ReportReceiptItem {
   name: string;
@@ -31,6 +33,11 @@ export interface ReportReceipt {
   items: ReportReceiptItem[];
   createdAt: string;
   onChainTxHash?: string | null;
+  issuedBy?: {
+    name?: string | null;
+    role?: string | null;
+    branchName?: string | null;
+  } | null;
 }
 
 export interface ReportAnalyticsData {
@@ -81,6 +88,9 @@ interface ReportDownloadModalProps {
   merchantEmail?: string | null;
   merchantAddress?: string | null;
   merchantLogo?: string | null;
+  salesScope?: "all" | "branch" | "my";
+  branchName?: string | null;
+  staffMemberName?: string;
 }
 
 export default function ReportDownloadModal({
@@ -93,9 +103,24 @@ export default function ReportDownloadModal({
   merchantEmail,
   merchantAddress,
   merchantLogo,
+  salesScope,
+  branchName,
+  staffMemberName,
 }: ReportDownloadModalProps) {
+  const { currentRole, actorBranchId } = useTeam();
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const isPeriodAllowed = canExportPeriod(
+    {
+      address: "",
+      name: "User",
+      role: currentRole,
+      branchId: actorBranchId,
+      branchName: null,
+    },
+    period
+  );
 
   if (!isOpen || !analyticsData) return null;
 
@@ -122,14 +147,31 @@ export default function ReportDownloadModal({
     return `${s.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${e.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   };
 
-  const periodLabel =
-    period === "daily"
-      ? "Daily Sales & Close-of-Day Report"
+  const isPersonalScope = salesScope === "my";
+  const isBranchScope = salesScope === "branch";
+  const periodLabel = isPersonalScope
+    ? period === "daily"
+      ? `${staffMemberName ? `${staffMemberName}'s ` : "Personal "}Daily Sales Report`
       : period === "weekly"
-      ? "Weekly Sales & Performance Report"
+      ? `${staffMemberName ? `${staffMemberName}'s ` : "Personal "}Weekly Sales Report`
       : period === "monthly"
-      ? "Monthly Business Summary Statement"
-      : "Annual / Yearly Financial Summary";
+      ? `${staffMemberName ? `${staffMemberName}'s ` : "Personal "}Monthly Sales Statement`
+      : `${staffMemberName ? `${staffMemberName}'s ` : "Personal "}Annual Sales Summary`
+    : isBranchScope
+    ? period === "daily"
+      ? `${branchName ? `${branchName} ` : "Branch "}Daily Sales Report`
+      : period === "weekly"
+      ? `${branchName ? `${branchName} ` : "Branch "}Weekly Sales Report`
+      : period === "monthly"
+      ? `${branchName ? `${branchName} ` : "Branch "}Monthly Sales Statement`
+      : `${branchName ? `${branchName} ` : "Branch "}Annual Sales Summary`
+    : period === "daily"
+    ? "Daily Sales & Close-of-Day Report"
+    : period === "weekly"
+    ? "Weekly Sales & Performance Report"
+    : period === "monthly"
+    ? "Monthly Business Summary Statement"
+    : "Annual / Yearly Financial Summary";
 
   // CSV Export
   const handleExportCSV = () => {
@@ -138,6 +180,7 @@ export default function ReportDownloadModal({
       const headers = [
         "Receipt Number",
         "Date",
+        "Issued By",
         "Status",
         "Customer Name",
         "Customer Phone",
@@ -164,9 +207,18 @@ export default function ReportDownloadModal({
             ? Math.max(0, r.total - (r.amountPaid || 0))
             : 0;
 
+        const issuerLabel = r.issuedBy
+          ? r.issuedBy.role === "owner" || r.issuedBy.name === "CEO"
+            ? "CEO"
+            : r.issuedBy.role === "manager" || r.issuedBy.name === "Manager"
+            ? "Manager"
+            : r.issuedBy.name || "Staff"
+          : "CEO";
+
         return [
           `"${r.receiptNumber || r._id}"`,
           `"${new Date(r.createdAt).toISOString()}"`,
+          `"${issuerLabel}"`,
           `"${r.status}"`,
           `"${(r.customerName || "").replace(/"/g, '""')}"`,
           `"${(r.customerPhone || "").replace(/"/g, '""')}"`,
@@ -190,7 +242,7 @@ export default function ReportDownloadModal({
       link.setAttribute("href", encodedUri);
       link.setAttribute(
         "download",
-        `recover-sales-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`
+        `recover-${isPersonalScope ? "my-" : isBranchScope ? "branch-" : ""}sales-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`
       );
       document.body.appendChild(link);
       link.click();
@@ -210,6 +262,12 @@ export default function ReportDownloadModal({
       setDownloadingPdf(true);
       await generateSalesReportPdf({
         period,
+        reportTitle: periodLabel,
+        scopeLabel: isPersonalScope
+          ? `Scope: My Sales (${staffMemberName || "Staff"})`
+          : isBranchScope
+          ? `Scope: ${branchName || "Branch"} Sales`
+          : undefined,
         merchantName: businessName,
         merchantLogo: logoSrc,
         merchantPhone: businessPhone,
@@ -232,7 +290,7 @@ export default function ReportDownloadModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors cursor-pointer"
@@ -283,13 +341,22 @@ export default function ReportDownloadModal({
           </div>
         </div>
 
+        {!isPeriodAllowed && (
+          <div className="p-3 mb-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-white">Daily Reports Only:</span> Sales Representatives can only export Daily register closure reports. Switch the analytics view to Daily to download.
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-3">
           {/* 1. Download Vector PDF Statement */}
           <button
             onClick={handleDownloadPDF}
-            disabled={downloadingPdf}
-            className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            disabled={downloadingPdf || !isPeriodAllowed}
+            className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {downloadingPdf ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -302,8 +369,8 @@ export default function ReportDownloadModal({
           {/* 2. Download CSV Spreadsheet */}
           <button
             onClick={handleExportCSV}
-            disabled={downloadingCsv}
-            className="w-full py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 font-semibold text-sm border border-slate-700/60 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            disabled={downloadingCsv || !isPeriodAllowed}
+            className="w-full py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 font-semibold text-sm border border-slate-700/60 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {downloadingCsv ? (
               <Loader2 className="w-4 h-4 animate-spin text-slate-300" />

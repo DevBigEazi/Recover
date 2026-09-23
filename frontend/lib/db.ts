@@ -45,6 +45,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
 // Interfaces
 export interface IUser {
+  displayName: string;
   _id: string; // walletAddress (lowercase)
   walletAddress?: string; // virtual
   /** Personal/contact name for individuals; primary contact person name for merchants. */
@@ -160,6 +161,8 @@ export interface IPushSubscription {
 export interface IShipmentEvent {
   event: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed" | "MetadataUpdated";
   operator: string;
+  operatorName?: string | null;   // display name snapshot of the actor at the time of the event
+  operatorBranch?: string | null; // branch name snapshot (null = owner)
   location?: string | null;
   locationContext?: string | null;
   timestamp: Date;
@@ -178,6 +181,12 @@ export interface IShipment {
   trackingCode?: string | null;
   onChainId?: string;
   isTest?: boolean;
+  /** Actor who created this shipment — used to enforce update-own-shipment rule */
+  createdBy?: {
+    address: string;
+    name: string;
+    branchName: string | null;
+  } | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -193,6 +202,10 @@ export interface IReceipt {
   _id: string; // receiptNumber e.g., "RCVR-REC-2026-0004829"
   receiptNumber?: string; // virtual
   merchantAddress: string; // lowercase wallet address
+  merchantName?: string | null;
+  merchantLogo?: string | null;
+  merchantPhone?: string | null;
+  merchantEmail?: string | null;
   items: IReceiptItem[];
   currency: string; // default "NGN"
   subtotal: number;
@@ -210,6 +223,7 @@ export interface IReceipt {
   customerEmail?: string | null;
   fulfillmentType: "spot" | "dispatch";
   linkedShipmentId?: string | null;
+  branchId?: string | null;
   status: "Issued" | "Voided";
   voidReason?: string | null;
   voidedAt?: Date | null;
@@ -217,7 +231,48 @@ export interface IReceipt {
   receiptHash: string; // 0x... keccak256 hash
   onChainTxHash?: string | null;
   onChainTimestamp?: Date | null;
-  createdAt?: Date;
+  /** Actor who issued this receipt — name + branch snapshot at issue time */
+  issuedBy?: {
+    address: string;
+    name: string;
+    role?: string | null;
+    branchId?: string | null;
+    branchName?: string | null;
+  } | null;
+  /** Actor who voided this receipt — reason is mandatory for all roles */
+  voidedBy?: {
+    address: string;
+    name: string;
+    role?: string | null;
+    branchId?: string | null;
+    branchName?: string | null;
+    at?: Date | null;
+  } | null;
+  /** Actor who settled a credit payment on this receipt */
+  settledBy?: {
+    address: string;
+    name: string;
+    role?: string | null;
+    branchId?: string | null;
+    branchName?: string | null;
+    at?: Date | null;
+  } | null;
+  /** Append-only log of edits / re-issues applied to this receipt */
+  editHistory?: Array<{
+    editedAt: Date | string;
+    changes: string;
+    previousTotal?: number;
+    editedBy: {
+      address: string;
+      name: string;
+      role?: string | null;
+      branchId?: string | null;
+      branchName?: string | null;
+    };
+    at?: Date;
+    changeNote?: string;
+  }>;
+  createdAt: Date;
   updatedAt?: Date;
 }
 
@@ -228,6 +283,44 @@ export interface IProductPreset {
   defaultPrice: number;
   salesCount: number;
   lastSoldAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/** A named physical or virtual location under a merchant account */
+export interface IBranch {
+  _id: string;                 // UUID
+  merchantAddress: string;     // parent merchant wallet (lowercase), indexed
+  name: string;                // e.g. "Lagos HQ", "Abuja Branch", "Online Store"
+  managedBy: string | null;    // memberAddress of the assigned Manager; null = unassigned
+  isDefault: boolean;          // true for the auto-created "Main Branch" on first team setup
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * A team member (Manager or Sales Rep) operating under a merchant account.
+ * Scoped to a branch. The merchant owner themselves is NOT a team member document —
+ * they are identified by wallet address matching the parent IUser._id.
+ */
+export interface ITeamMember {
+  _id: string;                 // UUID
+  merchantAddress: string;     // parent merchant wallet (lowercase), indexed
+  branchId: string;            // IBranch._id this member belongs to
+  branchName: string;          // denormalized branch name snapshot for audit trail reads
+  memberEmail: string;         // invited email address (lowercase), required
+  memberAddress: string | null;// team member wallet address (lowercase), kept for reference
+  memberName: string;          // display name used in all audit trail snapshots
+  role: "manager" | "sales_rep";
+  /** active from day 1 — PIN delivered in invite email. suspended = revoked access. */
+  status: "active" | "suspended";
+  /** bcrypt hash of the auto-generated or user-changed 6-digit PIN. Never stored in plaintext. */
+  pinHash: string | null;
+  invitedBy: string;           // wallet address of inviter (owner or manager)
+  invitedAt: Date;
+  acceptedAt: Date | null;
+  suspendedAt: Date | null;
+  suspendedBy: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -407,6 +500,8 @@ PushSubscriptionSchema.virtual("id")
 const ShipmentEventSchema = new Schema<IShipmentEvent>({
   event: { type: String, required: true },
   operator: { type: String, required: true },
+  operatorName: { type: String, default: null },
+  operatorBranch: { type: String, default: null },
   location: { type: String, default: null },
   locationContext: { type: String, default: null },
   timestamp: { type: Date, default: Date.now },
@@ -425,6 +520,17 @@ const ShipmentSchema = new Schema<IShipment>(
     webhookUrl: { type: String, default: null },
     trackingCode: { type: String, default: null, index: true },
     isTest: { type: Boolean, default: false, index: true },
+    createdBy: {
+      type: new Schema(
+        {
+          address: { type: String, required: true },
+          name: { type: String, required: true },
+          branchName: { type: String, default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -478,6 +584,10 @@ const ReceiptSchema = new Schema<IReceipt>(
   {
     _id: { type: String, required: true },
     merchantAddress: { type: String, required: true, lowercase: true, index: true },
+    merchantName: { type: String, default: null },
+    merchantLogo: { type: String, default: null },
+    merchantPhone: { type: String, default: null },
+    merchantEmail: { type: String, default: null },
     items: { type: [ReceiptItemSchema], required: true },
     currency: { type: String, default: "NGN" },
     subtotal: { type: Number, required: true },
@@ -505,6 +615,7 @@ const ReceiptSchema = new Schema<IReceipt>(
     customerEmail: { type: String, default: null },
     fulfillmentType: { type: String, enum: ["spot", "dispatch"], default: "spot" },
     linkedShipmentId: { type: String, default: null, index: true },
+    branchId: { type: String, default: null, index: true },
     status: { type: String, enum: ["Issued", "Voided"], default: "Issued", index: true },
     voidReason: { type: String, default: null },
     voidedAt: { type: Date, default: null },
@@ -512,6 +623,71 @@ const ReceiptSchema = new Schema<IReceipt>(
     receiptHash: { type: String, required: true, index: true },
     onChainTxHash: { type: String, default: null },
     onChainTimestamp: { type: Date, default: null },
+    // ── Audit actor snapshots ──────────────────────────────────────────────
+    issuedBy: {
+      type: new Schema(
+        {
+          address: { type: String, required: true },
+          name: { type: String, required: true },
+          role: { type: String, default: null },
+          branchId: { type: String, default: null },
+          branchName: { type: String, default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
+    voidedBy: {
+      type: new Schema(
+        {
+          address: { type: String, required: true },
+          name: { type: String, required: true },
+          role: { type: String, default: null },
+          branchId: { type: String, default: null },
+          branchName: { type: String, default: null },
+          at: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
+    settledBy: {
+      type: new Schema(
+        {
+          address: { type: String, required: true },
+          name: { type: String, required: true },
+          role: { type: String, default: null },
+          branchId: { type: String, default: null },
+          branchName: { type: String, default: null },
+          at: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
+    editHistory: {
+      type: [
+        new Schema(
+          {
+            editedBy: {
+              type: new Schema(
+                {
+                  address: { type: String, required: true },
+                  name: { type: String, required: true },
+                  branchName: { type: String, required: true },
+                },
+                { _id: false }
+              ),
+              required: true,
+            },
+            at: { type: Date, required: true },
+            changeNote: { type: String, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -552,9 +728,56 @@ const ProductPresetSchema = new Schema<IProductPreset>(
 ProductPresetSchema.index({ merchantAddress: 1, name: 1 }, { unique: true });
 ProductPresetSchema.index({ merchantAddress: 1, salesCount: -1 });
 
-// Clear cached User model in development to force re-compilation with updated schema
+const BranchSchema = new Schema<IBranch>(
+  {
+    _id: { type: String, required: true },
+    merchantAddress: { type: String, required: true, lowercase: true, index: true },
+    name: { type: String, required: true },
+    managedBy: { type: String, default: null },
+    isDefault: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+BranchSchema.index({ merchantAddress: 1 });
+BranchSchema.index({ merchantAddress: 1, managedBy: 1 });
+
+const TeamMemberSchema = new Schema<ITeamMember>(
+  {
+    _id: { type: String, required: true },
+    merchantAddress: { type: String, required: true, lowercase: true, index: true },
+    branchId: { type: String, required: true, index: true },
+    branchName: { type: String, required: true },
+    memberEmail: { type: String, required: true, lowercase: true, trim: true, index: true },
+    memberAddress: { type: String, default: null, lowercase: true, trim: true, index: true },
+    memberName: { type: String, required: true },
+    role: { type: String, enum: ["manager", "sales_rep"], required: true },
+    /** Active from day 1 — PIN is delivered in the invite email. */
+    status: { type: String, enum: ["active", "suspended"], default: "active" },
+    /** bcrypt hash of the 6-digit PIN. Never stored in plaintext. */
+    pinHash: { type: String, default: null },
+    invitedBy: { type: String, required: true },
+    invitedAt: { type: Date, default: Date.now },
+    acceptedAt: { type: Date, default: null },
+    suspendedAt: { type: Date, default: null },
+    suspendedBy: { type: String, default: null },
+  },
+  { timestamps: true }
+);
+
+// Unique: one email can only be a member of a merchant once
+TeamMemberSchema.index({ merchantAddress: 1, memberEmail: 1 }, { unique: true });
+// Fast reverse-lookup: "which merchant does this wallet or email belong to?"
+TeamMemberSchema.index({ memberEmail: 1 });
+TeamMemberSchema.index({ memberAddress: 1 });
+TeamMemberSchema.index({ merchantAddress: 1, branchId: 1 });
+
+// Clear cached models in development to force re-compilation with updated schemas
 if (process.env.NODE_ENV !== "production" && mongoose.models.User) {
   delete mongoose.models.User;
+}
+if (process.env.NODE_ENV !== "production" && mongoose.models.TeamMember) {
+  delete mongoose.models.TeamMember;
 }
 
 // Models
@@ -567,6 +790,8 @@ const ShipmentModel = mongoose.models.Shipment || mongoose.model<IShipment>("Shi
 const TestShipmentModel = mongoose.models.TestShipment || mongoose.model<IShipment>("TestShipment", ShipmentSchema);
 const ReceiptModel = mongoose.models.Receipt || mongoose.model<IReceipt>("Receipt", ReceiptSchema);
 const ProductPresetModel = mongoose.models.ProductPreset || mongoose.model<IProductPreset>("ProductPreset", ProductPresetSchema);
+const BranchModel = mongoose.models.Branch || mongoose.model<IBranch>("Branch", BranchSchema);
+const TeamMemberModel = mongoose.models.TeamMember || mongoose.model<ITeamMember>("TeamMember", TeamMemberSchema);
 
 // Export db object matching Prisma collection access patterns where possible
 export const db = {
@@ -579,5 +804,7 @@ export const db = {
   testShipment: TestShipmentModel as Model<IShipment>,
   receipt: ReceiptModel as Model<IReceipt>,
   productPreset: ProductPresetModel as Model<IProductPreset>,
+  branch: BranchModel as Model<IBranch>,
+  teamMember: TeamMemberModel as Model<ITeamMember>,
 };
 

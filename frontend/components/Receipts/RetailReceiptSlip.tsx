@@ -30,6 +30,11 @@ export interface ReceiptSlipData {
   creditDueDate?: string | null;
   status: "Issued" | "Voided";
   createdAt: string;
+  issuedBy?: {
+    name: string;
+    role?: string;
+    branchName?: string | null;
+  } | null;
 }
 
 export interface RetailReceiptSlipProps {
@@ -51,7 +56,7 @@ export const RetailReceiptSlip = forwardRef<HTMLDivElement, RetailReceiptSlipPro
     const paidAmount = receipt.amountPaid ?? (isCreditUnpaid ? 0 : receipt.total);
     const creditBalanceDue = isCreditUnpaid ? Math.max(0, receipt.total - paidAmount) : 0;
 
-    const issuerName = receipt.merchantName || "Verified Merchant";
+    const issuerName = receipt.merchantName || "Official Receipt";
     const contactParts: string[] = [];
     if (receipt.merchantPhone) {
       contactParts.push(`Phone no: ${receipt.merchantPhone}`);
@@ -101,7 +106,7 @@ export const RetailReceiptSlip = forwardRef<HTMLDivElement, RetailReceiptSlipPro
         }}
         className={
           className ||
-          "rounded-3xl p-5 sm:p-7 shadow-2xl border space-y-4 relative overflow-hidden"
+          "rounded-3xl p-4 sm:p-7 shadow-2xl border space-y-4 relative overflow-hidden"
         }
       >
         {/* Top Brand Accent */}

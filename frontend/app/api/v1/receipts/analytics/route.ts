@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
     }
@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     const dateParam = searchParams.get("date");
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
+    const branchParam = searchParams.get("branchId");
+    const mySalesOnly = searchParams.get("mySalesOnly") === "true";
+    const staffAddressParam = searchParams.get("staffAddress");
 
     const now = dateParam ? new Date(dateParam) : new Date();
     let startTime = new Date();
@@ -45,11 +48,46 @@ export async function GET(req: NextRequest) {
       endTime.setHours(23, 59, 59, 999);
     }
 
+    const query: Record<string, unknown> = {
+      merchantAddress: merchant._id.toLowerCase(),
+      createdAt: { $gte: startTime, $lte: endTime },
+    };
+
+    const isOwner = actor?.role === "owner";
+
+    if (!isOwner) {
+      // Staff members (both Manager and Sales Rep) can see their own sales or their branch sales
+      if (mySalesOnly && actor?.address) {
+        query["issuedBy.address"] = actor.address.toLowerCase();
+      } else {
+        const staffBranchId = actor?.branchId || branchParam;
+        if (staffBranchId) {
+          query.$or = [
+            { branchId: staffBranchId },
+            { "issuedBy.branchId": staffBranchId },
+          ];
+        } else if (actor?.address) {
+          query["issuedBy.address"] = actor.address.toLowerCase();
+        }
+      }
+    } else {
+      // Owner has unrestricted access; can see all store sales or filter as desired
+      if (branchParam) {
+        query.$or = [
+          { branchId: branchParam },
+          { "issuedBy.branchId": branchParam },
+        ];
+      }
+
+      if (mySalesOnly && actor?.address) {
+        query["issuedBy.address"] = actor.address.toLowerCase();
+      } else if (staffAddressParam) {
+        query["issuedBy.address"] = staffAddressParam.toLowerCase();
+      }
+    }
+
     const receipts = (await db.receipt
-      .find({
-        merchantAddress: merchant._id.toLowerCase(),
-        createdAt: { $gte: startTime, $lte: endTime },
-      })
+      .find(query)
       .sort({ createdAt: -1 })
       .lean()) as unknown as IReceipt[];
 
@@ -142,6 +180,9 @@ export async function GET(req: NextRequest) {
         receiptNumbers: string[];
         latestDate: Date | string;
         dueDate: Date | string | null;
+        soldBy: string;
+        soldByRole?: string | null;
+        branchName?: string | null;
       }
     >();
 
@@ -150,11 +191,18 @@ export async function GET(req: NextRequest) {
       if (owed > 0) {
         totalCreditOwed += owed;
         const key = (doc.customerPhone || doc.customerName || "unknown").trim().toLowerCase();
+        const sellerName = doc.issuedBy?.name || merchant.companyName || merchant.fullName || "Store Owner";
+        const branchName = doc.issuedBy?.branchName || null;
+        const sellerRole = doc.issuedBy?.role || "owner";
+
         const existing = debtorMap.get(key);
         if (existing) {
           existing.totalOwed += owed;
           existing.receiptsCount += 1;
           if (doc._id) existing.receiptNumbers.push(doc._id);
+          if (sellerName && !existing.soldBy.includes(sellerName)) {
+            existing.soldBy = `${existing.soldBy}, ${sellerName}`;
+          }
         } else {
           debtorMap.set(key, {
             customerName: doc.customerName || "Unspecified Customer",
@@ -164,6 +212,9 @@ export async function GET(req: NextRequest) {
             receiptNumbers: doc._id ? [doc._id] : [],
             latestDate: doc.createdAt || new Date(),
             dueDate: doc.creditDueDate || null,
+            soldBy: sellerName,
+            soldByRole: sellerRole,
+            branchName,
           });
         }
       }
@@ -179,7 +230,7 @@ export async function GET(req: NextRequest) {
       period,
       merchant: {
         address: merchant._id.toLowerCase(),
-        name: merchant.companyName || merchant.fullName || "Merchant Store",
+        name: merchant.companyName || merchant.fullName || "Business",
         companyName: merchant.companyName || null,
         businessLogo: merchant.businessLogo || null,
         fullName: merchant.fullName || null,

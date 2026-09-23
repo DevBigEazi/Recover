@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, db } from "@/lib/db";
 import { getMerchantFromAuth } from "@/lib/auth-api";
+import { hasPermission } from "@/lib/permissions";
 
 export async function POST(
   req: NextRequest,
@@ -9,11 +10,18 @@ export async function POST(
   try {
     await connectDB();
 
-    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json(
         { error: error || "Unauthorized merchant access." },
         { status: status || 401 }
+      );
+    }
+
+    if (actor && !hasPermission(actor.role, "settle_credit")) {
+      return NextResponse.json(
+        { error: "Sales Reps are not permitted to settle credit accounts. A Manager or Owner must record settlements." },
+        { status: 403 }
       );
     }
 
@@ -69,6 +77,22 @@ export async function POST(
         ? `${receipt.creditNotes} | Settled: ${settlementNotes}`
         : settlementNotes;
     }
+
+    receipt.settledBy = actor
+      ? {
+          address: actor.address,
+          name: actor.name,
+          role: actor.role,
+          branchId: actor.branchId,
+          branchName: actor.branchName,
+        }
+      : {
+          address: merchant._id.toLowerCase(),
+          name: merchant.displayName || "Owner",
+          role: "owner",
+          branchId: null,
+          branchName: null,
+        };
 
     await receipt.save();
 

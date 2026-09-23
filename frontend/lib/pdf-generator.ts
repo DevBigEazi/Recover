@@ -31,6 +31,8 @@ export interface ReceiptPdfData {
 
 export interface SalesReportPdfData {
   period: "daily" | "weekly" | "monthly" | "yearly";
+  reportTitle?: string;
+  scopeLabel?: string;
   merchantName: string;
   merchantLogo?: string | null;
   merchantPhone?: string | null;
@@ -79,6 +81,11 @@ export interface SalesReportPdfData {
     fulfillmentType?: string;
     total: number;
     createdAt: string;
+    issuedBy?: {
+      name?: string | null;
+      role?: string | null;
+      branchName?: string | null;
+    } | null;
   }>;
 }
 
@@ -260,10 +267,11 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
   hRY += 5;
   doc.setFontSize(11);
   const periodTitle =
-    data.period === "daily"   ? "Daily Sales & Close-of-Day Report"
+    data.reportTitle ||
+    (data.period === "daily"   ? "Daily Sales & Close-of-Day Report"
     : data.period === "weekly"  ? "Weekly Sales & Performance Report"
     : data.period === "monthly" ? "Monthly Business Summary Statement"
-    : "Annual / Yearly Financial Summary";
+    : "Annual / Yearly Financial Summary");
   doc.text(periodTitle, rightX, hRY, { align: "right" });
   hRY += 4.5;
   doc.setFont("helvetica", "normal");
@@ -273,6 +281,10 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
   const endStr   = new Date(data.timeframe.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   doc.text(`Period: ${startStr} - ${endStr}`, rightX, hRY, { align: "right" });
   hRY += 4;
+  if (data.scopeLabel) {
+    doc.text(data.scopeLabel, rightX, hRY, { align: "right" });
+    hRY += 4;
+  }
   doc.text(`Generated: ${new Date().toLocaleString()}`, rightX, hRY, { align: "right" });
 
   y = Math.max(y, hRY) + 6;
@@ -333,9 +345,10 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
     // Debtor ledger column right-edge anchors (landscape)
     const DL = {
       name:    margin + 2,
-      receipt: margin + 80,
-      date:    margin + 130,
-      due:     margin + 165,
+      receipt: margin + 58,
+      seller:  margin + 96,
+      date:    margin + 138,
+      due:     margin + 170,
       totalR:  margin + 218,        // right-edge anchor
       owedR:   pageW - margin - 2,  // right-edge anchor
     };
@@ -348,6 +361,7 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
       doc.setTextColor(255, 255, 255);
       doc.text("CUSTOMER NAME", DL.name, y + 4.5);
       doc.text("RECEIPT #", DL.receipt, y + 4.5);
+      doc.text("SOLD BY", DL.seller, y + 4.5);
       doc.text("DATE", DL.date, y + 4.5);
       doc.text("DUE DATE", DL.due, y + 4.5);
       doc.text("TOTAL (NGN)", DL.totalR, y + 4.5, { align: "right" });
@@ -373,10 +387,11 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
       if (debtorAlt) { doc.setFillColor(248, 250, 252); doc.rect(margin, y, cW, 6.5, "F"); }
       debtorAlt = !debtorAlt;
 
-      const custName = (r.customerName ?? "Unknown Customer").slice(0, 40);
-      const rNum     = (r.receiptNumber ?? r._id ?? "–").slice(-18);
-      const dateStr  = new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const dueStr   = r.creditDueDate
+      const custName  = (r.customerName ?? "Unknown Customer").slice(0, 28);
+      const rNum      = (r.receiptNumber ?? r._id ?? "–").slice(-18);
+      const sellerStr = (r.issuedBy?.name ?? "Store Owner").slice(0, 22);
+      const dateStr   = new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const dueStr    = r.creditDueDate
         ? new Date(r.creditDueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         : "–";
       const paid = r.amountPaid ?? 0;
@@ -385,6 +400,7 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
       doc.setTextColor(15, 23, 42);
       doc.text(custName, DL.name, y + 4.2);
       doc.text(rNum, DL.receipt, y + 4.2);
+      doc.text(sellerStr, DL.seller, y + 4.2);
       doc.text(dateStr, DL.date, y + 4.2);
       doc.text(dueStr, DL.due, y + 4.2);
       doc.text(r.total.toLocaleString(), DL.totalR, y + 4.2, { align: "right" });
@@ -426,17 +442,18 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
   doc.text(`Complete record — ${data.receipts.length} transaction(s) for the selected period.`, margin, y + 4);
   y += 9;
 
-  // Transaction column positions — landscape 269mm gives each money column ~40mm.
+  // Transaction column positions — landscape 269mm gives each money column ~38-40mm.
   // Right-edge anchors used for all three money columns so exact numbers never overlap.
   const C = {
-    receipt:  margin + 2,    // left 16mm
-    datetime: margin + 30,   // left 44mm  (28mm wide)
-    customer: margin + 70,   // left 84mm  (40mm wide)
-    method:   margin + 116,  // left 130mm (46mm wide)
-    status:   margin + 152,  // left 166mm (36mm wide)
-    totalR:   margin + 212,  // right-edge 226mm (~46mm from status — fits any exact number)
-    paidR:    margin + 248,  // right-edge 262mm (~36mm)
-    owedR:    pageW - margin - 2, // right-edge 281mm (~33mm)
+    receipt:  margin + 2,    // left 16mm (26mm wide)
+    datetime: margin + 28,   // left 42mm (26mm wide)
+    issuer:   margin + 56,   // left 70mm (20mm wide)
+    customer: margin + 78,   // left 92mm (36mm wide)
+    method:   margin + 116,  // left 130mm (32mm wide)
+    status:   margin + 150,  // left 164mm (22mm wide)
+    totalR:   margin + 204,  // right-edge 218mm (~32mm)
+    paidR:    margin + 242,  // right-edge 256mm (~38mm)
+    owedR:    pageW - margin - 2, // right-edge 281mm (~25mm)
   };
 
   const renderTxnHeader = (): void => {
@@ -447,6 +464,7 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
     doc.setTextColor(255, 255, 255);
     doc.text("RECEIPT #", C.receipt, y + 4.5);
     doc.text("DATE / TIME", C.datetime, y + 4.5);
+    doc.text("STAFF", C.issuer, y + 4.5);
     doc.text("CUSTOMER", C.customer, y + 4.5);
     doc.text("METHOD", C.method, y + 4.5);
     doc.text("STATUS", C.status, y + 4.5);
@@ -497,8 +515,17 @@ export async function generateSalesReportPdf(data: SalesReportPdfData): Promise<
     doc.setFontSize(7);
     doc.setTextColor(15, 23, 42);
 
+    const issuerName = r.issuedBy
+      ? r.issuedBy.role === "owner" || r.issuedBy.name === "CEO"
+        ? "CEO"
+        : r.issuedBy.role === "manager" || r.issuedBy.name === "Manager"
+        ? "Manager"
+        : (r.issuedBy.name || "Staff").slice(0, 11)
+      : "CEO";
+
     doc.text(rNum, C.receipt, y + 4);
     doc.text(dtStr, C.datetime, y + 4);
+    doc.text(issuerName, C.issuer, y + 4);
     doc.text(cust, C.customer, y + 4);
     doc.text(method, C.method, y + 4);
 

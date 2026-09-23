@@ -3,13 +3,11 @@
 import React, { useState } from "react";
 import {
   Search,
-  ExternalLink,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   Receipt,
   PlusCircle,
-  Eye,
   Ban,
   ChevronLeft,
   ChevronRight,
@@ -18,9 +16,14 @@ import {
   Phone,
   Check,
   ReceiptText,
+  ShieldCheck,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useTeam } from "@/context/TeamContext";
+import { canVoidReceipt } from "@/lib/permissions";
+import { IReceipt } from "@/lib/db";
+import AuditTrailDrawer from "@/components/Receipts/AuditTrailDrawer";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -52,16 +55,55 @@ interface ReceiptRecord {
   status: "Issued" | "Voided";
   voidReason?: string | null;
   items: ReceiptItem[];
+  branchId?: string | null;
+  issuedBy?: {
+    address: string;
+    name: string;
+    role: string;
+    branchId?: string | null;
+    branchName?: string | null;
+  } | null;
+  voidedBy?: {
+    address: string;
+    name: string;
+    role: string;
+    branchId?: string | null;
+    branchName?: string | null;
+  } | null;
+  settledBy?: {
+    address: string;
+    name: string;
+    role: string;
+    branchId?: string | null;
+    branchName?: string | null;
+  } | null;
+  editHistory?: {
+    editedAt: Date | string;
+    editedBy: {
+      address: string;
+      name: string;
+      role: string;
+      branchId?: string | null;
+      branchName?: string | null;
+    };
+    changes: string;
+    previousTotal?: number;
+  }[];
   onChainTxHash?: string | null;
+  receiptHash?: string;
   createdAt: string;
 }
 
 interface ReceiptsTableProps {
   onNewSaleClick?: () => void;
+  salesScope?: "all" | "branch" | "my";
+  branchId?: string | null;
 }
 
-export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {}) {
+export default function ReceiptsTable({ onNewSaleClick, salesScope, branchId }: ReceiptsTableProps = {}) {
   const { account } = useAuthReady();
+  const { currentRole, actorBranchId, isStaffMode, workspaceSession } = useTeam();
+  const effectiveAddress = workspaceSession?.merchantAddress || account?.address;
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -73,6 +115,9 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
   const [voidTarget, setVoidTarget] = useState<ReceiptRecord | null>(null);
   const [voidReason, setVoidReason] = useState("");
 
+  // Audit Trail Drawer State
+  const [auditTarget, setAuditTarget] = useState<ReceiptRecord | null>(null);
+
   // Settle Debt State
   const [settleTarget, setSettleTarget] = useState<ReceiptRecord | null>(null);
   const [settleAmount, setSettleAmount] = useState<string>("");
@@ -83,14 +128,20 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
     receipts: ReceiptRecord[];
     pagination: { total: number; page: number; pages: number; limit: number };
   }>({
-    queryKey: ["receipts-list", account?.address, filterTab, search, page],
+    queryKey: ["receipts-list", effectiveAddress, filterTab, search, page, salesScope, branchId],
     queryFn: async () => {
-      if (!account?.address) return { success: true, receipts: [], pagination: { total: 0, page: 1, pages: 1, limit } };
+      if (!effectiveAddress && !isStaffMode) return { success: true, receipts: [], pagination: { total: 0, page: 1, pages: 1, limit } };
 
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
+
+      if (salesScope === "my") {
+        params.append("mySalesOnly", "true");
+      } else if (salesScope === "branch" && branchId) {
+        params.append("branchId", branchId);
+      }
 
       if (filterTab === "UnpaidCredit") {
         params.append("unpaidCreditOnly", "true");
@@ -100,25 +151,26 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
 
       if (search.trim()) params.append("q", search.trim());
 
-      const res = await fetch(`/api/v1/receipts?${params.toString()}`, {
-        headers: { "x-owner-address": account.address },
-      });
+      const headers: Record<string, string> = {};
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+
+      const res = await fetch(`/api/v1/receipts?${params.toString()}`, { headers });
       if (!res.ok) throw new Error("Failed to load receipts");
       return res.json();
     },
-    enabled: !!account?.address,
+    enabled: !!effectiveAddress || isStaffMode,
   });
 
   // Settle Debt Mutation
   const settleMutation = useMutation({
     mutationFn: async ({ receiptId, amount }: { receiptId: string; amount?: number }) => {
-      if (!account?.address) throw new Error("Wallet not connected");
+      if (!account?.address && !isStaffMode) throw new Error("Authentication required");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+
       const res = await fetch(`/api/v1/receipts/${encodeURIComponent(receiptId)}/settle`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-owner-address": account.address,
-        },
+        headers,
         body: JSON.stringify({ amountSettled: amount }),
       });
       if (!res.ok) {
@@ -131,8 +183,8 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
       toast.success(resData.message || "Customer debt settled successfully!");
       setSettleTarget(null);
       setSettleAmount("");
-      queryClient.invalidateQueries({ queryKey: ["receipts-list", account?.address] });
-      queryClient.invalidateQueries({ queryKey: ["receipt-analytics", account?.address] });
+      queryClient.invalidateQueries({ queryKey: ["receipts-list"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-analytics"] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -142,13 +194,13 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
   // Void Mutation
   const voidMutation = useMutation({
     mutationFn: async ({ receiptId, reason }: { receiptId: string; reason: string }) => {
-      if (!account?.address) throw new Error("Wallet not connected");
+      if (!account?.address && !isStaffMode) throw new Error("Authentication required");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+
       const res = await fetch(`/api/v1/receipts/${encodeURIComponent(receiptId)}/void`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-owner-address": account.address,
-        },
+        headers,
         body: JSON.stringify({ reason }),
       });
       if (!res.ok) {
@@ -161,8 +213,8 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
       toast.success("Receipt marked as voided.");
       setVoidTarget(null);
       setVoidReason("");
-      queryClient.invalidateQueries({ queryKey: ["receipts-list", account?.address] });
-      queryClient.invalidateQueries({ queryKey: ["receipt-analytics", account?.address] });
+      queryClient.invalidateQueries({ queryKey: ["receipts-list"] });
+      queryClient.invalidateQueries({ queryKey: ["receipt-analytics"] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -201,10 +253,10 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
         <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 overflow-x-auto scrollbar-none touch-pan-x">
           {(
             [
-              { id: "all", label: "All Receipts" },
-              { id: "Issued", label: "Issued" },
-              { id: "UnpaidCredit", label: "Unpaid Debts (Credit)" },
-              { id: "Voided", label: "Voided" },
+              { id: "all", label: "All Receipts", shortLabel: "All" },
+              { id: "Issued", label: "Issued", shortLabel: "Issued" },
+              { id: "UnpaidCredit", label: "Unpaid Debts (Credit)", shortLabel: "Unpaid Debts" },
+              { id: "Voided", label: "Voided", shortLabel: "Voided" },
             ] as const
           ).map((tab) => {
             const isSelected = filterTab === tab.id;
@@ -215,16 +267,15 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                   setFilterTab(tab.id);
                   setPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-8.5 flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap min-h-8.5 flex items-center gap-1.5 shrink-0 ${
                   isSelected
-                    ? tab.id === "UnpaidCredit"
-                      ? "bg-amber-600 text-white shadow-sm"
-                      : "bg-blue-600 text-white shadow-sm"
+                    ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-white hover:bg-slate-900"
                 }`}
               >
-                {tab.id === "UnpaidCredit" && <Clock className="w-3 h-3" />}
-                <span>{tab.label}</span>
+                {tab.id === "UnpaidCredit" && <Clock className="w-3 h-3 shrink-0" />}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="inline sm:hidden">{tab.shortLabel}</span>
               </button>
             );
           })}
@@ -306,7 +357,7 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                       {/* Payment Badge */}
                       {isCredit ? (
                         isCreditUnpaid ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-800/80">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-blue-300 border border-blue-800/80">
                             <Clock className="w-3 h-3" />
                             <span>Store Credit (₦{owedAmount.toLocaleString()} Owed)</span>
                           </span>
@@ -343,6 +394,39 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                         {moreItemsCount > 0 && <span className="text-slate-500"> +{moreItemsCount} more</span>}
                         <span className="text-slate-500"> ({totalQty} {totalQty === 1 ? "unit" : "units"})</span>
                       </div>
+
+                      {r.issuedBy && (() => {
+                        const isYou =
+                          (isStaffMode && (
+                            (r.issuedBy.address && workspaceSession?.memberId && r.issuedBy.address.toLowerCase() === workspaceSession.memberId.toLowerCase()) ||
+                            (r.issuedBy.name && workspaceSession?.memberName && r.issuedBy.name.toLowerCase() === workspaceSession.memberName.toLowerCase())
+                          )) ||
+                          (!isStaffMode && (
+                            (r.issuedBy.role === "owner" || r.issuedBy.name === "CEO") ||
+                            (r.issuedBy.address && account?.address && r.issuedBy.address.toLowerCase() === account.address.toLowerCase())
+                          ));
+
+                        const displayLabel = isYou
+                          ? "You"
+                          : r.issuedBy.role === "owner" || r.issuedBy.name === "CEO"
+                          ? "CEO"
+                          : r.issuedBy.role === "manager" || r.issuedBy.name === "Manager"
+                          ? "Manager"
+                          : r.issuedBy.name || "Sales Rep";
+
+                        return (
+                          <>
+                            <span className="text-slate-600 hidden sm:inline">•</span>
+                            <span className="text-[11px] text-slate-400">
+                              By:{" "}
+                              <strong className={`font-medium ${isYou ? "text-blue-400 font-semibold" : "text-slate-300"}`}>
+                                {displayLabel}
+                              </strong>
+                              {r.issuedBy.branchName ? ` (${r.issuedBy.branchName})` : ""}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="text-[11px] text-slate-500">
@@ -354,7 +438,7 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                         minute: "2-digit",
                       })}
                       {r.creditDueDate && (
-                        <span className="ml-2 text-amber-400/80">
+                        <span className="ml-2 text-blue-400/80">
                           Due: {new Date(r.creditDueDate).toLocaleDateString()}
                         </span>
                       )}
@@ -362,7 +446,7 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                   </div>
 
                   {/* Right Section: Total Amount & Action Buttons */}
-                  <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80">
+                  <div className="flex flex-wrap items-center justify-between md:justify-end gap-2.5 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-800/80">
                     <div className="md:text-right">
                       <div className="text-[10px] uppercase font-semibold text-slate-400">Total</div>
                       <div className="text-sm sm:text-base font-black text-white font-mono">
@@ -370,13 +454,13 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       {/* Settle Debt Button for Unpaid Credit */}
                       {isCreditUnpaid && r.status === "Issued" && (
                         <button
                           type="button"
                           onClick={() => handleOpenSettle(r)}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 min-h-8.5"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 min-h-9"
                           title="Record Customer Payment"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -389,21 +473,59 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
                         href={`/r/${r.receiptNumber || r._id}`}
                         target="_blank"
                         title="View Public Receipt"
-                        className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-colors min-h-8.5 flex items-center justify-center"
+                        className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-colors min-h-9 min-w-9 flex items-center justify-center"
                       >
                         <ReceiptText className="w-3.5 h-3.5" />
                       </Link>
 
-                      {/* Void Receipt Button */}
-                      {r.status === "Issued" && (
-                        <button
-                          onClick={() => setVoidTarget(r)}
-                          title="Void Receipt"
-                          className="p-2 rounded-lg bg-rose-950/80 hover:bg-rose-900/80 text-rose-400 border border-rose-900/50 transition-colors cursor-pointer min-h-8.5 flex items-center justify-center"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      {/* Audit Trail Drawer Button */}
+                      <button
+                        type="button"
+                        onClick={() => setAuditTarget(r)}
+                        title="View Permanent Audit Trail"
+                        className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-blue-400 border border-slate-700/60 transition-colors min-h-9 min-w-9 flex items-center justify-center cursor-pointer"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Void Receipt Button with Strict canVoidReceipt Guard */}
+                      {r.status === "Issued" && (() => {
+                        const actorObj = {
+                          address: account?.address?.toLowerCase() || "",
+                          name: "User",
+                          role: currentRole,
+                          branchId: actorBranchId,
+                          branchName: null,
+                        };
+                        const canVoid = canVoidReceipt(actorObj, r as unknown as IReceipt);
+
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (canVoid) {
+                                setVoidTarget(r);
+                                setVoidReason("");
+                              } else {
+                                toast.error("Accountability Rule: You can only void receipts that you personally issued.");
+                              }
+                            }}
+                            disabled={!canVoid}
+                            title={
+                              canVoid
+                                ? "Void Receipt"
+                                : "Accountability Rule: Only the staff member who issued this receipt can void it."
+                            }
+                            className={`p-2 rounded-lg border transition-colors min-h-9 min-w-9 flex items-center justify-center ${
+                              canVoid
+                                ? "bg-rose-950/80 hover:bg-rose-900/80 text-rose-400 border-rose-900/50 cursor-pointer"
+                                : "bg-slate-900/50 text-slate-600 border-slate-800/80 cursor-not-allowed"
+                            }`}
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -458,7 +580,7 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
 
             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-400">Remaining Balance:</span>
-              <span className="text-base font-black text-amber-400 font-mono">
+              <span className="text-base font-black text-blue-400 font-mono">
                 ₦{Math.max(0, settleTarget.total - (settleTarget.amountPaid || 0)).toLocaleString()}
               </span>
             </div>
@@ -554,13 +676,17 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
               </button>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  if (!voidReason.trim()) {
+                    toast.error("A void reason is strictly mandatory.");
+                    return;
+                  }
                   voidMutation.mutate({
                     receiptId: voidTarget._id,
-                    reason: voidReason.trim() || "Voided by merchant",
-                  })
-                }
-                disabled={voidMutation.isPending}
+                    reason: voidReason.trim(),
+                  });
+                }}
+                disabled={voidMutation.isPending || !voidReason.trim()}
                 className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm cursor-pointer disabled:opacity-50 min-h-10"
               >
                 {voidMutation.isPending ? "Voiding..." : "Confirm Void"}
@@ -569,6 +695,13 @@ export default function ReceiptsTable({ onNewSaleClick }: ReceiptsTableProps = {
           </div>
         </div>
       )}
+
+      {/* Permanent Immutable Audit Trail Drawer */}
+      <AuditTrailDrawer
+        receipt={auditTarget as unknown as IReceipt}
+        isOpen={!!auditTarget}
+        onClose={() => setAuditTarget(null)}
+      />
     </div>
   );
 }

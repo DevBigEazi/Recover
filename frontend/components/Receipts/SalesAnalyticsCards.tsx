@@ -19,14 +19,25 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { useProfile } from "@/context/ProfileContext";
 import ReportDownloadModal, { ReportAnalyticsData } from "./ReportDownloadModal";
 import DebtorsModal, { DebtorCustomer } from "./DebtorsModal";
+import { useTeam } from "@/context/TeamContext";
 
 interface SalesAnalyticsCardsProps {
   onNewSaleClick?: () => void;
+  salesScope?: "all" | "branch" | "my";
+  branchId?: string | null;
+  branchName?: string | null;
 }
 
-export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCardsProps) {
+export default function SalesAnalyticsCards({
+  onNewSaleClick,
+  salesScope,
+  branchId,
+  branchName,
+}: SalesAnalyticsCardsProps) {
   const { account } = useAuthReady();
   const { companyName, businessLogo, fullName, phone, email } = useProfile();
+  const { isStaffMode, workspaceSession } = useTeam();
+  const effectiveAddress = workspaceSession?.merchantAddress || account?.address;
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -69,16 +80,22 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
     topItems: Array<{ name: string; unitsSold: number; grossSales: number }>;
     receipts: ReportAnalyticsData["receipts"];
   }>({
-    queryKey: ["receipt-analytics", account?.address, period],
+    queryKey: ["receipt-analytics", effectiveAddress, period, salesScope, branchId],
     queryFn: async () => {
-      if (!account?.address) throw new Error("Wallet not connected");
-      const res = await fetch(`/api/v1/receipts/analytics?period=${period}`, {
-        headers: { "x-owner-address": account.address },
-      });
+      if (!effectiveAddress && !isStaffMode) throw new Error("Authentication required");
+      const headers: Record<string, string> = {};
+      if (effectiveAddress) headers["x-owner-address"] = effectiveAddress;
+      const scopeParam =
+        salesScope === "my"
+          ? "&mySalesOnly=true"
+          : salesScope === "branch" && branchId
+          ? `&branchId=${encodeURIComponent(branchId)}`
+          : "";
+      const res = await fetch(`/api/v1/receipts/analytics?period=${period}${scopeParam}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch analytics");
       return res.json();
     },
-    enabled: !!account?.address,
+    enabled: !!effectiveAddress || isStaffMode,
   });
 
   const summary = data?.summary || {
@@ -114,25 +131,26 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
       {/* Control Bar: Period Switcher & Download Report Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800/80 p-3.5 sm:p-4 rounded-2xl shadow-sm">
         {/* Period Selector Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 w-full sm:w-auto overflow-x-auto">
+        <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 w-full sm:w-auto overflow-x-auto scrollbar-none touch-pan-x">
           {(
             [
-              { id: "daily", label: "Daily (Close-of-Day)" },
-              { id: "weekly", label: "Weekly" },
-              { id: "monthly", label: "Monthly" },
-              { id: "yearly", label: "Yearly" },
+              { id: "daily", label: "Daily (Close-of-Day)", shortLabel: "Daily" },
+              { id: "weekly", label: "Weekly", shortLabel: "Weekly" },
+              { id: "monthly", label: "Monthly", shortLabel: "Monthly" },
+              { id: "yearly", label: "Yearly", shortLabel: "Yearly" },
             ] as const
           ).map((t) => (
             <button
               key={t.id}
               onClick={() => setPeriod(t.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 period === t.id
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              {t.label}
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="inline sm:hidden">{t.shortLabel}</span>
             </button>
           ))}
         </div>
@@ -143,7 +161,7 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
             onClick={() => refetch()}
             disabled={isRefetching}
             title="Refresh statistics"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 cursor-pointer disabled:opacity-50 transition-all"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 cursor-pointer disabled:opacity-50 transition-all min-h-9.5 min-w-9.5 flex items-center justify-center"
           >
             <RefreshCw className={`w-4 h-4 ${isRefetching ? "animate-spin" : ""}`} />
           </button>
@@ -153,29 +171,31 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
             disabled={isLoading || !data}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shadow-sm min-h-9.5"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download {period.charAt(0).toUpperCase() + period.slice(1)} Report</span>
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span>Download</span>
+            <span className="hidden sm:inline"> {period.charAt(0).toUpperCase() + period.slice(1)}</span>
+            <span> Report</span>
           </button>
         </div>
       </div>
 
       {/* Customer Debtors / Credit Receivables Banner */}
       {totalCreditOwed > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-800/60 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/80 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center shrink-0">
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+              <div className="text-xs font-semibold text-blue-300 flex items-center gap-1.5">
                 <span>Customer Credit Outstanding</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-200 border border-amber-700/50">
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800/60">
                   {debtorsCount} {debtorsCount === 1 ? "debtor" : "debtors"}
                 </span>
               </div>
               <div className="text-xl sm:text-2xl font-black text-white font-mono mt-0.5">
                 ₦{totalCreditOwed.toLocaleString()}
-                <span className="text-xs font-normal text-amber-300/80 ml-2">
+                <span className="text-xs font-normal text-slate-400 ml-2">
                   with customers
                 </span>
               </div>
@@ -185,7 +205,7 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
           <button
             type="button"
             onClick={() => setIsDebtorsModalOpen(true)}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 min-h-10"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 min-h-10"
           >
             <Users className="w-3.5 h-3.5" />
             <span>View Debtors Ledger ({debtorsCount})</span>
@@ -260,7 +280,7 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
             <span className="text-xs font-semibold text-slate-400">
               Units Sold
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/60 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
           </div>
@@ -272,7 +292,7 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
               {summary.totalUnitsSold > 0 ? (
                 <span>Across all inventory line items</span>
               ) : (
-                <span className="text-amber-400 font-medium">
+                <span className="text-slate-400 font-medium">
                   No items dispatched yet
                 </span>
               )}
@@ -400,7 +420,7 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
                 <div className="flex items-center gap-2 font-medium text-white">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                   <span>Store Credit</span>
                 </div>
                 <div className="text-right font-bold text-white">
@@ -412,14 +432,14 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
               </div>
               <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
                   style={{
                     width: `${hasSales ? Math.min(100, Math.round((paymentBreakdown.credit.total / totalPaymentRevenue) * 100)) : 0}%`,
                   }}
                 />
               </div>
               {paymentBreakdown.credit.unpaidTotal > 0 && (
-                <div className="text-[10px] text-amber-400 mt-0.5 text-right font-medium">
+                <div className="text-[10px] text-blue-400 mt-0.5 text-right font-medium">
                   ₦{paymentBreakdown.credit.unpaidTotal.toLocaleString()} unpaid
                 </div>
               )}
@@ -537,6 +557,9 @@ export default function SalesAnalyticsCards({ onNewSaleClick }: SalesAnalyticsCa
           merchantEmail={email || data.merchant?.email}
           merchantAddress={account?.address}
           merchantLogo={businessLogo || data.merchant?.businessLogo}
+          salesScope={salesScope}
+          branchName={branchName}
+          staffMemberName={workspaceSession?.memberName}
         />
       )}
 

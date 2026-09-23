@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, db, IReceiptItem } from "@/lib/db";
 import { getMerchantFromAuth } from "@/lib/auth-api";
+import { hasPermission } from "@/lib/permissions";
 import { computeReceiptHash } from "@/lib/receipt-hash";
 import { recoverReceiptContract } from "@/lib/contract";
 import { client } from "@/lib/client";
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
     }
@@ -74,6 +75,12 @@ export async function POST(req: NextRequest) {
 
     // Validate Credit payment channel requirements
     if (paymentMethod === "Credit") {
+      if (actor && !hasPermission(actor.role, "sell_credit")) {
+        return NextResponse.json(
+          { error: "Sales Reps are not permitted to issue store credit. A Manager or Owner must record credit sales." },
+          { status: 403 }
+        );
+      }
       const trimmedCustomerName = customerName ? String(customerName).trim() : "";
       if (!trimmedCustomerName) {
         return NextResponse.json(
@@ -239,10 +246,27 @@ export async function POST(req: NextRequest) {
             itemCount: processedItems.length,
             total,
           },
+          createdBy: actor
+            ? {
+                address: actor.address,
+                name: actor.name,
+                role: actor.role,
+                branchId: actor.branchId,
+                branchName: actor.branchName,
+              }
+            : {
+                address: merchant._id.toLowerCase(),
+                name: merchant.displayName || "Owner",
+                role: "owner",
+                branchId: null,
+                branchName: null,
+              },
           events: [
             {
               event: "Created",
-              operator: merchant._id.toLowerCase(),
+              operator: actor ? actor.address : merchant._id.toLowerCase(),
+              operatorName: actor?.name || merchant.displayName || "Owner",
+              operatorBranch: actor?.branchName || null,
               timestamp: new Date(),
             },
           ],
@@ -253,10 +277,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const resolvedMerchantName =
+      merchant.companyName || merchant.fullName || merchant.displayName || "Business";
+    const resolvedMerchantLogo = merchant.businessLogo || null;
+    const resolvedMerchantPhone = merchant.phone || merchant.whatsapp || null;
+    const resolvedMerchantEmail = merchant.email || null;
+
     // Save receipt to MongoDB
     const createdReceipt = await db.receipt.create({
       _id: receiptNumber,
       merchantAddress: merchant._id.toLowerCase(),
+      merchantName: resolvedMerchantName,
+      merchantLogo: resolvedMerchantLogo,
+      merchantPhone: resolvedMerchantPhone,
+      merchantEmail: resolvedMerchantEmail,
       items: processedItems,
       currency: "NGN",
       subtotal,
@@ -274,6 +308,27 @@ export async function POST(req: NextRequest) {
       customerEmail,
       fulfillmentType,
       linkedShipmentId,
+      branchId: actor?.branchId || null,
+      issuedBy: actor
+        ? {
+            address: actor.address,
+            name:
+              actor.role === "owner"
+                ? "CEO"
+                : actor.role === "manager"
+                ? "Manager"
+                : actor.name || "Sales Rep",
+            role: actor.role,
+            branchId: actor.branchId,
+            branchName: actor.branchName,
+          }
+        : {
+            address: merchant._id.toLowerCase(),
+            name: "CEO",
+            role: "owner",
+            branchId: null,
+            branchName: null,
+          },
       status: "Issued",
       parentReceiptNumber,
       receiptHash,
@@ -322,13 +377,14 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
     }
 
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim();
+    const branchFilter = searchParams.get("branchId");
     const statusFilter = searchParams.get("status");
     const paymentFilter = searchParams.get("paymentMethod");
     const paymentStatusFilter = searchParams.get("paymentStatus");
@@ -342,6 +398,49 @@ export async function GET(req: NextRequest) {
     const query: Record<string, unknown> = {
       merchantAddress: merchant._id.toLowerCase(),
     };
+
+    const isOwner = actor?.role === "owner";
+
+    const mySalesOnly = searchParams.get("mySalesOnly") === "true";
+    const staffAddressFilter = searchParams.get("staffAddress");
+
+    const andConditions: Record<string, unknown>[] = [];
+
+    if (!isOwner) {
+      // Staff members (both Manager and Sales Rep) can see their own sales or their branch sales
+      if (mySalesOnly && actor?.address) {
+        query["issuedBy.address"] = actor.address.toLowerCase();
+      } else {
+        const staffBranchId = actor?.branchId || branchFilter;
+        if (staffBranchId) {
+          andConditions.push({
+            $or: [
+              { branchId: staffBranchId },
+              { "issuedBy.branchId": staffBranchId },
+            ],
+          });
+        } else if (actor?.address) {
+          // Fallback to own sales if no branch assigned
+          query["issuedBy.address"] = actor.address.toLowerCase();
+        }
+      }
+    } else {
+      // Owner has unrestricted access; can view all store sales or filter as desired
+      if (mySalesOnly && actor?.address) {
+        query["issuedBy.address"] = actor.address.toLowerCase();
+      } else if (staffAddressFilter) {
+        query["issuedBy.address"] = staffAddressFilter.toLowerCase();
+      }
+
+      if (branchFilter) {
+        andConditions.push({
+          $or: [
+            { branchId: branchFilter },
+            { "issuedBy.branchId": branchFilter },
+          ],
+        });
+      }
+    }
 
     if (unpaidCreditOnly) {
       query.paymentMethod = "Credit";
@@ -374,12 +473,18 @@ export async function GET(req: NextRequest) {
 
     if (q) {
       const regex = new RegExp(q, "i");
-      query.$or = [
-        { _id: regex },
-        { customerName: regex },
-        { customerPhone: regex },
-        { "items.name": regex },
-      ];
+      andConditions.push({
+        $or: [
+          { _id: regex },
+          { customerName: regex },
+          { customerPhone: regex },
+          { "items.name": regex },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const [receipts, total] = await Promise.all([

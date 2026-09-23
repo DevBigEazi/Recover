@@ -51,6 +51,11 @@ interface PublicReceipt {
   onChainTxHash?: string | null;
   onChainTimestamp?: string | null;
   createdAt: string;
+  issuedBy?: {
+    name: string;
+    role?: string;
+    branchName?: string | null;
+  } | null;
 }
 
 export default function PublicReceiptPage({ params }: PageProps) {

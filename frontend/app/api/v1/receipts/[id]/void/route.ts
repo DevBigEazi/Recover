@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, db } from "@/lib/db";
 import { getMerchantFromAuth } from "@/lib/auth-api";
+import { canVoidReceipt } from "@/lib/permissions";
 import { recoverReceiptContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { privateKeyToAccount } from "thirdweb/wallets";
@@ -14,14 +15,21 @@ export async function POST(
   try {
     await connectDB();
 
-    const { shipper: merchant, error, status } = await getMerchantFromAuth(req);
+    const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
     }
 
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const reason = String(body.reason || "Voided by merchant").trim();
+    const reason = String(body.reason || "").trim();
+
+    if (!reason) {
+      return NextResponse.json(
+        { error: "A void reason is strictly mandatory. Please provide a clear justification." },
+        { status: 400 }
+      );
+    }
 
     const receipt = await db.receipt.findById(id);
     if (!receipt) {
@@ -29,11 +37,26 @@ export async function POST(
     }
 
     if (receipt.merchantAddress.toLowerCase() !== merchant._id.toLowerCase()) {
-      return NextResponse.json({ error: "Unauthorized: only the issuing merchant can void this receipt." }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized: only the issuing merchant workspace can void this receipt." }, { status: 403 });
     }
 
     if (receipt.status === "Voided") {
       return NextResponse.json({ error: "Receipt has already been voided." }, { status: 400 });
+    }
+
+    const currentActor = actor || {
+      address: merchant._id.toLowerCase(),
+      name: merchant.displayName || "Owner",
+      role: "owner" as const,
+      branchId: null,
+      branchName: null,
+    };
+
+    if (!canVoidReceipt(currentActor, receipt)) {
+      return NextResponse.json(
+        { error: "Strict Accountability Rule: Every role (including Owner and Manager) can only void receipts that they personally issued." },
+        { status: 403 }
+      );
     }
 
     // Call smart contract voidReceipt via relayer
@@ -100,6 +123,13 @@ export async function POST(
     receipt.status = "Voided";
     receipt.voidReason = reason;
     receipt.voidedAt = new Date();
+    receipt.voidedBy = {
+      address: currentActor.address,
+      name: currentActor.name,
+      role: currentActor.role,
+      branchId: currentActor.branchId || null,
+      branchName: currentActor.branchName || null,
+    };
     await receipt.save();
 
     return NextResponse.json({

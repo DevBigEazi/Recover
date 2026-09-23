@@ -18,10 +18,11 @@ export async function GET(
 
     // Lookup merchant business info
     const merchantUser = await db.user.findById(receipt.merchantAddress.toLowerCase()).lean();
-    const merchantName = merchantUser?.companyName || merchantUser?.fullName || "Verified Merchant";
-    const merchantLogo = merchantUser?.businessLogo || null;
-    const merchantPhone = merchantUser?.phone || merchantUser?.whatsapp || null;
-    const merchantEmail = merchantUser?.email || null;
+    const merchantName =
+      receipt.merchantName || merchantUser?.companyName || merchantUser?.fullName || "Official Receipt";
+    const merchantLogo = receipt.merchantLogo || merchantUser?.businessLogo || null;
+    const merchantPhone = receipt.merchantPhone || merchantUser?.phone || merchantUser?.whatsapp || null;
+    const merchantEmail = receipt.merchantEmail || merchantUser?.email || null;
 
     // Public sanitized receipt record (exclude customer phone/email from public responses)
     const publicReceipt = {
@@ -52,6 +53,18 @@ export async function GET(
       onChainTxHash: receipt.onChainTxHash,
       onChainTimestamp: receipt.onChainTimestamp,
       createdAt: receipt.createdAt,
+      issuedBy: receipt.issuedBy
+        ? {
+            name:
+              receipt.issuedBy.role === "owner" || receipt.issuedBy.name === "CEO"
+                ? "CEO"
+                : receipt.issuedBy.role === "manager" || receipt.issuedBy.name === "Manager"
+                ? "Manager"
+                : receipt.issuedBy.name || "Sales Rep",
+            role: receipt.issuedBy.role,
+            branchName: receipt.issuedBy.branchName || null,
+          }
+        : null,
     };
 
     return NextResponse.json({

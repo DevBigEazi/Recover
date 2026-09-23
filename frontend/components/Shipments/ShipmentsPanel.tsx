@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useTeam } from "@/context/TeamContext";
 import { detectUserCurrency, UserCurrencyInfo } from "@/lib/currency";
 import WebhookConfigCard from "@/components/WebhookConfigCard/WebhookConfigCard";
 import { Shipment, HandoverResult } from "@/components/Shipments/types";
@@ -13,9 +15,13 @@ import MerchantUpgradeCard from "@/components/Shipments/MerchantUpgradeCard";
 import StickerDownloadModal from "@/components/Shipments/StickerDownloadModal";
 import LogHandoverModal from "@/components/Shipments/LogHandoverModal";
 import HandoverSuccessModal from "@/components/Shipments/HandoverSuccessModal";
+import { Truck } from "lucide-react";
+import Link from "next/link";
 
 export default function ShipmentsPanel() {
   const { account } = useAuthReady();
+  const { openLogin } = useAuth();
+  const { isStaffMode, workspaceSession } = useTeam();
   const {
     apiKey,
     subscriptionActive,
@@ -29,6 +35,8 @@ export default function ShipmentsPanel() {
   } = useProfile();
   const queryClient = useQueryClient();
 
+  const effectiveAddress = workspaceSession?.merchantAddress || account?.address;
+
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
   const [showStickerDownload, setShowStickerDownload] = useState<Shipment | null>(null);
   const [createdInnerSecret, setCreatedInnerSecret] = useState<string | null>(null);
@@ -39,9 +47,9 @@ export default function ShipmentsPanel() {
     detectUserCurrency().then(setUserCurrency);
   }, []);
 
-  // Fetch shipments — only for authenticated merchants
+  // Fetch shipments — for authenticated merchants and workspace staff
   const { data: shipments = [], isLoading, error } = useQuery<Shipment[]>({
-    queryKey: ["shipments", account?.address],
+    queryKey: ["shipments", effectiveAddress],
     queryFn: async () => {
       let activeApiKey = apiKey;
       if (!activeApiKey && account?.address) {
@@ -59,9 +67,10 @@ export default function ShipmentsPanel() {
         }
       }
 
-      const headers: Record<string, string> = {
-        "x-owner-address": account!.address,
-      };
+      const headers: Record<string, string> = {};
+      if (effectiveAddress) {
+        headers["x-owner-address"] = effectiveAddress;
+      }
       if (activeApiKey && !activeApiKey.includes("•")) {
         headers["x-api-key"] = activeApiKey;
       }
@@ -70,30 +79,50 @@ export default function ShipmentsPanel() {
       if (!response.ok) throw new Error("Failed to load shipments");
       return response.json();
     },
-    enabled: !!account && role === "merchant",
+    enabled: !!effectiveAddress && (role === "merchant" || isStaffMode),
     refetchInterval: 5000,
     staleTime: 3000,
   });
 
-  const isSubscriptionActive = subscriptionActive === true || plan === "free";
+  const isSubscriptionActive = subscriptionActive === true || plan === "free" || isStaffMode;
 
-  if (!account) {
+  if (!account && !isStaffMode) {
     return (
-      <div className="p-12 text-center bg-neutral-white dark:bg-neutral-dark rounded-2xl border border-neutral-slate/15 dark:border-neutral-white/10 shadow-sm space-y-3">
-        <h3 className="text-base font-bold text-neutral-dark dark:text-neutral-white">
-          Sign In Required
-        </h3>
-        <p className="text-xs text-neutral-slate dark:text-neutral-white/60 max-w-md mx-auto">
-          Please connect your merchant account to access package custody and delivery dispatches.
-        </p>
+      <div className="p-12 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-4">
+        <div className="w-12 h-12 rounded-full bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center mx-auto">
+          <Truck className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-white">
+            Connect Merchant Account
+          </h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+            Connect your merchant account to access package custody, tracking QR labels, and delivery dispatches.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={openLogin}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
+          >
+            Sign In as Merchant Owner
+          </button>
+          <Link
+            href="/workspace/login"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
+          >
+            Staff Member PIN Login
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Merchant Webhook Configuration */}
-      <WebhookConfigCard variant="dark" />
+      {/* Merchant Webhook Configuration (merchant owner only) */}
+      {!isStaffMode && <WebhookConfigCard variant="dark" />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left/Middle Column: Shipment List */}
@@ -112,7 +141,7 @@ export default function ShipmentsPanel() {
         <div className="order-1 lg:order-2 space-y-6">
           {!isSubscriptionActive ? (
             <MerchantUpgradeCard
-              walletAddress={account.address}
+              walletAddress={effectiveAddress || ""}
               plan={plan || "free"}
               role={role || "merchant"}
               billingCycle={billingCycle}
@@ -121,7 +150,7 @@ export default function ShipmentsPanel() {
             />
           ) : (
             <CreateShipmentCard
-              walletAddress={account.address}
+              walletAddress={effectiveAddress || ""}
               apiKey={apiKey}
               plan={plan}
               shipmentsThisMonth={shipmentsThisMonth}
@@ -149,10 +178,10 @@ export default function ShipmentsPanel() {
       )}
 
       {/* Log Custody Handover Modal */}
-      {selectedHandoverShipment && account && (
+      {selectedHandoverShipment && effectiveAddress && (
         <LogHandoverModal
           selectedShipment={selectedHandoverShipment}
-          walletAddress={account.address}
+          walletAddress={effectiveAddress}
           apiKey={apiKey}
           onClose={() => setSelectedHandoverShipment(null)}
           onSuccess={(result) => {
