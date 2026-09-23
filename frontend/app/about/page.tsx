@@ -3,29 +3,29 @@
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { ArrowRight, Truck, Lock, Smartphone, Bot, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Truck, Lock, Smartphone, Bot, Receipt, Users, ShieldCheck } from "lucide-react";
 
 export default function AboutPage() {
   const steps = [
     {
       num: "01",
-      title: "Register Your Valuables or Commercial Packages",
-      desc: "Sign in with Google, Email, or Social account. Register personal items (phones, laptops, keys) or commercial logistics packages (`/shipments`). Leverage AI to automatically generate context-specific recovery instructions.",
+      title: "Issue Digital Receipts or Register Physical Assets",
+      desc: "Retailers issue itemized digital receipts via the POS terminal, logistics operators create commercial package dispatches, and individuals protect everyday valuables. Retail buyers can instantly convert purchased items into protected vault items with 1-tap.",
     },
     {
       num: "02",
-      title: "Print & Attach Scannable QR Sticker",
-      desc: "Download and print your sticker in preferred size presets: Mini (~10mm for keychains & chargers), Standard (~25mm for phones & wallets), or Large (~50mm for laptops & luggage dispatches).",
+      title: "Smart Scannable QR Codes & Labels",
+      desc: "Receipts embed cryptographic verification QRs, packages receive dual-layer dispatch labels with inner scratch-off secrets, and personal items use precision QR stickers (Mini ~10mm, Standard ~25mm, or Large ~50mm).",
     },
     {
       num: "03",
-      title: "Instant Mobile QR Scan & Real-Time Alerts",
-      desc: "When an item is lost or package scanned in transit, anyone with a phone camera lands on a mobile verification page (`/verify/[id]` or `/scan/[id]`). Real-time Web Push alerts immediately notify the owner/merchant.",
+      title: "Zero-App Mobile Scan & Real-Time Alerts",
+      desc: "When a receipt is checked, a shipment scanned in transit, or a lost item found, scanning with any smartphone camera opens an instant mobile web page. Real-time Web Push alerts immediately notify the owner, merchant, or recipient.",
     },
     {
       num: "04",
-      title: "Private Handover & Handshake PIN Verification",
-      desc: "Coordinate a safe public meetup, arrange a local courier, or verify package delivery. Complete the return by matching secret verification PINs to update the state to Recovered or Delivered.",
+      title: "Cryptographic Handshakes, Audits & Handovers",
+      desc: "Verify physical handovers and deliveries using secret scratch-off PIN matches. Every merchant sale, void action, and custody event is permanently captured in an immutable audit trail with multi-branch actor tracking.",
     },
   ];
 
@@ -38,15 +38,25 @@ export default function AboutPage() {
           
           {/* Banner Section */}
           <div className="text-center space-y-3 sm:space-y-4 max-w-2xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[11px] sm:text-xs text-primary shadow-2xs select-none backdrop-blur-xs">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+              </span>
+              <span className="font-bold tracking-tight text-primary">Protocol Overview</span>
+              <span className="text-neutral-slate/40 font-light">·</span>
+              <span className="font-medium text-neutral-slate">Trust &amp; Commerce Protocol</span>
+            </div>
+
             <h1 className="text-3xl font-bold tracking-tight text-primary font-display sm:text-5xl">
               How Recover Works
             </h1>
             <p className="text-sm sm:text-base text-neutral-slate leading-relaxed">
-              Recover bridges physical items with smart digital protection. Protect personal valuables with scannable QR stickers and power commercial logistics dispatches with tamper-proof package tracking.
+              Recover bridges physical items with smart digital proof across three interconnected pillars — Point-of-Sale digital receipts for retailers, tamperproof commercial package tracking for delivery teams and dispatch riders, and privacy-first recovery for personal valuables.
             </p>
           </div>
 
-          {/* Step-by-Step Recovery Section */}
+          {/* Step-by-Step Architecture Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2 sm:pt-4">
             {steps.map((step) => (
               <div
@@ -67,81 +77,123 @@ export default function AboutPage() {
           {/* Privacy & Security Safeguards Section */}
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-10 shadow-xs space-y-4 sm:space-y-6">
             <div className="border-b border-neutral-mist pb-3 sm:pb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">Built-In Security &amp; Privacy Safeguards</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">Built-In Security &amp; Trust Safeguards</h2>
               <p className="text-xs text-neutral-slate mt-1">
-                Your security and personal privacy are protected by design at every step.
+                Your data integrity, enterprise roles, and personal privacy are protected by design at every step.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 text-xs leading-relaxed">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-xs leading-relaxed">
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
                   <Lock className="w-4 h-4 text-accent" /> Privacy-First Protection
                 </h4>
                 <p className="text-neutral-slate">
-                  We never expose plain-text personal details (such as home address or primary phone numbers) on the public internet. Your identity remains private.
+                  We never expose plain-text personal details (such as home address, personal phone numbers, or receipts) publicly. Identity stays private.
                 </p>
               </div>
+
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-accent" /> No App Required
+                  <Smartphone className="w-4 h-4 text-accent" /> Zero-App Mobile Access
                 </h4>
                 <p className="text-neutral-slate">
-                  Finders and package handlers do not need to install an app, create an account, or complete a technical setup. They scan and communicate instantly from any mobile browser.
+                  Finders, delivery drivers, dispatch riders, and retail customers scan and communicate instantly from any standard mobile browser without app downloads.
                 </p>
               </div>
+
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <Truck className="w-4 h-4 text-indigo-600" /> Commercial Logistics API
+                  <Users className="w-4 h-4 text-emerald-600" /> Multi-Branch Team Roles
                 </h4>
                 <p className="text-neutral-slate">
-                  Merchants can programmatically create dispatches, track chain of custody, and receive instant webhooks via `/api/v1/shipments`.
+                  SME merchants collaborate securely with Owner, Manager, and Sales Rep role permissions, multi-branch store controls, and PIN-based staff logins.
                 </p>
               </div>
+
               <div className="space-y-1.5 sm:space-y-2">
                 <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <Bot className="w-4 h-4 text-accent" /> AI Safety Insights
+                  <Receipt className="w-4 h-4 text-emerald-600" /> Permanent Audit Trails
                 </h4>
                 <p className="text-neutral-slate">
-                  Our system automatically analyzes report coordinates and translates them into semantic context to give you clear safety guidance.
+                  Every transaction issuance, void with reason, or credit settlement captures an immutable snapshot of the actor and branch for complete accountability.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2">
+                <h4 className="font-bold text-primary flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-indigo-600" /> Commercial Logistics REST API
+                </h4>
+                <p className="text-neutral-slate">
+                  Logistics merchants can programmatically create tamperproof dispatches, generate dual-layer QR shipping labels, and verify deliveries via API.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 sm:space-y-2">
+                <h4 className="font-bold text-primary flex items-center gap-1.5">
+                  <Bot className="w-4 h-4 text-accent" /> AI Safety &amp; Recovery Insights
+                </h4>
+                <p className="text-neutral-slate">
+                  Google Gemini 2.0 automatically analyzes report coordinates to offer semantic safety context and assists owners with tailored recovery guidance.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Sticker Guidelines Section */}
+          {/* Quick Action Pathways */}
           <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-10 shadow-xs space-y-4 sm:space-y-6">
             <div className="border-b border-neutral-mist pb-3 sm:pb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">QR Code Sticker Guidelines</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">Get Started with Recover</h2>
               <p className="text-xs text-neutral-slate mt-1">
-                Maximize the chances of your lost items being safely recovered or commercial packages verified.
+                Choose the workspace that fits your workflow.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 text-xs sm:text-sm">
-              <div className="space-y-2 sm:space-y-3">
-                <h4 className="font-bold text-primary">Best Placement Spots:</h4>
-                <ul className="space-y-1.5 sm:space-y-2 text-neutral-slate list-disc pl-5 leading-relaxed">
-                  <li><strong>Wallets &amp; Purses:</strong> Place the sticker on the inside cover or a prominent card slot.</li>
-                  <li><strong>Electronics:</strong> Back of laptops, tablets, or under phone cases.</li>
-                  <li><strong>Keys &amp; Bags:</strong> Attach to keychains, luggage tags, or backpack strap tags.</li>
-                  <li><strong>Commercial Shipping Containers:</strong> Top-right corner of package boxes or tamper seals.</li>
-                </ul>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 text-xs sm:text-sm">
+              <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-primary flex items-center gap-1.5">
+                    <Receipt className="w-4 h-4 text-emerald-600" /> Merchant POS &amp; Receipts
+                  </h4>
+                  <p className="text-xs text-neutral-slate leading-relaxed mt-1">
+                    Issue digital receipts, track debtors, review analytics, and manage store branches.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Link href="/workspace" className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1">
+                    Open Merchant Workspace <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
-              
-              <div className="space-y-2 sm:space-y-3 bg-neutral-mist/35 p-5 sm:p-6 rounded-xl border border-neutral-mist">
-                <h4 className="font-bold text-primary flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Ready to Protect Your Valuables?
-                </h4>
-                <p className="text-neutral-slate leading-relaxed">
-                  Start protecting your belongings with scannable QR stickers today, or check out our transparent pricing plans.
-                </p>
-                <div className="pt-2 flex flex-wrap gap-3">
+
+              <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-primary flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-indigo-600" /> Logistics Dispatch
+                  </h4>
+                  <p className="text-xs text-neutral-slate leading-relaxed mt-1">
+                    Dispatch commercial packages, print rider delivery manifests, and track chain of custody.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Link href="/shipments" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                    Open Logistics Dispatch <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-primary flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-accent" /> Personal Valuables
+                  </h4>
+                  <p className="text-xs text-neutral-slate leading-relaxed mt-1">
+                    Protect smartphones, laptops, keys, and pets with scannable QR stickers.
+                  </p>
+                </div>
+                <div className="pt-2">
                   <Link href="/register" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
                     Register Personal Item <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                  <Link href="/pricing" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
-                    View Pricing Tiers <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               </div>
