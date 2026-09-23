@@ -3,107 +3,378 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
-import ReceiptsNav, { WorkspaceTab } from "@/components/Receipts/ReceiptsNav";
 import SalesAnalyticsCards from "@/components/Receipts/SalesAnalyticsCards";
 import ReceiptsTable from "@/components/Receipts/ReceiptsTable";
 import POSScreen from "@/components/Receipts/POSScreen";
 import ShipmentsPanel from "@/components/Shipments/ShipmentsPanel";
-import { PlusCircle, Receipt } from "lucide-react";
+import Link from "next/link";
+import { PlusCircle, Receipt, Lock, Users, UserPlus, Store, Loader2, User, Building2, ShieldCheck } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useAuth } from "@/context/AuthContext";
+import { useTeam } from "@/context/TeamContext";
+import { useProfile } from "@/context/ProfileContext";
+import TeamMembersTable from "@/components/Team/TeamMembersTable";
+import BranchesPanel from "@/components/Team/BranchesPanel";
+import InviteMemberModal from "@/components/Team/InviteMemberModal";
+
+export type WorkspaceTab = "receipts" | "pos" | "shipments" | "team";
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { account } = useAuthReady();
+  const { openLogin } = useAuth();
+  const { isStaffMode, can, actorBranchId, actorBranchName, workspaceSession } = useTeam();
+  const { role, isProfileLoaded, companyName } = useProfile();
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [teamSubTab, setTeamSubTab] = useState<"members" | "branches">("members");
+
+  const isMerchantOwner = Boolean(account && role === "merchant");
+  const hasWorkspaceAccess = isStaffMode || isMerchantOwner;
+
+  const branchId = workspaceSession?.branchId || actorBranchId || null;
+  const branchName = workspaceSession?.branchName || actorBranchName || "Branch";
+  const hasBranchAssigned = Boolean(branchId);
 
   const tabParam = searchParams.get("tab") as WorkspaceTab | null;
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(
-    tabParam === "pos" || tabParam === "shipments" ? tabParam : "receipts"
+    tabParam === "pos" || tabParam === "shipments" || tabParam === "team" ? tabParam : "receipts"
+  );
+  const [salesScope, setSalesScope] = useState<"all" | "branch" | "my">(
+    isMerchantOwner ? "all" : hasBranchAssigned ? "branch" : "my"
   );
 
   useEffect(() => {
-    if (tabParam && (tabParam === "receipts" || tabParam === "pos" || tabParam === "shipments")) {
+    if (isMerchantOwner) {
+      setSalesScope("all");
+    } else {
+      setSalesScope(hasBranchAssigned ? "branch" : "my");
+    }
+  }, [isMerchantOwner, hasBranchAssigned]);
+
+  useEffect(() => {
+    if (tabParam && (tabParam === "receipts" || tabParam === "pos" || tabParam === "shipments" || tabParam === "team")) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
 
+  useEffect(() => {
+    const handleCustomTab = (e: Event) => {
+      const customEvent = e as CustomEvent<WorkspaceTab>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail);
+      }
+    };
+    window.addEventListener("workspace-tab-change", handleCustomTab);
+    return () => {
+      window.removeEventListener("workspace-tab-change", handleCustomTab);
+    };
+  }, []);
+
   const handleTabChange = (tab: WorkspaceTab) => {
     setActiveTab(tab);
     router.replace(`/workspace?tab=${tab}`);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("workspace-tab-change", { detail: tab }));
+    }
   };
+
+  const canInvite = can("invite_manager") || can("invite_sales_rep");
+  const canManageBranches = can("manage_branches");
+
+  // Show loading indicator if connected account profile is still resolving
+  if (account && !isStaffMode && !isProfileLoaded) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        <p className="text-xs text-slate-400">Verifying merchant credentials...</p>
+      </div>
+    );
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Workspace Tab Switcher */}
-      <ReceiptsNav activeTab={activeTab} onTabChange={handleTabChange} />
-
-      {/* Tab Panel 1: Digital Receipts & Sales */}
-      {activeTab === "receipts" && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  Digital Receipts & Sales
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Issue instant digital receipts, monitor daily close-of-day sales, and download reports for your business.
-              </p>
-            </div>
-
-            <button
-              onClick={() => handleTabChange("pos")}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>New Sale</span>
-            </button>
+      {/* Workspace Header Status Bar */}
+      {hasWorkspaceAccess && (
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-300">
+              {isMerchantOwner
+                ? (companyName || "Merchant Workspace")
+                : (branchName ? `${branchName} Branch` : "Staff Workspace")}
+            </span>
           </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-400 font-bold border border-emerald-900/50 text-xs">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Tamperproof Register Active</span>
+          </span>
+        </div>
+      )}
 
-          {!account ? (
-            <div className="p-12 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-3">
-              <div className="w-12 h-12 rounded-full bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center mx-auto">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">
-                Connect Merchant Account
-              </h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Please connect your account to view your store&apos;s digital receipts, close-of-day analytics, and report downloads.
+      {/* Access Gate: Personal Account vs Unauthenticated vs Authorized */}
+      {!hasWorkspaceAccess ? (
+        account && role !== "merchant" ? (
+          /* Personal Consumer Account Gating */
+          <div className="p-10 sm:p-14 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-2xl mx-auto my-6 animate-fadeIn">
+            <div className="w-14 h-14 rounded-2xl bg-slate-800/80 text-blue-400 border border-slate-700/80 flex items-center justify-center mx-auto">
+              <Lock className="w-6 h-6 text-slate-300" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Merchant Account Required
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
+                You are currently signed in with a personal account. Workspace POS terminals, retail receipts, and team management are reserved exclusively for registered merchant owners and verified workplace staff.
               </p>
             </div>
-          ) : (
-            <>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm text-center"
+              >
+                Go to Personal Dashboard
+              </Link>
+              <Link
+                href="/workspace/login"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
+              >
+                Staff Member PIN Login
+              </Link>
+            </div>
+          </div>
+        ) : (
+          /* Completely Unauthenticated Gating */
+          <div className="p-10 sm:p-14 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-2xl mx-auto my-6 animate-fadeIn">
+            <div className="w-14 h-14 rounded-2xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center mx-auto">
+              <Receipt className="w-6 h-6" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Connect Merchant Account
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
+                Connect your registered business account or sign in with your staff PIN to access your point-of-sale terminal, digital receipts ledger, and close-of-day analytics.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={openLogin}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
+              >
+                Sign In as Merchant Owner
+              </button>
+              <Link
+                href="/workspace/login"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
+              >
+                Staff Member PIN Login
+              </Link>
+            </div>
+          </div>
+        )
+      ) : (
+        <>
+          {/* Tab Panel 1: Digital Receipts & Sales */}
+          {activeTab === "receipts" && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Section Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      Digital Receipts & Sales
+                    </h1>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                    Issue instant digital receipts, monitor daily close-of-day sales, and download reports for your business.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full sm:w-auto">
+                  {/* Sales Scope Toggle: My Sales vs Branch Sales vs All Store Sales */}
+                  <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800 shadow-xs flex-wrap sm:flex-nowrap gap-1 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setSalesScope("my")}
+                      className={`flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-9 sm:min-h-0 ${
+                        salesScope === "my"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <User className="w-3.5 h-3.5 shrink-0" />
+                      <span>{isMerchantOwner ? "My Sales (CEO)" : "My Sales"}</span>
+                    </button>
+                    {hasBranchAssigned && (
+                      <button
+                        type="button"
+                        onClick={() => setSalesScope("branch")}
+                        className={`flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-9 sm:min-h-0 ${
+                          salesScope === "branch"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        <Building2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{branchName} Sales</span>
+                      </button>
+                    )}
+                    {isMerchantOwner && (
+                      <button
+                        type="button"
+                        onClick={() => setSalesScope("all")}
+                        className={`flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-9 sm:min-h-0 ${
+                          salesScope === "all"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        <Store className="w-3.5 h-3.5 shrink-0" />
+                        <span>All Store Sales</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleTabChange("pos")}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer min-h-11 sm:min-h-0"
+                  >
+                    <PlusCircle className="w-4 h-4 shrink-0" />
+                    <span>New Sale</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Sales Analytics Overview & Report Downloads */}
-              <SalesAnalyticsCards onNewSaleClick={() => handleTabChange("pos")} />
+              <SalesAnalyticsCards
+                onNewSaleClick={() => handleTabChange("pos")}
+                salesScope={salesScope}
+                branchId={branchId}
+                branchName={branchName}
+              />
 
               {/* Receipts Audit Ledger */}
               <div className="space-y-3">
-                <h2 className="text-base font-bold text-white">
-                  Receipts Audit Ledger
-                </h2>
-                <ReceiptsTable onNewSaleClick={() => handleTabChange("pos")} />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-white">
+                    Receipts Audit Ledger
+                  </h2>
+                  <span className="text-xs text-slate-400">
+                    {salesScope === "my"
+                      ? "Scoped to your personal sales"
+                      : salesScope === "branch"
+                      ? `Scoped to ${branchName} sales`
+                      : "Showing all staff sales"}
+                  </span>
+                </div>
+                <ReceiptsTable
+                  onNewSaleClick={() => handleTabChange("pos")}
+                  salesScope={salesScope}
+                  branchId={branchId}
+                />
               </div>
-            </>
+            </div>
           )}
-        </div>
+
+          {/* Tab Panel 2: Point of Sale Terminal */}
+          {activeTab === "pos" && (
+            <div className="animate-fadeIn">
+              <POSScreen />
+            </div>
+          )}
+
+          {/* Tab Panel 3: Package Shipments & Custody */}
+          {activeTab === "shipments" && (
+            <div className="animate-fadeIn">
+              <ShipmentsPanel />
+            </div>
+          )}
+
+          {/* Tab Panel 4: Team & Branch Management */}
+          {activeTab === "team" && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-slate-900/60 rounded-2xl border border-slate-800/80 p-5 sm:p-6 space-y-5">
+                {/* Header with Title and Invite Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-950/80 text-blue-400 rounded-xl border border-blue-800/60">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                        Team & Branch Management
+                      </h2>
+                      <p className="text-xs text-slate-400">
+                        Manage staff permissions, cashier roles, and retail branch locations
+                      </p>
+                    </div>
+                  </div>
+
+                  {canInvite && (
+                    <button
+                      type="button"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer shadow-xs"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Invite Team Member</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Sub-tabs: Staff Members & Branches */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTeamSubTab("members")}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      teamSubTab === "members"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Staff Members</span>
+                  </button>
+                  {canManageBranches && (
+                    <button
+                      type="button"
+                      onClick={() => setTeamSubTab("branches")}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                        teamSubTab === "branches"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      <Store className="w-3.5 h-3.5" />
+                      <span>Branches</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Sub-tab Content */}
+                <div className="pt-1">
+                  {teamSubTab === "members" ? (
+                    <TeamMembersTable />
+                  ) : (
+                    <BranchesPanel />
+                  )}
+                </div>
+              </div>
+
+              {/* Invite Member Modal */}
+              {isInviteModalOpen && (
+                <InviteMemberModal
+                  isOpen={isInviteModalOpen}
+                  onClose={() => setIsInviteModalOpen(false)}
+                />
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Tab Panel 2: Point of Sale Terminal */}
-      {activeTab === "pos" && (
-        <div className="animate-fadeIn">
-          <POSScreen />
-        </div>
-      )}
-
-      {/* Tab Panel 3: Package Shipments & Custody */}
-      {activeTab === "shipments" && (
-        <div className="animate-fadeIn">
-          <ShipmentsPanel />
-        </div>
-      )}
     </main>
   );
 }

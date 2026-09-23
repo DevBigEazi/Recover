@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { LocalItem } from "./ItemSecretsSection";
 import { convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
 
@@ -55,7 +56,7 @@ export default function ItemReportsInbox({
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to initialize checkout.";
-      alert(errMsg);
+      toast.error(errMsg);
       setIsActionLoading(false);
     }
   };

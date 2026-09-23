@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronDown, Bell } from "lucide-react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useActiveWallet, useDisconnect } from "thirdweb/react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useTeam } from "@/context/TeamContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 
 export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isExploreMenuOpen, setIsExploreMenuOpen] = useState(false);
+  const [currentTab, setCurrentTab] = useState<string>("receipts");
   const pathname = usePathname();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { account, isAuthLoading } = useAuthReady();
@@ -23,6 +28,55 @@ export default function Header() {
   // Keep useActiveAccount for wallet-specific hooks that need the raw account
   const { openLogin } = useAuth();
   const { fullName, companyName, businessLogo, username, role, plan, billingCycle } = useProfile();
+  const { isStaffMode, workspaceSession } = useTeam();
+
+  // Reactive tab state synchronization across Header, MobileBottomNav, and WorkspaceContent
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== "undefined") {
+        const tab = new URLSearchParams(window.location.search).get("tab") || "receipts";
+        setCurrentTab(tab);
+      }
+    };
+    syncTab();
+
+    const handleCustomTab = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setCurrentTab(customEvent.detail);
+      } else {
+        syncTab();
+      }
+    };
+
+    window.addEventListener("popstate", syncTab);
+    window.addEventListener("workspace-tab-change", handleCustomTab);
+    return () => {
+      window.removeEventListener("popstate", syncTab);
+      window.removeEventListener("workspace-tab-change", handleCustomTab);
+    };
+  }, [pathname]);
+
+  // Dismiss any open dropdowns when clicking anywhere randomly on the screen
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || !target.closest("[data-dropdown-container]")) {
+        setIsUserMenuOpen(false);
+        setIsNotificationsOpen(false);
+        setIsExploreMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen || isNotificationsOpen || isExploreMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isUserMenuOpen, isNotificationsOpen, isExploreMenuOpen]);
 
   // 1. Fetch notifications via TanStack Query (polls every 5s for real-time alerts)
   const { data: notifications = [] } = useQuery<Array<{
@@ -63,13 +117,26 @@ export default function Header() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const navLinks = role === "merchant"
+  // Role-tailored navigation links
+  const navLinks = isStaffMode && workspaceSession
+    ? workspaceSession.role === "manager"
+      ? [
+          { name: "POS Terminal", href: "/workspace?tab=pos" },
+          { name: "Sales & Receipts", href: "/workspace?tab=receipts" },
+          { name: "Shipments", href: "/workspace?tab=shipments" },
+          { name: "Team & Staff", href: "/workspace?tab=team" },
+        ]
+      : [
+          { name: "POS Terminal", href: "/workspace?tab=pos" },
+          { name: "Sales & Receipts", href: "/workspace?tab=receipts" },
+          { name: "Shipments", href: "/workspace?tab=shipments" },
+        ]
+    : role === "merchant"
     ? [
-        { name: "Home", href: "/" },
-        { name: "Workspace", href: "/workspace" },
-        { name: "Pricing", href: "/pricing" },
-        { name: "Developers", href: "/developers" },
-        { name: "About", href: "/about" },
+        { name: "POS Terminal", href: "/workspace?tab=pos" },
+        { name: "Sales & Receipts", href: "/workspace?tab=receipts" },
+        { name: "Shipments", href: "/workspace?tab=shipments" },
+        { name: "Team & Staff", href: "/workspace?tab=team" },
       ]
     : [
         { name: "Home", href: "/" },
@@ -80,7 +147,16 @@ export default function Header() {
         { name: "About", href: "/about" },
       ];
 
+  const isExploreActive = ["/", "/pricing", "/developers", "/about"].includes(pathname);
+
   const isActive = (href: string) => {
+    if (href.includes("?")) {
+      const [path, query] = href.split("?");
+      if (pathname !== path) return false;
+      const params = new URLSearchParams(query);
+      const expectedTab = params.get("tab");
+      return expectedTab === currentTab;
+    }
     if (
       href === "/workspace" &&
       (pathname.startsWith("/workspace") || pathname.startsWith("/receipts") || pathname.startsWith("/shipments"))
@@ -97,61 +173,307 @@ export default function Header() {
     setIsUserMenuOpen(false);
   };
 
+  const handleWorkspaceLogout = async () => {
+    try {
+      await fetch("/api/workspace/logout", { method: "POST" });
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("workspace_token");
+      }
+      queryClient.invalidateQueries({ queryKey: ["workspace-session"] });
+      queryClient.removeQueries({ queryKey: ["workspace-session"] });
+      queryClient.clear();
+      setIsUserMenuOpen(false);
+      toast.success("Signed out of workspace.");
+      router.push("/workspace/login");
+    } catch {
+      toast.error("Could not sign out.");
+    }
+  };
+
+  const isExplorePage =
+    ["/", "/pricing", "/developers", "/about"].includes(pathname) ||
+    pathname.startsWith("/verify") ||
+    pathname.startsWith("/scan");
+
+  // Keep platform logo permanent on Home, Explore, and public scan/verify pages
+  const activeLogo = isExplorePage
+    ? null
+    : isStaffMode
+    ? workspaceSession?.businessLogo || businessLogo
+    : businessLogo;
+
+  const brandTitle = isStaffMode
+    ? (workspaceSession?.merchantName || companyName || "Workspace")
+    : (companyName || fullName || username || "Recover");
+
   return (
     <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs">
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      {/* Click-outside backdrop to dismiss any open dropdowns */}
+      {(isUserMenuOpen || isNotificationsOpen || isExploreMenuOpen) && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          onClick={() => {
+            setIsUserMenuOpen(false);
+            setIsNotificationsOpen(false);
+            setIsExploreMenuOpen(false);
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-50">
         <div className="flex h-16 items-center justify-between">
           
           {/* Logo / Wordmark lockup */}
           <div className="flex items-center">
             <Link
-              href={role === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
-              className="flex items-center space-x-2"
+              href={isExplorePage ? "/" : role === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
+              className="flex items-center space-x-2.5 group"
             >
-              <Image 
-                src="/logo-full.svg" 
-                alt="Recover Logo" 
-                width={137} 
-                height={40} 
-                className="h-10 w-auto" 
-                loading="eager"
-              />
+              {activeLogo ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-neutral-mist bg-neutral-white overflow-hidden flex items-center justify-center shadow-xs shrink-0 p-0.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeLogo}
+                      alt={brandTitle}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  </div>
+                  <span className="font-display font-bold text-sm sm:text-base text-primary tracking-tight truncate max-w-32 sm:max-w-48 group-hover:text-blue-600 transition-colors">
+                    {brandTitle}
+                  </span>
+                </div>
+              ) : (
+                <Image 
+                  src="/logo-full.svg" 
+                  alt="Recover Logo" 
+                  width={137} 
+                  height={40} 
+                  className="h-9 sm:h-10 w-auto" 
+                  loading="eager"
+                />
+              )}
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:space-x-8">
-            <div className="flex items-baseline space-x-6">
+            <div className="flex items-center space-x-1 lg:space-x-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
+                  onClick={() => {
+                    if (link.href.includes("?tab=")) {
+                      const tab = new URLSearchParams(link.href.split("?")[1]).get("tab") || "receipts";
+                      setCurrentTab(tab);
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("workspace-tab-change", { detail: tab }));
+                      }
+                    }
+                  }}
                   className={`px-3 py-2 text-sm font-medium transition-colors duration-200 rounded-md ${
                     isActive(link.href)
-                      ? "text-primary font-semibold"
+                      ? "text-blue-600 font-bold bg-blue-50/80"
                       : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
                   }`}
                 >
                   {link.name}
                 </Link>
               ))}
+
+              {/* Explore ▾ Menu for Merchant & Staff to access all platform pages */}
+              {(isStaffMode || role === "merchant") && (
+                <div className="relative" data-dropdown-container>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExploreMenuOpen(!isExploreMenuOpen);
+                      setIsUserMenuOpen(false);
+                      setIsNotificationsOpen(false);
+                    }}
+                    className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors duration-200 rounded-md cursor-pointer ${
+                      isExploreActive || isExploreMenuOpen
+                        ? "text-blue-600 font-bold bg-blue-50/80"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
+                    }`}
+                  >
+                    <span>Explore</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-neutral-slate transition-transform duration-200 ${
+                        isExploreMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {isExploreMenuOpen && (
+                    <div className="absolute left-0 mt-2 w-52 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                      <div className="px-3.5 py-1.5 border-b border-neutral-mist mb-1">
+                        <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">
+                          Recover Platform
+                        </span>
+                      </div>
+                      <Link
+                        href="/"
+                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsExploreMenuOpen(false)}
+                      >
+                        Home
+                      </Link>
+                      <Link
+                        href="/pricing"
+                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsExploreMenuOpen(false)}
+                      >
+                        Pricing &amp; Quotas
+                      </Link>
+                      <Link
+                        href="/developers"
+                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsExploreMenuOpen(false)}
+                      >
+                        Developer REST API
+                      </Link>
+                      <Link
+                        href="/about"
+                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsExploreMenuOpen(false)}
+                      >
+                        About Recover
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
-            {/* Desktop Connect Wallet Button */}
+            {/* Desktop Connect Wallet or Staff Profile */}
             <div className="flex items-center">
               {isAuthLoading ? (
                 <div className="w-20 h-9 bg-neutral-mist animate-pulse rounded-lg" />
+              ) : isStaffMode && workspaceSession ? (
+                <div className="relative" data-dropdown-container>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(!isUserMenuOpen);
+                      setIsNotificationsOpen(false);
+                    }}
+                    className="flex items-center space-x-2.5 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-3 py-1.5 text-sm transition-colors cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                      {workspaceSession.memberName.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-primary truncate max-w-30">
+                          {workspaceSession.memberName}
+                        </span>
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            workspaceSession.role === "manager"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {workspaceSession.role === "manager" ? "Manager" : "Sales Rep"}
+                        </span>
+                      </div>
+                      {workspaceSession.branchName && (
+                        <span className="text-[10px] text-neutral-slate truncate max-w-32.5">
+                          📍 {workspaceSession.branchName}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-neutral-slate transition-transform duration-200 ${
+                        isUserMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-60 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                      <div className="px-4 py-2.5 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
+                        <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">
+                          Workspace Staff
+                        </span>
+                        <p className="text-xs font-bold text-primary truncate">
+                          {workspaceSession.memberName}
+                        </p>
+                        <p className="text-[11px] text-neutral-slate truncate">
+                          {workspaceSession.memberEmail}
+                        </p>
+                        {workspaceSession.merchantName && (
+                          <p className="text-[10px] text-blue-700 font-semibold mt-1 truncate">
+                            🏢 {workspaceSession.merchantName}
+                          </p>
+                        )}
+                      </div>
+
+                      <Link
+                        href="/workspace?tab=pos"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        POS Terminal
+                      </Link>
+                      <Link
+                        href="/workspace?tab=receipts"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Sales & Receipts
+                      </Link>
+                      <Link
+                        href="/workspace?tab=shipments"
+                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Package Shipments
+                      </Link>
+                      {workspaceSession.role === "manager" && (
+                        <Link
+                          href="/workspace?tab=team"
+                          className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          Branch Team Management
+                        </Link>
+                      )}
+
+                      <div className="border-t border-neutral-mist my-1.5" />
+
+                      <button
+                        type="button"
+                        onClick={handleWorkspaceLogout}
+                        className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors cursor-pointer font-medium"
+                      >
+                        Sign Out of Workspace
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : !account ? (
-                <button
-                  onClick={openLogin}
-                  className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-5 py-2 text-sm transition-colors shadow-xs cursor-pointer"
-                >
-                  Sign In
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openLogin}
+                    className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-xs cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                  <Link
+                    href="/workspace/login"
+                    className="text-xs font-semibold text-neutral-slate hover:text-primary px-3 py-2 rounded-lg hover:bg-neutral-mist transition-colors"
+                  >
+                    Staff Workspace →
+                  </Link>
+                </div>
               ) : (
                 <div className="flex items-center gap-4">
                   {/* Notifications Dropdown */}
-                  <div className="relative">
+                  <div className="relative" data-dropdown-container>
                     <button
                       onClick={() => {
                         setIsNotificationsOpen(!isNotificationsOpen);
@@ -218,7 +540,7 @@ export default function Header() {
                   </div>
 
                   {/* User Profile Menu */}
-                  <div className="relative">
+                  <div className="relative" data-dropdown-container>
                     <button
                       onClick={() => {
                         setIsUserMenuOpen(!isUserMenuOpen);
@@ -312,26 +634,145 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile header action: Notifications or Sign In */}
-          <div className="flex items-center md:hidden gap-2">
-            {account ? (
-              <Link
-                href="/notifications"
-                className="p-2 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-lg transition-colors relative cursor-pointer"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-critical rounded-full" />
+          {/* Mobile header action: Notifications, Staff Controls, or Sign In */}
+          <div className="flex items-center md:hidden gap-1.5">
+            {isStaffMode && workspaceSession ? (
+              <div className="relative" data-dropdown-container>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserMenuOpen(!isUserMenuOpen);
+                    setIsNotificationsOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 bg-neutral-mist hover:bg-neutral-mist/80 border border-neutral-mist/80 rounded-lg px-2 py-1 text-xs transition-colors cursor-pointer"
+                  aria-label="Staff profile and menu"
+                >
+                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold shrink-0 border border-blue-200">
+                    {workspaceSession.memberName.slice(0, 1).toUpperCase()}
+                  </div>
+                  <span className="text-[11px] font-bold text-primary truncate max-w-20 leading-tight">
+                    {workspaceSession.memberName}
+                  </span>
+                  <span
+                    className={`text-[8px] font-extrabold px-1 py-0.2 rounded-full uppercase tracking-wider shrink-0 ${
+                      workspaceSession.role === "manager"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {workspaceSession.role === "manager" ? "Mgr" : "Staff"}
+                  </span>
+                  <ChevronDown
+                    className={`w-3 h-3 text-neutral-slate transition-transform duration-200 ${
+                      isUserMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                    <div className="px-3.5 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
+                      <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">
+                        Workspace Staff
+                      </span>
+                      <p className="text-xs font-bold text-primary truncate">
+                        {workspaceSession.memberName}
+                      </p>
+                      {workspaceSession.branchName && (
+                        <p className="text-[10px] text-neutral-slate truncate">
+                          📍 {workspaceSession.branchName}
+                        </p>
+                      )}
+                      {workspaceSession.merchantName && (
+                        <p className="text-[10px] text-blue-700 font-semibold truncate mt-0.5">
+                          🏢 {workspaceSession.merchantName}
+                        </p>
+                      )}
+                    </div>
+
+                    <Link
+                      href="/workspace?tab=pos"
+                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      POS Terminal
+                    </Link>
+                    <Link
+                      href="/workspace?tab=receipts"
+                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      Sales &amp; Receipts
+                    </Link>
+                    <Link
+                      href="/workspace?tab=shipments"
+                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      Package Shipments
+                    </Link>
+                    {workspaceSession.role === "manager" && (
+                      <Link
+                        href="/workspace?tab=team"
+                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Branch Team
+                      </Link>
+                    )}
+
+                    <div className="border-t border-neutral-mist my-1.5" />
+
+                    <button
+                      type="button"
+                      onClick={handleWorkspaceLogout}
+                      className="w-full text-left px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors cursor-pointer font-medium"
+                    >
+                      Sign Out of Workspace
+                    </button>
+                  </div>
                 )}
-              </Link>
+              </div>
+            ) : account ? (
+              <div className="flex items-center gap-1">
+                <Link
+                  href="/notifications"
+                  className="p-1.5 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-lg transition-colors relative cursor-pointer"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-critical rounded-full" />
+                  )}
+                </Link>
+                <Link
+                  href={role === "merchant" ? "/workspace" : "/dashboard"}
+                  className="w-7 h-7 rounded-full bg-neutral-mist border border-neutral-mist flex items-center justify-center text-xs overflow-hidden shrink-0"
+                  aria-label="Profile"
+                >
+                  {role === "merchant" && businessLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={businessLogo} alt="" className="w-full h-full object-contain" />
+                  ) : (
+                    role === "merchant" ? "🏪" : "👤"
+                  )}
+                </Link>
+              </div>
             ) : (
-              <button
-                onClick={openLogin}
-                className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-3.5 py-1.5 text-xs transition-colors shadow-xs cursor-pointer"
-              >
-                Sign In
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={openLogin}
+                  className="bg-primary hover:bg-primary-light text-neutral-white font-medium rounded-lg px-3 py-1.5 text-xs transition-colors shadow-xs cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <Link
+                  href="/workspace/login"
+                  className="px-2.5 py-1.5 text-[11px] font-semibold text-neutral-slate hover:text-primary rounded-lg border border-neutral-mist transition-colors"
+                >
+                  Staff
+                </Link>
+              </div>
             )}
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import toast from "react-hot-toast";
 import { Printer, CheckSquare, Square, X } from "lucide-react";
 import { STICKER_SIZES, StickerSizeKey } from "@/constants/sticker";
 
@@ -60,7 +61,7 @@ export default function BatchStickerStudioModal({
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Please allow popups to open the print sheet dialog.");
+      toast.error("Please allow popups to open the print sheet dialog.");
       return;
     }
 
