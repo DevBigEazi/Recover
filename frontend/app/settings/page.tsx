@@ -13,6 +13,7 @@ import ProfileDetailsCard from "../../components/Settings/ProfileDetailsCard";
 import SubscriptionPlanCard from "../../components/Settings/SubscriptionPlanCard";
 import ApiKeyCard from "../../components/Settings/ApiKeyCard";
 import WebhookConfigCard from "@/components/WebhookConfigCard/WebhookConfigCard";
+import TeamManagementCard from "@/components/Settings/TeamManagementCard";
 import CredentialsBackupCard from "../../components/Settings/CredentialsBackupCard";
 import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard";
 
@@ -122,6 +123,9 @@ export default function SettingsPage() {
 
           {/* 1.5. Billing & Subscription Section */}
           <SubscriptionPlanCard walletAddress={account.address} />
+
+          {/* Merchant Team & Multi-Branch Management */}
+          {role === "merchant" && <TeamManagementCard />}
 
           {/* Developer API Key Card for Merchants */}
           <ApiKeyCard walletAddress={account.address} />

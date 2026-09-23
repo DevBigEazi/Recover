@@ -5,6 +5,7 @@ import { AutoConnect, ThirdwebProvider } from "thirdweb/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileProvider } from "@/context/ProfileContext";
+import { TeamProvider } from "@/context/TeamContext";
 import { ProfileSetupGate } from "@/components/ProfileSetupGate/ProfileSetupGate";
 import { client } from "@/lib/client";
 import { Toaster } from "react-hot-toast";
@@ -30,9 +31,11 @@ export function Providers({ children }: { children: ReactNode }) {
         <AutoConnect client={client} />
         <AuthProvider>
           <ProfileProvider>
-            <ProfileSetupGate>
-              {children}
-            </ProfileSetupGate>
+            <TeamProvider>
+              <ProfileSetupGate>
+                {children}
+              </ProfileSetupGate>
+            </TeamProvider>
           </ProfileProvider>
         </AuthProvider>
       </ThirdwebProvider>
