@@ -20,7 +20,7 @@ import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { activeMode, hasMerchantProfile, isProfileLoaded, refetchProfile } = useProfile();
+  const { activeMode, isProfileLoaded, refetchProfile } = useProfile();
   const hasVerifiedSubRef = useRef(false);
 
   // Handle Stripe & Paystack checkout return verification (runs strictly once per page visit)
@@ -124,17 +124,15 @@ export default function SettingsPage() {
           {/* 1. Profile Details Card */}
           <ProfileDetailsCard walletAddress={account.address} />
 
-          {/* 1.5. Billing & Subscription Section */}
-          <SubscriptionPlanCard walletAddress={account.address} />
-
-          {/* Merchant Team & Multi-Branch Management */}
-          {(activeMode === "merchant" || hasMerchantProfile) && <TeamManagementCard />}
-
-          {/* Developer API Key Card for Merchants */}
-          <ApiKeyCard walletAddress={account.address} />
-
-          {/* Merchant Global Webhook Configuration Card */}
-          {(activeMode === "merchant" || hasMerchantProfile) && <WebhookConfigCard variant="light" />}
+          {/* Business Workspace Operations & Subscription (Plans, Staff, Branches, API Keys & Webhooks) */}
+          {activeMode === "merchant" && (
+            <>
+              <SubscriptionPlanCard walletAddress={account.address} />
+              <TeamManagementCard />
+              <ApiKeyCard walletAddress={account.address} />
+              <WebhookConfigCard variant="light" />
+            </>
+          )}
 
           {/* 2. Account Credentials Backup Card */}
           <CredentialsBackupCard hasAccount={Boolean(account)} />

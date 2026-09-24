@@ -146,10 +146,13 @@ export default function Header() {
         { name: "Shipments", href: "/workspace?tab=shipments" },
         { name: "Team & Staff", href: "/workspace?tab=team" },
       ]
+    : account
+    ? [
+        { name: "Items Dashboard", href: "/dashboard" },
+        { name: "Register Item", href: "/register" },
+      ]
     : [
         { name: "Home", href: "/" },
-        { name: "Dashboard", href: "/dashboard" },
-        { name: "Register Item", href: "/register" },
         { name: "Pricing", href: "/pricing" },
         { name: "Developers", href: "/developers" },
         { name: "About", href: "/about" },
@@ -295,8 +298,8 @@ export default function Header() {
                 </Link>
               ))}
 
-              {/* Explore ▾ Menu for Merchant & Staff to access all platform pages */}
-              {(isStaffMode || activeMode === "merchant") && (
+              {/* Explore ▾ Menu for Logged In Users to access informational pages */}
+              {(isStaffMode || !!account) && (
                 <div className="relative" data-dropdown-container>
                   <button
                     type="button"
@@ -551,9 +554,9 @@ export default function Header() {
                     )}
                   </div>
 
-                  {/* Mode Switcher Segmented Control */}
+                  {/* Mode Switcher Segmented Control (Large Screens xl+) */}
                   {!isStaffMode && (
-                    <div className="hidden sm:flex items-center bg-neutral-mist/80 border border-neutral-mist p-0.5 rounded-lg text-xs font-semibold">
+                    <div className="hidden xl:flex items-center bg-neutral-mist/80 border border-neutral-mist p-0.5 rounded-lg text-xs font-semibold">
                       <button
                         type="button"
                         onClick={() => {
