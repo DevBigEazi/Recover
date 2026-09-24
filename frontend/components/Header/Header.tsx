@@ -13,6 +13,21 @@ import { useTeam } from "@/context/TeamContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
+const STAFF_MENU_ITEMS = [
+  { label: "POS Terminal", href: "/workspace?tab=pos" },
+  { label: "Sales & Receipts", href: "/workspace?tab=receipts" },
+  { label: "Package Shipments", href: "/workspace?tab=shipments" },
+  { label: "Branch Team Management", href: "/workspace?tab=team", managerOnly: true },
+];
+
+const PLAN_LABELS: Record<string, string> = {
+  pro_lite: "Pro Lite",
+  pro_starter: "Pro Starter",
+  pro_growth: "Pro Growth",
+  pro_scale: "Pro Scale",
+  pro: "Pro Tier",
+};
+
 export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -126,7 +141,7 @@ export default function Header() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Role & Mode tailored navigation links
-  const navLinks = isStaffMode && workspaceSession
+  const navLinks: { name: string; href: string }[] = isStaffMode && workspaceSession
     ? workspaceSession.role === "manager"
       ? [
           { name: "POS Terminal", href: "/workspace?tab=pos" },
@@ -222,7 +237,7 @@ export default function Header() {
     : "Recover";
 
   return (
-    <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs">
+    <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs w-full max-w-full overflow-x-clip">
       {/* Click-outside backdrop to dismiss any open dropdowns */}
       {(isUserMenuOpen || isNotificationsOpen || isExploreMenuOpen) && (
         <div
@@ -236,18 +251,18 @@ export default function Header() {
         />
       )}
 
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-50">
-        <div className="flex h-16 items-center justify-between">
+      <nav className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 relative z-50 w-full">
+        <div className="flex h-16 items-center justify-between gap-1 sm:gap-2 lg:gap-4 min-w-0">
           
           {/* Logo / Wordmark lockup */}
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
             <Link
               href={isExplorePage ? "/" : activeMode === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
-              className="flex items-center space-x-2.5 group"
+              className="flex items-center space-x-2 sm:space-x-2.5 group shrink-0"
             >
               {activeLogo ? (
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-neutral-mist bg-neutral-white overflow-hidden flex items-center justify-center shadow-xs shrink-0 p-0.5">
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-neutral-mist bg-neutral-white overflow-hidden flex items-center justify-center shadow-xs shrink-0 p-0.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={activeLogo}
@@ -255,27 +270,36 @@ export default function Header() {
                       className="w-full h-full rounded-full object-cover"
                     />
                   </div>
-                  <span className="font-display font-bold text-sm sm:text-base text-primary tracking-tight truncate max-w-32 sm:max-w-48 group-hover:text-blue-600 transition-colors">
+                  <span className="font-display font-bold text-sm lg:text-base text-primary tracking-tight truncate whitespace-nowrap hidden lg:inline-block max-w-40 xl:max-w-56 group-hover:text-blue-600 transition-colors">
                     {brandTitle}
                   </span>
                 </div>
               ) : (
-                <Image 
-                  src="/logo-full.svg" 
-                  alt="Recover Logo" 
-                  width={137} 
-                  height={40} 
-                  className="h-9 sm:h-10 w-auto" 
-                  loading="eager"
-                />
+                <>
+                  <Image 
+                    src="/logo-icon.svg" 
+                    alt="Recover Logo" 
+                    width={36} 
+                    height={36} 
+                    className="h-8 sm:h-9 w-auto shrink-0 lg:hidden" 
+                    loading="eager"
+                  />
+                  <Image 
+                    src="/logo-full.svg" 
+                    alt="Recover Logo" 
+                    width={137} 
+                    height={40} 
+                    className="h-9 sm:h-10 w-auto shrink-0 hidden lg:block" 
+                    loading="eager"
+                  />
+                </>
               )}
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:space-x-8">
-            <div className="flex items-center space-x-1 lg:space-x-2">
-              {navLinks.map((link) => (
+          {/* Desktop Navigation (md+) */}
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2 xl:space-x-4">
+            {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
@@ -288,7 +312,7 @@ export default function Header() {
                       }
                     }
                   }}
-                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 rounded-md ${
+                  className={`px-1.5 lg:px-2.5 xl:px-3 py-1 lg:py-1.5 text-xs xl:text-sm font-medium transition-colors duration-200 rounded-md whitespace-nowrap shrink-0 ${
                     isActive(link.href)
                       ? "text-blue-600 font-bold bg-blue-50/80"
                       : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
@@ -308,7 +332,7 @@ export default function Header() {
                       setIsUserMenuOpen(false);
                       setIsNotificationsOpen(false);
                     }}
-                    className={`flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors duration-200 rounded-md cursor-pointer ${
+                    className={`flex items-center gap-1 px-1.5 lg:px-2.5 xl:px-3 py-1 lg:py-1.5 text-xs xl:text-sm font-medium transition-colors duration-200 rounded-md cursor-pointer whitespace-nowrap shrink-0 ${
                       isExploreActive || isExploreMenuOpen
                         ? "text-blue-600 font-bold bg-blue-50/80"
                         : "text-neutral-slate hover:text-primary hover:bg-neutral-mist"
@@ -364,7 +388,7 @@ export default function Header() {
             </div>
             
             {/* Desktop Connect Wallet or Staff Profile */}
-            <div className="flex items-center">
+            <div className="hidden md:flex items-center gap-2 lg:gap-3 shrink-0">
               {isAuthLoading ? (
                 <div className="w-20 h-9 bg-neutral-mist animate-pulse rounded-lg" />
               ) : isStaffMode && workspaceSession ? (
@@ -427,36 +451,16 @@ export default function Header() {
                         )}
                       </div>
 
-                      <Link
-                        href="/workspace?tab=pos"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        POS Terminal
-                      </Link>
-                      <Link
-                        href="/workspace?tab=receipts"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Sales & Receipts
-                      </Link>
-                      <Link
-                        href="/workspace?tab=shipments"
-                        className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Package Shipments
-                      </Link>
-                      {workspaceSession.role === "manager" && (
+                      {STAFF_MENU_ITEMS.filter((item) => !item.managerOnly || workspaceSession.role === "manager").map((item) => (
                         <Link
-                          href="/workspace?tab=team"
+                          key={item.href}
+                          href={item.href}
                           className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
-                          Branch Team Management
+                          {item.label}
                         </Link>
-                      )}
+                      ))}
 
                       <div className="border-t border-neutral-mist my-1.5" />
 
@@ -554,48 +558,6 @@ export default function Header() {
                     )}
                   </div>
 
-                  {/* Mode Switcher Segmented Control (Large Screens xl+) */}
-                  {!isStaffMode && (
-                    <div className="hidden xl:flex items-center bg-neutral-mist/80 border border-neutral-mist p-0.5 rounded-lg text-xs font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          switchMode("personal");
-                          if (pathname.startsWith("/workspace")) {
-                            router.push("/dashboard");
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                          activeMode === "personal"
-                            ? "bg-neutral-white text-primary shadow-xs font-bold"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                        title="Switch to Personal Vault"
-                      >
-                        <span>👤</span>
-                        <span>Personal</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          switchMode("merchant");
-                          if (pathname.startsWith("/dashboard") || pathname.startsWith("/register")) {
-                            router.push("/workspace");
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                          activeMode === "merchant"
-                            ? "bg-neutral-white text-primary shadow-xs font-bold"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                        title="Switch to Business Workspace"
-                      >
-                        <span>🏪</span>
-                        <span>Business</span>
-                      </button>
-                    </div>
-                  )}
-
                   {/* User Profile Menu */}
                   <div className="relative" data-dropdown-container>
                     <button
@@ -603,9 +565,9 @@ export default function Header() {
                         setIsUserMenuOpen(!isUserMenuOpen);
                         setIsNotificationsOpen(false);
                       }}
-                      className="flex items-center space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer"
+                      className="flex items-center space-x-1.5 sm:space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-2 lg:px-3.5 py-1.5 text-xs sm:text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                      <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200 overflow-hidden">
+                      <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200 overflow-hidden shrink-0">
                         {activeMode === "merchant" && businessLogo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={businessLogo} alt="" className="w-full h-full object-contain" />
@@ -613,12 +575,12 @@ export default function Header() {
                           activeMode === "merchant" ? "🏪" : "👤"
                         )}
                       </div>
-                      <span className={`${(activeMode === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
+                      <span className={`${(activeMode === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold truncate whitespace-nowrap hidden lg:inline-block max-w-36 xl:max-w-48`}>
                         {activeMode === "merchant"
                           ? (companyName || fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)
                           : (fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)}
                       </span>
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isUserMenuOpen && (
@@ -650,7 +612,7 @@ export default function Header() {
                               <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">Merchant Plan</span>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-xs font-bold text-primary">
-                                  {plan === "pro_lite" ? "Pro Lite" : plan === "pro_starter" ? "Pro Starter" : plan === "pro_growth" ? "Pro Growth" : plan === "pro_scale" ? "Pro Scale" : plan === "pro" ? "Pro Tier" : "Free Tier"}
+                                  {(plan && PLAN_LABELS[plan]) || "Free Tier"}
                                 </span>
                                 <span className="bg-blue-100 text-blue-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
                                   {billingCycle === "yearly" ? "Annual" : "Monthly"}
@@ -710,7 +672,6 @@ export default function Header() {
               </div>
             )}
             </div>
-          </div>
 
           {/* Mobile header action: Notifications, Staff Controls, or Sign In */}
           <div className="flex items-center md:hidden gap-1.5">
@@ -768,36 +729,16 @@ export default function Header() {
                       )}
                     </div>
 
-                    <Link
-                      href="/workspace?tab=pos"
-                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      POS Terminal
-                    </Link>
-                    <Link
-                      href="/workspace?tab=receipts"
-                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      Sales &amp; Receipts
-                    </Link>
-                    <Link
-                      href="/workspace?tab=shipments"
-                      className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
-                      Package Shipments
-                    </Link>
-                    {workspaceSession.role === "manager" && (
+                    {STAFF_MENU_ITEMS.filter((item) => !item.managerOnly || workspaceSession.role === "manager").map((item) => (
                       <Link
-                        href="/workspace?tab=team"
+                        key={item.href}
+                        href={item.href}
                         className="block px-3.5 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
-                        Branch Team
+                        {item.label}
                       </Link>
-                    )}
+                    ))}
 
                     <div className="border-t border-neutral-mist my-1.5" />
 

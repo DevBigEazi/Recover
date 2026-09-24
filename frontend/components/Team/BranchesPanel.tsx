@@ -73,7 +73,7 @@ export function BranchesPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
           <h4 className="text-sm font-semibold text-white">Store Branches</h4>
           <p className="text-xs text-slate-400">
@@ -83,7 +83,7 @@ export function BranchesPanel() {
         {canManageBranches && !isAdding && (
           <button
             onClick={() => setIsAdding(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Branch
