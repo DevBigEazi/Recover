@@ -250,26 +250,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         const initData = await initRes.json();
 
         if (initData.url) {
-          const checkoutWindow = window.open(initData.url, "_blank");
-          if (!checkoutWindow || checkoutWindow.closed || typeof checkoutWindow.closed === "undefined") {
-            window.location.href = initData.url;
-          } else {
-            checkoutWindowRef.current = checkoutWindow;
-            setIsUpgrading(true);
-            toast("Checkout opened in a new tab. Complete payment to activate.", {
-              icon: "💳",
-              duration: 5000,
-            });
-
-            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            pollTimerRef.current = setInterval(() => {
-              if (checkoutWindow.closed) {
-                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-                checkoutWindowRef.current = null;
-                setIsUpgrading(false);
-              }
-            }, 800);
-          }
+          toast.loading("Redirecting to secure payment checkout...");
+          window.location.href = initData.url;
         } else {
           throw new Error("Checkout URL was not returned.");
         }

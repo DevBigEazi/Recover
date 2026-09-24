@@ -95,13 +95,21 @@ export async function GET(request: Request) {
       }
 
       const billingStart = userObj.billingCycleStart ? new Date(userObj.billingCycleStart) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const actualCount = await db.shipment.countDocuments({
-        shipperAddress: { $regex: new RegExp(`^${user._id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
-        createdAt: { $gte: billingStart },
-      });
+      const cleanUserId = user._id.toLowerCase();
+      const [shipmentCount, receiptCount] = await Promise.all([
+        db.shipment.countDocuments({
+          shipperAddress: { $regex: new RegExp(`^${user._id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+          createdAt: { $gte: billingStart },
+        }),
+        db.receipt.countDocuments({
+          merchantAddress: cleanUserId,
+          createdAt: { $gte: billingStart },
+        }),
+      ]);
+      const actualCount = shipmentCount + receiptCount;
       userObj.shipmentsThisMonth = actualCount;
       if (user.shipmentsThisMonth !== actualCount) {
-        await db.user.findByIdAndUpdate(user._id, { shipmentsThisMonth: actualCount }).catch((e) => console.error("Sync shipments error:", e));
+        await db.user.findByIdAndUpdate(user._id, { shipmentsThisMonth: actualCount }).catch((e) => console.error("Sync operations count error:", e));
       }
 
       return NextResponse.json(userObj, { status: 200 });

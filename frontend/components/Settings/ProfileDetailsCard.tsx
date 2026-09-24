@@ -571,15 +571,33 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           </div>
         </div>
 
-        <div className="pt-4 flex justify-end">
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="bg-primary hover:bg-primary-light disabled:opacity-50 text-neutral-white font-semibold rounded-lg px-6 py-2.5 text-xs transition-colors shadow-xs cursor-pointer flex items-center gap-2"
-          >
-            {isSaving ? "Saving profile details..." : "Save Settings"}
-          </button>
-        </div>
+        {/* Compute dirty status so save button is only active when fields are modified */}
+        {(() => {
+          const isDirty =
+            nameInput.trim() !== (fullName || "").trim() ||
+            companyNameInput.trim() !== (companyName || "").trim() ||
+            logoInput !== (businessLogo || null) ||
+            usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
+            phoneInput.trim() !== (phone || "").trim() ||
+            whatsappInput.trim() !== (whatsapp || "").trim() ||
+            emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase();
+
+          return (
+            <div className="pt-4 flex justify-end">
+              <button
+                type="submit"
+                disabled={!isDirty || isSaving || isReadingLogo}
+                className={`font-semibold rounded-lg px-6 py-2.5 text-xs transition-colors shadow-xs flex items-center gap-2 ${
+                  isDirty && !isSaving && !isReadingLogo
+                    ? "bg-primary hover:bg-primary-light text-neutral-white cursor-pointer"
+                    : "bg-neutral-slate/15 text-neutral-slate border border-neutral-mist cursor-not-allowed opacity-60"
+                }`}
+              >
+                {isSaving ? "Saving profile details..." : "Save Settings"}
+              </button>
+            </div>
+          );
+        })()}
       </form>
     </div>
   );

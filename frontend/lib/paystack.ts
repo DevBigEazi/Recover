@@ -32,7 +32,7 @@ export interface PaystackVerifyResult {
 }
 
 /**
- * Initializes a transaction with Paystack.
+ * Initializes a transaction with Paystack in real-time.
  * Converts amount in NGN to Kobo (multiply by 100).
  */
 export async function initializePaystackTransaction(
@@ -42,18 +42,10 @@ export async function initializePaystackTransaction(
     params.reference ||
     `pstk_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-  // If secret key is not set, provide a graceful development sandbox response
   if (!PAYSTACK_SECRET_KEY) {
-    console.warn("PAYSTACK_SECRET_KEY is not configured in environment. Using development fallback reference.");
-    const callbackWithRef = new URL(params.callbackUrl);
-    callbackWithRef.searchParams.set("reference", reference);
-    callbackWithRef.searchParams.set("subscribed", "true");
-
-    return {
-      authorizationUrl: callbackWithRef.toString(),
-      accessCode: `mock_code_${reference}`,
-      reference,
-    };
+    throw new Error(
+      "PAYSTACK_SECRET_KEY is not configured in the server environment. Please set PAYSTACK_SECRET_KEY in deployment environment variables."
+    );
   }
 
   const amountKobo = Math.round(params.amountNgn * 100);
@@ -88,23 +80,15 @@ export async function initializePaystackTransaction(
 }
 
 /**
- * Verifies a Paystack transaction by its reference.
+ * Verifies a Paystack transaction by its reference in real-time.
  */
 export async function verifyPaystackTransaction(
   reference: string
 ): Promise<PaystackVerifyResult> {
-  // If in development mode without secret key or mock reference
   if (!PAYSTACK_SECRET_KEY) {
-    console.warn("PAYSTACK_SECRET_KEY is not set. Accepting development mock reference.");
-    return {
-      verified: true,
-      status: "success",
-      amountNgn: 0,
-      currency: "NGN",
-      reference,
-      metadata: {},
-      customerEmail: null,
-    };
+    throw new Error(
+      "PAYSTACK_SECRET_KEY is not configured in the server environment. Please set PAYSTACK_SECRET_KEY in deployment environment variables."
+    );
   }
 
   const res = await fetch(

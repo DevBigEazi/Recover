@@ -19,7 +19,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import toast from "react-hot-toast";
 import ReceiptIssuedModal, { ReceiptIssuedData } from "./ReceiptIssuedModal";
+import ReceiptPreviewModal from "./ReceiptPreviewModal";
 import { useTeam } from "@/context/TeamContext";
+import { useProfile } from "@/context/ProfileContext";
 
 interface CartLineItem {
   id: string;
@@ -40,9 +42,18 @@ export type POSPaymentMethod = "Cash" | "Bank Transfer" | "Card/POS" | "Credit" 
 export default function POSScreen() {
   const { account } = useAuthReady();
   const { can, isStaffMode, workspaceSession } = useTeam();
+  const { companyName, fullName, phone } = useProfile();
   const effectiveAddress = workspaceSession?.merchantAddress || account?.address;
   const canIssueCredit = can("issue_credit_receipt");
   const queryClient = useQueryClient();
+
+  const merchantName =
+    workspaceSession?.merchantName ||
+    companyName ||
+    fullName ||
+    "Merchant Store";
+  const merchantPhone = phone || null;
+  const merchantAddress = workspaceSession?.branchName || null;
 
   const [items, setItems] = useState<CartLineItem[]>([
     { id: "item-1", name: "", quantity: 1, unitPrice: 0 },
@@ -53,7 +64,6 @@ export default function POSScreen() {
   const [fulfillmentType, setFulfillmentType] = useState<"spot" | "dispatch">("spot");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [showCustomerFields, setShowCustomerFields] = useState(false);
 
   // Credit / Debt specific states
   const [creditDueDatePreset, setCreditDueDatePreset] = useState<"7" | "14" | "30" | "custom">("14");
@@ -61,7 +71,8 @@ export default function POSScreen() {
   const [initialDeposit, setInitialDeposit] = useState<number>(0);
   const [creditNotes, setCreditNotes] = useState("");
 
-  // Success modal state
+  // Preview & Success modal states
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [issuedReceipt, setIssuedReceipt] = useState<ReceiptIssuedData | null>(null);
 
   // 1. Fetch Product Presets for instant quick-pick
@@ -134,9 +145,6 @@ export default function POSScreen() {
   // Switch payment method with helper for Credit
   const handlePaymentMethodChange = (method: POSPaymentMethod) => {
     setPaymentMethod(method);
-    if (method === "Credit") {
-      setShowCustomerFields(true);
-    }
   };
 
   // Calculate computed due date
@@ -149,6 +157,28 @@ export default function POSScreen() {
     const d = new Date();
     d.setDate(d.getDate() + days);
     return d.toISOString();
+  };
+
+  // Open Preview Modal with Validation
+  const handleOpenPreview = () => {
+    const validItems = items.filter((it) => it.name.trim().length > 0);
+    if (validItems.length === 0) {
+      toast.error("Please enter at least one line item name.");
+      return;
+    }
+
+    const hasCustomer = Boolean(customerName.trim() || customerPhone.trim());
+    if (!hasCustomer) {
+      toast.error("Please provide either customer phone number or full name to attach to this receipt.");
+      return;
+    }
+
+    if (paymentMethod === "Credit" && !customerName.trim()) {
+      toast.error("Customer name is required for Credit / Pay Later sales to track the debt.");
+      return;
+    }
+
+    setIsPreviewOpen(true);
   };
 
   // 2. Issue Receipt Mutation
@@ -166,6 +196,11 @@ export default function POSScreen() {
 
       if (validItems.length === 0) {
         throw new Error("Please enter at least one item name.");
+      }
+
+      const hasCustomer = Boolean(customerName.trim() || customerPhone.trim());
+      if (!hasCustomer) {
+        throw new Error("Customer phone number or full name is required to attach to this receipt.");
       }
 
       if (paymentMethod === "Credit" && !customerName.trim()) {
@@ -200,6 +235,7 @@ export default function POSScreen() {
       return res.json();
     },
     onSuccess: (data) => {
+      setIsPreviewOpen(false);
       queryClient.invalidateQueries({ queryKey: ["receipts"] });
       queryClient.invalidateQueries({ queryKey: ["receipt-presets"] });
       queryClient.invalidateQueries({ queryKey: ["receipt-analytics"] });
@@ -228,6 +264,7 @@ export default function POSScreen() {
     setCustomerPhone("");
     setInitialDeposit(0);
     setCreditNotes("");
+    setIsPreviewOpen(false);
     setIssuedReceipt(null);
   };
 
@@ -561,60 +598,68 @@ export default function POSScreen() {
             </div>
 
             {/* Customer Details Section */}
-            <div className="border-t border-slate-800/80 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowCustomerFields(!showCustomerFields)}
-                className="text-xs font-semibold text-blue-400 hover:underline flex items-center justify-between w-full cursor-pointer py-1"
-              >
-                <span>
-                  {showCustomerFields
-                    ? "− Hide Customer Info"
-                    : paymentMethod === "Credit"
-                    ? "+ Customer Info (Required for Credit)"
-                    : "+ Add Customer Name/Phone (Optional)"}
+            <div className="border-t border-slate-800/80 pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Customer Details</span>
+                </label>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    customerName.trim() || customerPhone.trim()
+                      ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/60"
+                      : "bg-blue-950/80 text-blue-300 border border-blue-800/60"
+                  }`}
+                >
+                  {customerName.trim() || customerPhone.trim()
+                    ? "Attached"
+                    : "Name or Phone Required"}
                 </span>
-              </button>
+              </div>
 
-              {showCustomerFields && (
-                <div className="mt-2.5 space-y-2 animate-in fade-in duration-150">
-                  <div className="relative">
-                    <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder={paymentMethod === "Credit" ? "Customer Name * (Required for Credit)" : "Customer Name (optional)"}
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className={`w-full text-xs pl-8 pr-3 py-2 bg-slate-950 border rounded-lg focus:outline-hidden text-white placeholder-slate-500 ${
-                        paymentMethod === "Credit" && !customerName.trim()
-                          ? "border-purple-600 focus:border-purple-500"
-                          : "border-slate-800 focus:border-blue-500"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="tel"
-                      placeholder="Customer Phone (recommended for debt tracking)"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full text-xs pl-8 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-hidden focus:border-blue-500 text-white placeholder-slate-500"
-                    />
-                  </div>
-
-                  {paymentMethod === "Credit" && (
-                    <input
-                      type="text"
-                      placeholder="Credit agreement note (e.g. Promised next Friday)"
-                      value={creditNotes}
-                      onChange={(e) => setCreditNotes(e.target.value)}
-                      className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-hidden focus:border-blue-500 text-white placeholder-slate-500"
-                    />
-                  )}
+              <div className="space-y-2">
+                <div className="relative">
+                  <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder={
+                      paymentMethod === "Credit"
+                        ? "Customer Full Name * (Required for Credit)"
+                        : "Customer Full Name (or Phone Number below) *"
+                    }
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className={`w-full text-xs pl-8 pr-3 py-2 bg-slate-950 border rounded-lg focus:outline-hidden text-white placeholder-slate-500 ${
+                      paymentMethod === "Credit" && !customerName.trim()
+                        ? "border-purple-600 focus:border-purple-500"
+                        : !customerName.trim() && !customerPhone.trim()
+                        ? "border-slate-800 focus:border-blue-500"
+                        : "border-slate-700 focus:border-blue-500"
+                    }`}
+                  />
                 </div>
-              )}
+
+                <div className="relative">
+                  <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="tel"
+                    placeholder="Customer Phone Number (e.g. 08012345678) *"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full text-xs pl-8 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-hidden focus:border-blue-500 text-white placeholder-slate-500"
+                  />
+                </div>
+
+                {paymentMethod === "Credit" && (
+                  <input
+                    type="text"
+                    placeholder="Credit agreement note (e.g. Promised next Friday)"
+                    value={creditNotes}
+                    onChange={(e) => setCreditNotes(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-hidden focus:border-blue-500 text-white placeholder-slate-500"
+                  />
+                )}
+              </div>
             </div>
 
             {/* Order Totals */}
@@ -653,11 +698,11 @@ export default function POSScreen() {
               )}
             </div>
 
-            {/* Issue Receipt Button */}
+            {/* Preview & Issue Receipt Button */}
             <button
               type="button"
               disabled={issueMutation.isPending || subtotal <= 0}
-              onClick={() => issueMutation.mutate()}
+              onClick={handleOpenPreview}
               className={`w-full py-3 px-4 rounded-xl text-white font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 min-h-12 ${
                 paymentMethod === "Credit"
                   ? "bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800"
@@ -665,17 +710,52 @@ export default function POSScreen() {
               }`}
             >
               <span>
-                {issueMutation.isPending
-                  ? "Recording Sale..."
-                  : paymentMethod === "Credit"
-                  ? `Record Credit Sale (₦${remainingCreditBalance.toLocaleString()} Owed)`
-                  : "Issue Digital Receipt"}
+                {paymentMethod === "Credit"
+                  ? `Review & Record Credit Sale (₦${remainingCreditBalance.toLocaleString()} Owed)`
+                  : "Review & Issue Digital Receipt"}
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
+
+      {/* Receipt Preview Modal */}
+      <ReceiptPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        onConfirm={() => issueMutation.mutate()}
+        isSubmitting={issueMutation.isPending}
+        merchantName={merchantName}
+        branchName={merchantAddress}
+        customerName={customerName.trim() || null}
+        customerPhone={customerPhone.trim() || null}
+        customerEmail={null}
+        items={items
+          .filter((it) => it.name.trim().length > 0)
+          .map((it) => ({
+            name: it.name.trim(),
+            quantity: Math.max(1, Math.floor(it.quantity)),
+            unitPrice: Math.max(0, it.unitPrice),
+            lineTotal:
+              Math.max(1, Math.floor(it.quantity)) * Math.max(0, it.unitPrice),
+          }))}
+        subtotal={subtotal}
+        discountAmount={discount}
+        taxAmount={tax}
+        grandTotal={grandTotal}
+        paymentMethod={paymentMethod}
+        amountPaid={
+          paymentMethod === "Credit"
+            ? Math.max(0, Number(initialDeposit) || 0)
+            : grandTotal
+        }
+        remainingCreditBalance={
+          paymentMethod === "Credit" ? remainingCreditBalance : 0
+        }
+        creditDueDate={getComputedDueDate()}
+        fulfillmentType={fulfillmentType}
+      />
 
       {/* Success Modal */}
       {issuedReceipt && (

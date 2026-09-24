@@ -131,23 +131,6 @@ function WorkspaceContent() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Workspace Header Status Bar */}
-      {hasWorkspaceAccess && (
-        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-300">
-              {isMerchantOwner
-                ? (companyName || "Merchant Workspace")
-                : (branchName ? `${branchName} Branch` : "Staff Workspace")}
-            </span>
-          </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-400 font-bold border border-emerald-900/50 text-xs">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Tamperproof Register Active</span>
-          </span>
-        </div>
-      )}
-
       {/* Access Gate: Personal Account vs Unauthenticated vs Authorized */}
       {!hasWorkspaceAccess ? (
         account && role !== "merchant" ? (
