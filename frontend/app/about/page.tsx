@@ -44,8 +44,6 @@ export default function AboutPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
               <span className="font-bold tracking-tight text-primary">Protocol Overview</span>
-              <span className="text-neutral-slate/40 font-light">·</span>
-              <span className="font-medium text-neutral-slate">Trust &amp; Commerce Protocol</span>
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight text-primary font-display sm:text-5xl">

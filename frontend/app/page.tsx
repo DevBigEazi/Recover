@@ -22,8 +22,6 @@ export default function Home() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
                 </span>
                 <span className="font-bold tracking-tight text-primary">Three-Pillar Protocol</span>
-                <span className="text-neutral-slate/40 font-light">·</span>
-                <span className="font-medium text-neutral-slate">Receipts, Shipments &amp; Asset Protection</span>
               </div>
 
               <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl lg:text-6xl leading-tight">
