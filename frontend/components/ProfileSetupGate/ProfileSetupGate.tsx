@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useActiveAccount, useActiveWallet } from "thirdweb/react";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2, User } from "lucide-react";
@@ -45,6 +45,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
 
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkoutWindowRef = useRef<Window | null>(null);
+
   useEffect(() => {
     detectUserCurrency().then(setUserCurrency);
   }, []);
@@ -75,6 +78,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
 
       const params = new URLSearchParams(window.location.search);
       if (params.get("onboarding_cancelled") === "true") {
+        setIsUpgrading(false);
         toast("Payment was cancelled. You can choose a different plan or proceed with the Free plan to complete onboarding.", {
           icon: "❗️",
           duration: 6000,
@@ -83,6 +87,31 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         window.history.replaceState({}, document.title, cleanUrl);
       }
     }
+
+    const handleResetUpgrade = () => {
+      if (!checkoutWindowRef.current || checkoutWindowRef.current.closed) {
+        setIsUpgrading(false);
+      }
+    };
+    window.addEventListener("pageshow", handleResetUpgrade);
+    window.addEventListener("focus", handleResetUpgrade);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "recover_subscription_confirmed") {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setIsUpgrading(false);
+        toast.success("Merchant subscription verified!");
+        window.location.reload();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handleResetUpgrade);
+      window.removeEventListener("focus", handleResetUpgrade);
+      window.removeEventListener("storage", handleStorageChange);
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -202,7 +231,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             email: email.trim(),
             planTier: selectedPlan,
             billingCycle: "monthly",
-            gateway: isNigeria ? "flutterwave" : "stripe",
+            gateway: isNigeria ? "paystack" : "stripe",
             countryCode: userCurrency?.countryCode,
             currency: userCurrency?.currency,
             isOnboarding: true,
@@ -220,37 +249,33 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
 
         const initData = await initRes.json();
 
-        if (initData.gateway === "flutterwave") {
-          toast.loading("Activating plan via Flutterwave...", { id: "setup_flw" });
-          const vRes = await fetch("/api/subscription/flutterwave/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              reference: initData.reference,
-              walletAddress: account.address,
-              planTier: selectedPlan,
-            }),
-          });
-          if (!vRes.ok) {
-            const vErr = await vRes.json();
-            throw new Error(vErr.error || "Verification failed");
-          }
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("recover_onboarding_draft");
-          }
-          toast.success("Merchant plan activated!", { id: "setup_flw" });
-          window.location.reload();
-          return;
-        }
-
         if (initData.url) {
-          window.location.href = initData.url;
+          const checkoutWindow = window.open(initData.url, "_blank");
+          if (!checkoutWindow || checkoutWindow.closed || typeof checkoutWindow.closed === "undefined") {
+            window.location.href = initData.url;
+          } else {
+            checkoutWindowRef.current = checkoutWindow;
+            setIsUpgrading(true);
+            toast("Checkout opened in a new tab. Complete payment to activate.", {
+              icon: "💳",
+              duration: 5000,
+            });
+
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            pollTimerRef.current = setInterval(() => {
+              if (checkoutWindow.closed) {
+                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                checkoutWindowRef.current = null;
+                setIsUpgrading(false);
+              }
+            }, 800);
+          }
         } else {
           throw new Error("Checkout URL was not returned.");
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Billing failed";
-        toast.error(msg, { id: "setup_flw" });
+        toast.error(msg, { id: "setup_pay" });
         setIsUpgrading(false);
       }
     };

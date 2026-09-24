@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
 import { stripe, getOrCreateStripeCustomer } from "@/lib/stripe";
-import { initializeFlutterwavePayment } from "@/lib/flutterwave";
+import { initializePaystackTransaction } from "@/lib/paystack";
 import { PLAN_TIERS } from "@/lib/currency";
 
 export async function POST(request: Request) {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const selectedPlan = PLAN_TIERS[planTier] || PLAN_TIERS.growth_1000;
     const isNigerian =
-      gateway === "flutterwave" ||
+      gateway === "paystack" ||
       countryCode?.toUpperCase() === "NG" ||
       currency?.toUpperCase() === "NGN";
 
@@ -56,25 +56,44 @@ export async function POST(request: Request) {
       undefined
     );
 
-    // 1. FLUTTERWAVE GATEWAY (Nigeria Market)
+    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
+
+    // 1. PAYSTACK GATEWAY (Nigeria Market - Cards, Bank Transfer, USSD, OPay)
     if (isNigerian) {
-      const flwOrder = await initializeFlutterwavePayment({
-        walletAddress: cleanAddress,
+      const callbackUrl = isFromOnboarding
+        ? `${origin}/workspace?subscribed=true&onboarding=true`
+        : `${origin}/settings?subscribed=true`;
+
+      const cancelUrl = isFromOnboarding
+        ? `${origin}/workspace?onboarding_cancelled=true`
+        : `${origin}/settings?cancelled=true`;
+
+      const paystackOrder = await initializePaystackTransaction({
         email: usableEmail,
-        name: usableName,
-        planTier: selectedPlan.id,
         amountNgn: selectedPlan.ngnMonthly,
-        billingCycle: "monthly",
+        callbackUrl,
+        metadata: {
+          cancel_action: cancelUrl,
+          walletAddress: cleanAddress,
+          plan: selectedPlan.id,
+          billingCycle: "monthly",
+          isOnboarding: isFromOnboarding ? "true" : "false",
+          companyName: (body.companyName || user?.companyName || "").trim(),
+          username: (body.username || user?.username || "").trim(),
+          phone: (body.phone || user?.phone || "").trim(),
+          fullName: (body.fullName || body.companyName || user?.fullName || "").trim(),
+          role: "merchant",
+        },
       });
 
       return NextResponse.json({
-        gateway: "flutterwave",
-        reference: flwOrder.reference,
-        customerId: flwOrder.customerId,
-        amount: flwOrder.amount,
+        gateway: "paystack",
+        url: paystackOrder.authorizationUrl,
+        reference: paystackOrder.reference,
+        accessCode: paystackOrder.accessCode,
+        amount: selectedPlan.ngnMonthly,
         currency: "NGN",
         planTier: selectedPlan.id,
-        clientId: flwOrder.clientSecretConfig.clientId,
       });
     }
 
@@ -95,7 +114,6 @@ export async function POST(request: Request) {
     // Triple price for international market (outside Nigeria), minimum 50 cents for Stripe
     const internationalNgn = selectedPlan.ngnMonthly * 3;
     const unitAmountCents = Math.max(50, Math.round((internationalNgn / 1480) * 100));
-    const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
 
     const success_url = isFromOnboarding
       ? `${origin}/workspace?session_id={CHECKOUT_SESSION_ID}&subscribed=true&onboarding=true`

@@ -50,6 +50,7 @@ function WorkspaceContent() {
           if (res.ok) {
             if (typeof window !== "undefined") {
               localStorage.removeItem("recover_onboarding_draft");
+              localStorage.setItem("recover_subscription_confirmed", Date.now().toString());
             }
             toast.success("Merchant workspace activated!");
             refetchProfile();

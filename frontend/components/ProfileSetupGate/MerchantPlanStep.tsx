@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Loader2, UserCheck } from "lucide-react";
 import { convertNgnPrice, UserCurrencyInfo, PLAN_TIERS, OVERAGE_FEE_NGN } from "@/lib/currency";
 
@@ -99,7 +98,7 @@ export default function MerchantPlanStep({
         </div>
 
         <p className="text-[10px] text-neutral-slate leading-relaxed bg-neutral-mist/30 p-3 rounded-lg border border-neutral-mist/50">
-          * Flat {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} universal overage applies for extra dispatches, receipts, branches, or sales reps. Payment gateway: {isNigeria ? "Flutterwave" : "Stripe"}.
+          * Flat {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} universal overage applies for extra dispatches, receipts, branches, or sales reps. Payment gateway: {isNigeria ? "Paystack" : "Stripe"}.
         </p>
       </div>
 
@@ -113,11 +112,11 @@ export default function MerchantPlanStep({
           {isUpgrading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Processing Checkout...</span>
+              <span>Awaiting Checkout in Other Tab...</span>
             </>
           ) : (
             <span>
-              Pay {convertNgnPrice(PLAN_TIERS[selectedPlan]?.ngnMonthly || 1000, userCurrency).formattedLocal} / month with {isNigeria ? "Flutterwave" : "Stripe"}
+              Pay {convertNgnPrice(PLAN_TIERS[selectedPlan]?.ngnMonthly || 1000, userCurrency).formattedLocal} / month with {isNigeria ? "Paystack" : "Stripe"}
             </span>
           )}
         </button>

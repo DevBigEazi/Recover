@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { convertNgnPrice, UserCurrencyInfo, PLAN_TIERS, OVERAGE_FEE_NGN } from "@/lib/currency";
@@ -37,6 +37,36 @@ export default function MerchantUpgradeCard({
   const [selectedTier, setSelectedTier] = useState<string>("growth_1000");
   const [isUpgrading, setIsUpgrading] = useState(false);
 
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkoutWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    const handleResetUpgrade = () => {
+      if (!checkoutWindowRef.current || checkoutWindowRef.current.closed) {
+        setIsUpgrading(false);
+      }
+    };
+    window.addEventListener("pageshow", handleResetUpgrade);
+    window.addEventListener("focus", handleResetUpgrade);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "recover_subscription_confirmed") {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setIsUpgrading(false);
+        toast.success("Subscription upgraded successfully!");
+        window.location.reload();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handleResetUpgrade);
+      window.removeEventListener("focus", handleResetUpgrade);
+      window.removeEventListener("storage", handleStorageChange);
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
   const isNigeria = userCurrency?.currency === "NGN" || userCurrency?.countryCode === "NG";
   const paidTierKeys = ["starter_500", "growth_1000", "business_2500", "scale_5000"];
 
@@ -51,7 +81,7 @@ export default function MerchantUpgradeCard({
           walletAddress,
           planTier: selectedTier,
           billingCycle: "monthly",
-          gateway: isNigeria ? "flutterwave" : "stripe",
+          gateway: isNigeria ? "paystack" : "stripe",
           countryCode: userCurrency?.countryCode,
           currency: userCurrency?.currency,
         }),
@@ -64,36 +94,33 @@ export default function MerchantUpgradeCard({
 
       const initData = await initRes.json();
 
-      if (initData.gateway === "flutterwave") {
-        toast.loading("Verifying Flutterwave transaction...", { id: "flw_card_verify" });
-        const verifyRes = await fetch("/api/subscription/flutterwave/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            reference: initData.reference,
-            walletAddress,
-            planTier: selectedTier,
-          }),
-        });
-
-        if (!verifyRes.ok) {
-          const vErr = await verifyRes.json();
-          throw new Error(vErr.error || "Verification failed");
-        }
-
-        toast.success("Subscription updated successfully with Flutterwave!", { id: "flw_card_verify" });
-        window.location.reload();
-        return;
-      }
-
       if (initData.url) {
-        window.location.href = initData.url;
+        const checkoutWindow = window.open(initData.url, "_blank");
+        if (!checkoutWindow || checkoutWindow.closed || typeof checkoutWindow.closed === "undefined") {
+          window.location.href = initData.url;
+        } else {
+          checkoutWindowRef.current = checkoutWindow;
+          setIsUpgrading(true);
+          toast("Checkout opened in a new tab. Complete payment to activate.", {
+            icon: "💳",
+            duration: 5000,
+          });
+
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          pollTimerRef.current = setInterval(() => {
+            if (checkoutWindow.closed) {
+              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+              checkoutWindowRef.current = null;
+              setIsUpgrading(false);
+            }
+          }, 800);
+        }
       } else {
-        throw new Error("Stripe checkout URL was not returned.");
+        throw new Error("Checkout URL was not returned.");
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upgrade failed";
-      toast.error(msg, { id: "flw_card_verify" });
+      toast.error(msg, { id: "card_upgrade" });
       setIsUpgrading(false);
     }
   };
@@ -169,12 +196,12 @@ export default function MerchantUpgradeCard({
       >
         {isUpgrading ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Processing Checkout...
+            <Loader2 className="w-4 h-4 animate-spin" /> Awaiting Checkout in Other Tab...
           </>
         ) : subscriptionActive && role === "merchant" && isSameTier ? (
           "Current Active Plan"
         ) : (
-          `Pay ${convertNgnPrice(PLAN_TIERS[selectedTier]?.ngnMonthly || 1000, userCurrency).formattedLocal} / mo with ${isNigeria ? "Flutterwave" : "Stripe"}`
+          `Pay ${convertNgnPrice(PLAN_TIERS[selectedTier]?.ngnMonthly || 1000, userCurrency).formattedLocal} / mo with ${isNigeria ? "Paystack" : "Stripe"}`
         )}
       </button>
     </div>

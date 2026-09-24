@@ -502,7 +502,7 @@ export default function PricingPage() {
                 <span className="font-bold text-primary">Supported Payments:</span>
                 <span className="text-primary font-medium">
                   {isNigeria
-                    ? "Flutterwave (Cards, Bank Transfer, USSD)"
+                    ? "Paystack (Cards, Bank Transfer, USSD, OPay)"
                     : "Stripe (Credit / Debit Card, Apple Pay)"}
                 </span>
               </div>

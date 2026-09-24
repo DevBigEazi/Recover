@@ -40,6 +40,9 @@ export default function SettingsPage() {
           });
           toast.dismiss();
           if (res.ok) {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("recover_subscription_confirmed", Date.now().toString());
+            }
             toast.success("Subscription updated successfully!");
             refetchProfile();
           }
