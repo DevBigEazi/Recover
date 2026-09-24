@@ -21,7 +21,7 @@ export default function HandoverSuccessModal({ result, onClose }: HandoverSucces
             <p className="text-[11px] text-slate-400 mt-0.5">
               Rider / Driver PIN:{" "}
               <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">
-                {result.courierPin}
+                {result.riderPin}
               </span>
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function HandoverSuccessModal({ result, onClose }: HandoverSucces
                 🛵 1. Delivery Rider / Driver Link
               </span>
               <span className="text-[9px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-mono font-bold">
-                Includes PIN ?pin={result.courierPin}
+                Includes PIN ?pin={result.riderPin}
               </span>
             </div>
             <p className="text-[10px] text-slate-400 leading-tight">
@@ -58,7 +58,8 @@ export default function HandoverSuccessModal({ result, onClose }: HandoverSucces
                 type="button"
                 onClick={() => {
                   const cleanPhone = result.riderPhone ? result.riderPhone.replace(/\D/g, "") : "";
-                  const msg = `Hi ${result.riderName || "Rider/Driver"}, here is your Recover delivery manifest link for package: ${result.riderLink} (Rider/Driver PIN: ${result.courierPin})`;
+                  const pin = result.riderPin;
+                  const msg = `Hi ${result.riderName || "Rider/Driver"}, here is your Recover delivery manifest link for package: ${result.riderLink} (Rider/Driver PIN: ${pin})`;
                   const waUrl = cleanPhone
                     ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
                     : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -88,8 +89,8 @@ export default function HandoverSuccessModal({ result, onClose }: HandoverSucces
                 📦 2. Recipient Link (Package Customer)
               </span>
               <span className="text-[9px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">
-                {result.courierPin && result.courierPin !== "Not Generated"
-                  ? `Includes PIN ?pin=${result.courierPin}`
+                {result.riderPin && result.riderPin !== "Not Generated"
+                  ? `Includes PIN ?pin=${result.riderPin}`
                   : "Public Scan"}
               </span>
             </div>

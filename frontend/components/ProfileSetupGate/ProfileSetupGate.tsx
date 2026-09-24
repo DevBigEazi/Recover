@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useActiveAccount, useActiveWallet } from "thirdweb/react";
 import { useProfile } from "@/context/ProfileContext";
 import { Loader2, User } from "lucide-react";
@@ -34,8 +34,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<"user" | "merchant">("user");
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<string>("growth_1000");
+  const [billingCycle, setBillingCycle] = useState<"monthly">("monthly");
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [isUsernameManuallyEdited, setIsUsernameManuallyEdited] = useState(false);
@@ -44,6 +44,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [hasAccess, setHasAccess] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkoutWindowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     detectUserCurrency().then(setUserCurrency);
@@ -54,7 +57,61 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
     if (typeof window !== "undefined") {
       const unlocked = localStorage.getItem("recover_access_unlocked") === "true";
       setHasAccess(unlocked);
+
+      try {
+        const raw = localStorage.getItem("recover_onboarding_draft");
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.accountType) setAccountType(draft.accountType);
+          if (draft.companyName) setCompanyName(draft.companyName);
+          if (draft.fullName) setFullName(draft.fullName);
+          if (draft.username) setUsername(draft.username);
+          if (draft.phone) setPhone(draft.phone);
+          if (draft.whatsapp) setWhatsapp(draft.whatsapp);
+          if (draft.email) setEmail(draft.email);
+          if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
+          if (draft.step) setStep(draft.step);
+        }
+      } catch (err) {
+        console.error("Failed to restore onboarding draft:", err);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("onboarding_cancelled") === "true") {
+        setIsUpgrading(false);
+        toast("Payment was cancelled. You can choose a different plan or proceed with the Free plan to complete onboarding.", {
+          icon: "❗️",
+          duration: 6000,
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
     }
+
+    const handleResetUpgrade = () => {
+      if (!checkoutWindowRef.current || checkoutWindowRef.current.closed) {
+        setIsUpgrading(false);
+      }
+    };
+    window.addEventListener("pageshow", handleResetUpgrade);
+    window.addEventListener("focus", handleResetUpgrade);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "recover_subscription_confirmed") {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setIsUpgrading(false);
+        toast.success("Merchant subscription verified!");
+        window.location.reload();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handleResetUpgrade);
+      window.removeEventListener("focus", handleResetUpgrade);
+      window.removeEventListener("storage", handleStorageChange);
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -148,6 +205,24 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       setIsUpgrading(true);
 
       try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "recover_onboarding_draft",
+            JSON.stringify({
+              accountType,
+              fullName,
+              companyName,
+              username: username.trim().toLowerCase(),
+              phone,
+              whatsapp,
+              email,
+              selectedPlan,
+              step: 2,
+            })
+          );
+        }
+
+        const isNigeria = userCurrency?.currency === "NGN" || userCurrency?.countryCode === "NG";
         const initRes = await fetch("/api/subscription/initialize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -155,7 +230,15 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             walletAddress: account.address,
             email: email.trim(),
             planTier: selectedPlan,
-            billingCycle: billingCycle,
+            billingCycle: "monthly",
+            gateway: isNigeria ? "paystack" : "stripe",
+            countryCode: userCurrency?.countryCode,
+            currency: userCurrency?.currency,
+            isOnboarding: true,
+            companyName: companyName.trim(),
+            username: username.trim().toLowerCase(),
+            phone: phone.trim(),
+            fullName: fullName.trim() || companyName.trim(),
           }),
         });
 
@@ -165,14 +248,34 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         }
 
         const initData = await initRes.json();
+
         if (initData.url) {
-          window.location.href = initData.url;
+          const checkoutWindow = window.open(initData.url, "_blank");
+          if (!checkoutWindow || checkoutWindow.closed || typeof checkoutWindow.closed === "undefined") {
+            window.location.href = initData.url;
+          } else {
+            checkoutWindowRef.current = checkoutWindow;
+            setIsUpgrading(true);
+            toast("Checkout opened in a new tab. Complete payment to activate.", {
+              icon: "💳",
+              duration: 5000,
+            });
+
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            pollTimerRef.current = setInterval(() => {
+              if (checkoutWindow.closed) {
+                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                checkoutWindowRef.current = null;
+                setIsUpgrading(false);
+              }
+            }, 800);
+          }
         } else {
-          throw new Error("Stripe checkout URL was not returned.");
+          throw new Error("Checkout URL was not returned.");
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Billing failed";
-        toast.error(msg);
+        toast.error(msg, { id: "setup_pay" });
         setIsUpgrading(false);
       }
     };
@@ -218,6 +321,22 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       }
 
       if (step === 1 && accountType === "merchant") {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "recover_onboarding_draft",
+            JSON.stringify({
+              accountType,
+              fullName,
+              companyName,
+              username: cleanedUsername,
+              phone,
+              whatsapp,
+              email,
+              selectedPlan,
+              step: 2,
+            })
+          );
+        }
         // Transition to plan selection screen
         setStep(2);
         return;
@@ -252,6 +371,10 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.error || "Failed to save profile.");
+        }
+
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("recover_onboarding_draft");
         }
 
         toast.success("Profile setup complete!");

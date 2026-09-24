@@ -4,10 +4,13 @@ import { createContext, useContext, useState, ReactNode, useEffect, useCallback,
 import { useActiveAccount } from "thirdweb/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+
 interface ProfileContextType {
   fullName: string | null;
-  /** Company display name — non-null only for role === "merchant" accounts. */
+  /** Company/business display name — non-null only for role === "merchant" accounts. */
   companyName: string | null;
+  /** Business logo Base64 or URL — non-null only for role === "merchant" accounts. */
+  businessLogo: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
@@ -79,6 +82,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
   }, [isNewUser]);
 
+  // When a personal wallet session is established, clear any active workspace staff session.
+  // Staff login (email + PIN) and personal Recover login cannot co-exist in the same browser.
+  useEffect(() => {
+    if (!walletAddress) return;
+    fetch("/api/workspace/logout", { method: "POST" }).catch(() => {
+      // best-effort — no action needed if it fails
+    });
+  }, [walletAddress]);
+
   const openProfileSetup = useCallback(() => setIsOpenSetup(true), []);
   const closeProfileSetup = useCallback(() => setIsOpenSetup(false), []);
 
@@ -90,6 +102,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const companyName = profileData && !("isNotFound" in profileData) ? profileData.companyName || null : null;
+  const businessLogo = profileData && !("isNotFound" in profileData) ? profileData.businessLogo || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
@@ -102,6 +115,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const shipmentsThisMonth = profileData && !("isNotFound" in profileData) ? Number(profileData.shipmentsThisMonth || 0) : 0;
   const rolloverQuota = profileData && !("isNotFound" in profileData) ? Number(profileData.rolloverQuota || 0) : 0;
   const overageCharges = profileData && !("isNotFound" in profileData) ? Number(profileData.overageCharges || 0) : 0;
+
+
   const apiKey = profileData && !("isNotFound" in profileData) ? profileData.apiKey || null : null;
   const testApiKey = profileData && !("isNotFound" in profileData) ? profileData.testApiKey || null : null;
   const apiKeyMasked = profileData && !("isNotFound" in profileData) ? profileData.apiKeyMasked || (apiKey ? `${apiKey.substring(0, 13)}••••${apiKey.slice(-4)}` : null) : null;
@@ -112,6 +127,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     () => ({
       fullName,
       companyName,
+      businessLogo,
       username,
       phone,
       whatsapp,
@@ -140,6 +156,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [
       fullName,
       companyName,
+      businessLogo,
       username,
       phone,
       whatsapp,

@@ -55,7 +55,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
   const [lastHandoverResult, setLastHandoverResult] = useState<{
     riderLink: string;
     recipientLink: string;
-    courierPin: string;
+    riderPin: string;
     riderPhone: string | null;
     riderName: string | null;
   } | null>(null);
@@ -133,7 +133,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
       setLastHandoverResult({
         riderLink: data.riderLink,
         recipientLink: data.recipientLink,
-        courierPin: data.courierPin,
+        riderPin: data.riderPin || data.pin || "",
         riderPhone: data.riderPhone || riderPhone.trim() || null,
         riderName: data.riderName || riderName.trim() || null,
       });
@@ -214,10 +214,10 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
       <main className="max-w-4xl mx-auto px-4 pt-8">
         <div className="mb-6">
           <Link
-            href="/shipments"
+            href="/workspace"
             className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" /> Back to Shipments
+            <ChevronLeft className="w-4 h-4" /> Back to Workspace
           </Link>
         </div>
 
@@ -238,8 +238,8 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
             <p className="text-slate-400 text-xs max-w-sm mx-auto">
               This shipment belongs to a different company account. Only the registered shipper can view private tracking details.
             </p>
-            <Link href="/shipments" className="inline-block mt-2 text-xs text-blue-400 hover:text-blue-300">
-              ← Back to my Shipments
+            <Link href="/workspace" className="inline-block mt-2 text-xs text-blue-400 hover:text-blue-300">
+              ← Back to Workspace
             </Link>
           </div>
         ) : (
@@ -280,7 +280,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <button
-                    disabled={!lastHandoverResult?.courierPin}
+                    disabled={!lastHandoverResult?.riderPin}
                     onClick={() => {
                       if (lastHandoverResult) return;
                       const trackingCode = shipment.trackingCode || formatTrackingCode(shipment._id);
@@ -288,13 +288,13 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                       setLastHandoverResult({
                         riderLink: `${origin}/scan/${trackingCode}`,
                         recipientLink: `${origin}/scan/${trackingCode}`,
-                        courierPin: "Not Generated",
+                        riderPin: "Not Generated",
                         riderPhone: (shipment.metadata?.riderPhone as string) || null,
                         riderName: (shipment.metadata?.riderName as string) || null,
                       });
                     }}
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={!lastHandoverResult?.courierPin ? "Log a custody handover to generate dispatch links & PIN" : "Share dispatch links"}
+                    title={!lastHandoverResult?.riderPin ? "Log a custody handover to generate dispatch links & PIN" : "Share dispatch links"}
                   >
                     <Share2 className="w-3 h-3" /> Share Links
                   </button>
@@ -324,7 +324,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                     Resolution &amp; Re-Registration Guidance
                   </span>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Once resolved between involved parties, a new replacement package can be registered and handed over to courier again, or concluded according to the terms agreed upon by the involved parties.
+                    Once resolved between involved parties, a new replacement package can be registered and handed over for delivery dispatch again, or concluded according to the terms agreed upon by the involved parties.
                   </p>
                 </div>
               </div>
@@ -545,7 +545,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   <CheckCircle className="w-5 h-5 text-emerald-400" /> Custody Handover Logged!
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Rider / Driver PIN: <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">{lastHandoverResult.courierPin}</span>
+                  Rider / Driver PIN: <span className="font-mono text-white font-extrabold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800">{lastHandoverResult.riderPin}</span>
                 </p>
               </div>
               <button
@@ -568,7 +568,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                     🛵 1. Delivery Rider / Driver Link
                   </span>
                   <span className="text-[9px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-mono font-bold">
-                    Includes PIN ?pin={lastHandoverResult.courierPin}
+                    Includes PIN ?pin={lastHandoverResult.riderPin}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-tight">
@@ -579,7 +579,8 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                   <button
                     onClick={() => {
                       const cleanPhone = lastHandoverResult.riderPhone ? lastHandoverResult.riderPhone.replace(/\D/g, "") : "";
-                      const msg = `Hi ${lastHandoverResult.riderName || "Rider/Driver"}, here is your Recover delivery manifest link for package: ${lastHandoverResult.riderLink} (Rider/Driver PIN: ${lastHandoverResult.courierPin})`;
+                      const pin = lastHandoverResult.riderPin;
+                      const msg = `Hi ${lastHandoverResult.riderName || "Rider/Driver"}, here is your Recover delivery manifest link for package: ${lastHandoverResult.riderLink} (Rider/Driver PIN: ${pin})`;
                       const waUrl = cleanPhone
                         ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
                         : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -608,7 +609,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
                     📦 2. Recipient Link (Package Customer)
                   </span>
                   <span className="text-[9px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">
-                    {lastHandoverResult.courierPin && lastHandoverResult.courierPin !== "Not Generated" ? `Includes PIN ?pin=${lastHandoverResult.courierPin}` : "Public Scan"}
+                    {lastHandoverResult.riderPin && lastHandoverResult.riderPin !== "Not Generated" ? `Includes PIN ?pin=${lastHandoverResult.riderPin}` : "Public Scan"}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-tight">

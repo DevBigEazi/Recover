@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { registrationId, message, contactInfo, location, photo, deliveryMethod, courierDetails } = body;
+    const { registrationId, message, contactInfo, location, photo, deliveryMethod, deliveryDetails } = body;
 
     if (!registrationId || !message || !contactInfo || !contactInfo.trim()) {
       return NextResponse.json(
@@ -16,9 +16,12 @@ export async function POST(request: Request) {
       );
     }
 
-    if (deliveryMethod === "courier" && (!courierDetails || !courierDetails.trim())) {
+    const details = deliveryDetails;
+    const isDelivery = deliveryMethod === "delivery";
+
+    if (isDelivery && (!details || !details.trim())) {
       return NextResponse.json(
-        { error: "Courier details are required when Courier delivery is selected." },
+        { error: "Delivery details are required when delivery is selected." },
         { status: 400 }
       );
     }
@@ -77,8 +80,8 @@ Return ONLY the plain text context summary, without quotes, markdown formatting,
       location: cleanLocation,
       locationContext,
       photo: photo || null,
-      deliveryMethod: deliveryMethod || "meetup",
-      courierDetails: deliveryMethod === "courier" ? courierDetails : null,
+      deliveryMethod: isDelivery ? "delivery" : deliveryMethod || "meetup",
+      deliveryDetails: isDelivery ? details : null,
     });
 
     const messageText = `New found report submitted for your item "${item.name}".`;

@@ -11,6 +11,7 @@ import {
   Mail,
   ArrowLeft,
   Loader2,
+  Building2,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaFacebookF } from "react-icons/fa";
@@ -256,6 +257,31 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 >
                   <FaFacebookF className="w-4 h-4 text-[#1877F2] text-[18px]" />
                   <span>Continue with Facebook</span>
+                </button>
+              </div>
+
+              {/* Staff Workspace PIN Bridge */}
+              <div className="pt-3 border-t border-neutral-mist">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClose();
+                    router.push("/workspace/login");
+                  }}
+                  className="w-full bg-neutral-mist/60 hover:bg-neutral-mist border border-neutral-mist text-primary font-semibold rounded-xl py-2.5 px-3.5 text-xs transition-colors cursor-pointer flex items-center justify-between shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-primary text-xs">Staff Workspace Member?</div>
+                      <div className="text-[10px] text-neutral-slate">Sign in with work email &amp; 6-digit PIN</div>
+                    </div>
+                  </div>
+                  <span className="text-accent text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                    Enter PIN →
+                  </span>
                 </button>
               </div>
             </div>

@@ -200,13 +200,13 @@ export default function ApiEndpointsReference() {
               </span>
               <code className="text-sm font-mono font-bold text-primary">/shipments/[id]/handover</code>
             </div>
-            <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+            <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
               🔑 API Key Required
             </span>
           </div>
 
           <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
-            Transfers package custody to a courier, rider, or warehouse handler. Updates status to &quot;InTransit&quot;,
+            Transfers package custody to a dispatch rider, driver, or warehouse handler. Updates status to &quot;InTransit&quot;,
             logs an on-chain event, and fires a <code className="bg-neutral-mist px-1 rounded">shipment.handover</code>{" "}
             webhook callback.
           </p>
@@ -277,7 +277,7 @@ export default function ApiEndpointsReference() {
 
           <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
             Fetches the complete custody event timeline (Created, InTransit, Handover, Verified, Disputed) for a package.
-            Passing an authorized courier PIN unlocks rider contact details.
+            Passing an authorized rider PIN unlocks rider contact details.
           </p>
 
           <div className="bg-slate-950 text-slate-100 rounded-xl p-4 font-mono text-xs overflow-x-auto relative">
@@ -302,14 +302,14 @@ export default function ApiEndpointsReference() {
               </span>
               <code className="text-sm font-mono font-bold text-primary">/shipments/[id]/dispute</code>
             </div>
-            <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+            <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
               🔑 API Key Required
             </span>
           </div>
 
           <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
             Files a formal delivery dispute for damaged, stolen, or missing contents.{" "}
-            <strong>Requires the package to be in &quot;InTransit&quot; status</strong> (i.e. handed over to a courier).
+            <strong>Requires the package to be in &quot;InTransit&quot; status</strong> (i.e. handed over for delivery).
             Updates package status to &quot;Disputed&quot;, records an on-chain event, and triggers a{" "}
             <code className="bg-neutral-mist px-1 rounded">shipment.disputed</code> webhook.
           </p>

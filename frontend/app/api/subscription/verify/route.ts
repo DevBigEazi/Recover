@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, connectDB } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
+import { verifyPaystackTransaction } from "@/lib/paystack";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,76 @@ export async function POST(request: Request) {
 
     await connectDB();
 
+    // 1. PAYSTACK VERIFICATION
+    const isPaystack = Boolean(
+      (reference && reference.startsWith("pstk_")) ||
+      (!sessionIdentifier.startsWith("cs_") && !sessionIdentifier.startsWith("sub_"))
+    );
+
+    if (isPaystack) {
+      const paystackRes = await verifyPaystackTransaction(sessionIdentifier);
+      if (!paystackRes.verified) {
+        return NextResponse.json(
+          { error: `Paystack payment verification failed with status: ${paystackRes.status}` },
+          { status: 400 }
+        );
+      }
+
+      const metadata = (paystackRes.metadata || {}) as Record<string, string>;
+      const targetWalletAddress = (bodyWalletAddress || metadata.walletAddress || "").toLowerCase();
+
+      if (!targetWalletAddress) {
+        return NextResponse.json({ error: "Could not resolve target user wallet address from Paystack reference." }, { status: 400 });
+      }
+
+      const planTier = metadata.plan || body.planTier || "growth_1000";
+      const billingCycle = metadata.billingCycle || "monthly";
+
+      const existingUser = await db.user.findById(targetWalletAddress);
+      const companyName = metadata.companyName || existingUser?.companyName;
+      const username = metadata.username || existingUser?.username || `merchant_${targetWalletAddress.substring(2, 8)}`;
+      const fullName = metadata.fullName || metadata.companyName || existingUser?.fullName || `Merchant (${targetWalletAddress.substring(0, 6)})`;
+      const phone = metadata.phone || existingUser?.phone;
+      const email = metadata.email || paystackRes.customerEmail || existingUser?.email;
+
+      const updatedUser = await db.user.findByIdAndUpdate(
+        targetWalletAddress,
+        {
+          $set: {
+            subscriptionActive: true,
+            role: "merchant",
+            plan: planTier,
+            billingCycle: billingCycle,
+            billingCycleStart: new Date(),
+            shipmentsThisMonth: 0,
+            rolloverQuota: 0,
+            overageCharges: 0,
+            paystackReference: sessionIdentifier,
+            ...(companyName ? { companyName } : {}),
+            ...(username ? { username } : {}),
+            ...(fullName ? { fullName } : {}),
+            ...(phone ? { phone } : {}),
+            ...(email ? { email } : {}),
+          },
+        },
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+      );
+
+      return NextResponse.json({
+        success: true,
+        gateway: "paystack",
+        user: {
+          walletAddress: updatedUser?._id,
+          subscriptionActive: updatedUser?.subscriptionActive,
+          role: updatedUser?.role,
+          plan: updatedUser?.plan,
+          billingCycle: updatedUser?.billingCycle,
+          rolloverQuota: 0,
+        },
+      });
+    }
+
+    // 2. STRIPE VERIFICATION
     const session = await stripe.checkout.sessions.retrieve(sessionIdentifier);
 
     if (session.payment_status !== "paid" && session.status !== "complete") {
@@ -27,30 +98,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not resolve target user wallet address from checkout session." }, { status: 400 });
     }
 
-    const planTier = metadata.plan || "pro_growth";
+    const planTier = metadata.plan || "growth_1000";
     const billingCycle = metadata.billingCycle || "monthly";
     const stripeSubscriptionId = typeof session.subscription === "string" ? session.subscription : null;
     const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
 
-    const TIER_QUOTAS: Record<string, number> = {
-      free: 100,
-      pro_lite: 2500,
-      pro_starter: 10000,
-      pro_growth: 100000,
-      pro_scale: 500000,
-      pro: 100000,
-    };
-
     const existingUser = await db.user.findById(targetWalletAddress);
-    let carriedRollover = 0;
-    if (existingUser) {
-      const prevPlanQuota = TIER_QUOTAS[existingUser.plan] || 100;
-      const prevUsed = existingUser.shipmentsThisMonth || 0;
-      const prevRollover = existingUser.rolloverQuota || 0;
-      const totalPrevCapacity = prevPlanQuota + prevRollover;
-      const unusedRemaining = Math.max(0, totalPrevCapacity - prevUsed);
-      carriedRollover = unusedRemaining;
-    }
+    const companyName = metadata.companyName || existingUser?.companyName;
+    const username = metadata.username || existingUser?.username || `merchant_${targetWalletAddress.substring(2, 8)}`;
+    const fullName = metadata.fullName || metadata.companyName || existingUser?.fullName || `Merchant (${targetWalletAddress.substring(0, 6)})`;
+    const phone = metadata.phone || existingUser?.phone;
+    const email = metadata.email || existingUser?.email;
 
     const updatedUser = await db.user.findByIdAndUpdate(
       targetWalletAddress,
@@ -62,15 +120,16 @@ export async function POST(request: Request) {
           billingCycle: billingCycle,
           billingCycleStart: new Date(),
           shipmentsThisMonth: 0,
-          rolloverQuota: carriedRollover,
+          rolloverQuota: 0, // Strict rule: No rollover in any tier
           overageCharges: 0,
           stripeCustomerId: stripeCustomerId || existingUser?.stripeCustomerId,
           stripeSubscriptionId: stripeSubscriptionId || existingUser?.stripeSubscriptionId,
+          ...(companyName ? { companyName } : {}),
+          ...(username ? { username } : {}),
+          ...(fullName ? { fullName } : {}),
+          ...(phone ? { phone } : {}),
+          ...(email ? { email } : {}),
         },
-        $setOnInsert: {
-          fullName: `Logistics Partner (${targetWalletAddress.substring(0, 6)})`,
-          username: `merchant_${targetWalletAddress.substring(2, 8)}`,
-        }
       },
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );

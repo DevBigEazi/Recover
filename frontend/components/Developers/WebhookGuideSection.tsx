@@ -32,8 +32,8 @@ export default function WebhookGuideSection() {
             <span className="text-2xl font-extrabold text-red-600 block">401</span>
             <span className="text-neutral-slate font-semibold">Invalid API Key</span>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-            <span className="text-2xl font-extrabold text-amber-600 block">402</span>
+          <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+            <span className="text-2xl font-extrabold text-slate-700 block">402</span>
             <span className="text-neutral-slate font-semibold">Quota Exhausted</span>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
@@ -48,12 +48,12 @@ export default function WebhookGuideSection() {
             <span className="text-2xl font-extrabold text-red-600 block">400</span>
             <span className="text-neutral-slate font-semibold">Bad Request</span>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-            <span className="text-2xl font-extrabold text-amber-600 block">409</span>
+          <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+            <span className="text-2xl font-extrabold text-slate-700 block">409</span>
             <span className="text-neutral-slate font-semibold">State Conflict</span>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-            <span className="text-2xl font-extrabold text-amber-600 block">429</span>
+          <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+            <span className="text-2xl font-extrabold text-slate-700 block">429</span>
             <span className="text-neutral-slate font-semibold">Rate Limited</span>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
@@ -91,8 +91,8 @@ export default function WebhookGuideSection() {
                 <span className="text-xs text-neutral-slate">— QR sticker scanned in the field</span>
               </li>
               <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
-                <span className="font-mono font-bold text-amber-600 text-xs shrink-0">shipment.handover</span>
-                <span className="text-xs text-neutral-slate">— Custody transferred to courier / rider</span>
+                <span className="font-mono font-bold text-sky-600 text-xs shrink-0">shipment.handover</span>
+                <span className="text-xs text-neutral-slate">— Custody transferred to dispatch rider</span>
               </li>
               <li className="flex items-center gap-2 bg-neutral-mist/30 p-2 rounded-lg border border-neutral-mist">
                 <span className="font-mono font-bold text-emerald-600 text-xs shrink-0">shipment.delivered</span>

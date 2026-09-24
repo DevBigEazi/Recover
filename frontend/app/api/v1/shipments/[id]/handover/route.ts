@@ -195,14 +195,14 @@ export async function POST(
       fullLocationContext = fullLocationContext ? `${fullLocationContext} · Note: ${notes.trim()}` : `Note: ${notes.trim()}`;
     }
 
-    // Generate 4-digit Courier Dispatch PIN for rider link access
-    const courierPin = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate 4-digit Dispatch Rider PIN for rider link access
+    const riderPin = Math.floor(1000 + Math.random() * 9000).toString();
 
     // 5. Update MongoDB shipment record
     shipment.status = "InTransit";
     shipment.metadata = {
       ...(shipment.metadata || {}),
-      courierPin,
+      riderPin,
       riderName: riderName ? riderName.trim() : null,
       riderPhone: riderPhone ? riderPhone.trim() : null,
       riderPlateNumber: riderPlateNumber ? riderPlateNumber.trim() : null,
@@ -246,7 +246,7 @@ export async function POST(
               riderName: riderName || null,
               riderPhone: riderPhone || null,
               riderPlateNumber: riderPlateNumber || null,
-              courierPin,
+              riderPin,
               location: location || null,
               locationContext: fullLocationContext || null,
               onChainTxHash: txHash,
@@ -261,7 +261,7 @@ export async function POST(
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz").replace(/\/$/, "");
     const cleanPackageId = shipment._id.startsWith("0x") ? shipment._id.slice(2) : shipment._id;
     const trackingCode = `RCV-${cleanPackageId.slice(0, 12).toUpperCase()}`;
-    const riderLink = `${appUrl}/scan/${trackingCode}?pin=${courierPin}`;
+    const riderLink = `${appUrl}/scan/${trackingCode}?pin=${riderPin}`;
     const recipientLink = `${appUrl}/scan/${trackingCode}`;
 
     // 7. Dispatch in-app notification in DB & Web Push alert
@@ -289,7 +289,7 @@ export async function POST(
       success: true,
       trackingCode,
       onChainId: shipment._id,
-      courierPin,
+      riderPin,
       riderName: riderName || null,
       riderPhone: riderPhone || null,
       riderPlateNumber: riderPlateNumber || null,

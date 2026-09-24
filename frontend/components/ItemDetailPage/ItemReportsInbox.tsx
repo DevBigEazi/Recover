@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { LocalItem } from "./ItemSecretsSection";
 import { convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
 
@@ -12,8 +13,8 @@ export interface FinderReport {
   location: string;
   locationContext?: string | null;
   unlocked?: boolean;
-  deliveryMethod?: "meetup" | "courier";
-  courierDetails?: string | null;
+  deliveryMethod?: "meetup" | "delivery";
+  deliveryDetails?: string | null;
   timestamp: number;
 }
 
@@ -55,7 +56,7 @@ export default function ItemReportsInbox({
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to initialize checkout.";
-      alert(errMsg);
+      toast.error(errMsg);
       setIsActionLoading(false);
     }
   };
@@ -120,7 +121,7 @@ export default function ItemReportsInbox({
                       Delivery Method:
                     </span>
                     <span className="inline-flex items-center gap-1 bg-neutral-white border border-neutral-mist px-2.5 py-1 rounded-md text-xs font-semibold text-primary">
-                      {report.deliveryMethod === "courier" ? "📦 Courier Handover" : "🤝 In-Person Meetup"}
+                      {report.deliveryMethod === "delivery" ? "📦 Delivery / Waybill Handover" : "🤝 In-Person Meetup"}
                     </span>
                   </div>
 
@@ -144,13 +145,13 @@ export default function ItemReportsInbox({
                         </div>
                       </div>
 
-                      {report.deliveryMethod === "courier" && report.courierDetails && (
+                      {(report.deliveryMethod === "delivery") && report.deliveryDetails && (
                         <div>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-slate block mb-1">
-                            Courier / Waybill Details:
+                            Delivery / Waybill Details:
                           </span>
                           <div className="text-xs text-primary bg-neutral-white p-2.5 rounded-lg border border-neutral-mist font-mono">
-                            {report.courierDetails}
+                            {report.deliveryDetails}
                           </div>
                         </div>
                       )}
@@ -175,10 +176,10 @@ export default function ItemReportsInbox({
                         <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
                       </a>
                       {report.locationContext && (
-                        <div className="bg-amber-50/50 border border-amber-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-amber-800 leading-normal flex items-start gap-1.5 text-left">
+                        <div className="bg-blue-50/50 border border-blue-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-blue-900 leading-normal flex items-start gap-1.5 text-left">
                           <span className="shrink-0 text-xs mt-0.5">💡</span>
                           <div>
-                            <strong className="font-semibold text-amber-900 block mb-0.5">AI Location Insight</strong>
+                            <strong className="font-semibold text-blue-950 block mb-0.5">Location Insight</strong>
                             {report.locationContext}
                           </div>
                         </div>
@@ -189,7 +190,7 @@ export default function ItemReportsInbox({
 
                 {!report.unlocked && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-white/80 backdrop-blur-xs p-4 text-center space-y-3">
-                    <div className="p-2 bg-amber-500/10 rounded-full text-warning text-base leading-none">
+                    <div className="p-2 bg-blue-500/10 rounded-full text-primary text-base leading-none">
                       🔒
                     </div>
                     <div className="space-y-1">

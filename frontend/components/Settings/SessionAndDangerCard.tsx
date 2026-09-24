@@ -1,5 +1,7 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 interface SessionAndDangerCardProps {
   walletAddress: string;
 }
@@ -33,7 +35,11 @@ export default function SessionAndDangerCard({ walletAddress }: SessionAndDanger
         <div className="pt-2">
           <button
             type="button"
-            onClick={() => alert("Please contact Recover Support at support@recover.platform to request full account data deletion.")}
+            onClick={() =>
+              toast("Please contact Recover Support at support@userecover.xyz to request account data deletion.", {
+                duration: 5000,
+              })
+            }
             className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold rounded-lg px-5 py-2.5 text-xs transition-colors cursor-pointer"
           >
             Reset Profile Data

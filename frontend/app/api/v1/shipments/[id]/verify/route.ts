@@ -87,7 +87,7 @@ export async function POST(
     // Idempotency guard: package must be in transit to be verified
     if (shipment.status !== "InTransit") {
       return NextResponse.json(
-        { error: `Cannot verify delivery. Package must be 'InTransit' (handed over to a courier). Current status is '${shipment.status}'.` },
+        { error: `Cannot verify delivery. Package must be 'InTransit' (handed over for delivery). Current status is '${shipment.status}'.` },
         { status: 400 }
       );
     }

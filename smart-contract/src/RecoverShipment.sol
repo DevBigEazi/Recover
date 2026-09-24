@@ -117,7 +117,7 @@ contract RecoverShipment is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Logs a courier handover milestone with signature verification.
+     * @notice Logs a dispatch rider / delivery handover milestone with signature verification.
      * @param packageId The unique ID of the package.
      * @param nextHandler The handler taking custody of the shipment.
      * @param deadline The signature expiration timestamp.

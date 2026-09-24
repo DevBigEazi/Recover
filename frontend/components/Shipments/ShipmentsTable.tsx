@@ -299,12 +299,12 @@ export default function ShipmentsTable({
                           type="button"
                           onClick={() => {
                             const trackingCode = shipment.trackingCode || formatTrackingCode(shipment._id);
-                            const pin = (shipment.metadata?.courierPin as string) || "";
+                            const pin = (shipment.metadata?.riderPin as string) || (shipment.metadata?.pin as string) || "";
                             const origin = typeof window !== "undefined" ? window.location.origin : "";
                             onShowLinks({
                               riderLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
                               recipientLink: `${origin}/scan/${trackingCode}${pin ? `?pin=${pin}` : ""}`,
-                              courierPin: pin || "Not Generated",
+                              riderPin: pin || "Not Generated",
                               riderPhone: (shipment.metadata?.riderPhone as string) || null,
                               riderName: (shipment.metadata?.riderName as string) || null,
                             });

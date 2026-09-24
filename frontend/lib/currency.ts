@@ -207,6 +207,9 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
         if (typeof detectedRate === "number" && detectedRate > 0 && isFinite(detectedRate)) {
           rate = detectedRate;
         }
+        if (typeof fxData?.rates?.NGN === "number" && fxData.rates.NGN > 0) {
+          cachedNgnUsdRate = fxData.rates.NGN;
+        }
       }
     } catch {
       // On fetch exception or timeout, preserve fallback rate
@@ -229,30 +232,180 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
   }
 }
 
+let cachedNgnUsdRate = 1480;
+
+export interface PlanTierConfig {
+  id: string;
+  name: string;
+  ngnMonthly: number;
+  quota: number; // Dispatches and receipts combined
+  branches: number;
+  salesReps: number;
+  managers: number;
+  description: string;
+}
+
+export const PLAN_TIERS: Record<string, PlanTierConfig> = {
+  free: {
+    id: "free",
+    name: "Free",
+    ngnMonthly: 0,
+    quota: 100,
+    branches: 0,
+    salesReps: 0,
+    managers: 0,
+    description: "CEO only · 100 dispatches & receipts",
+  },
+  starter_500: {
+    id: "starter_500",
+    name: "Starter",
+    ngnMonthly: 500,
+    quota: 500,
+    branches: 1,
+    salesReps: 1,
+    managers: 1,
+    description: "1 branch · 1 sales rep · 1 manager · 500 dispatches & receipts",
+  },
+  growth_1000: {
+    id: "growth_1000",
+    name: "Growth",
+    ngnMonthly: 1000,
+    quota: 1000,
+    branches: 2,
+    salesReps: 4,
+    managers: 2,
+    description: "2 branches · 4 sales reps · 2 managers · 1,000 dispatches & receipts",
+  },
+  business_2500: {
+    id: "business_2500",
+    name: "Business",
+    ngnMonthly: 2500,
+    quota: 2500,
+    branches: 3,
+    salesReps: 6,
+    managers: 3,
+    description: "3 branches · 6 sales reps · 3 managers · 2,500 dispatches & receipts",
+  },
+  scale_5000: {
+    id: "scale_5000",
+    name: "Scale",
+    ngnMonthly: 5000,
+    quota: 5000,
+    branches: 5,
+    salesReps: 10,
+    managers: 5,
+    description: "5 branches · 10 sales reps · 5 managers · 5,000 dispatches & receipts",
+  },
+};
+
+export const OVERAGE_FEE_NGN = 1; // ₦1 per extra dispatch, receipt, branch, sales rep in Nigeria
+export const OVERAGE_FEE_USD = 0.003; // $0.003 per extra dispatch, receipt, branch, sales rep for non-Nigeria
+
+/**
+ * Converts a base NGN amount to the user's detected local currency.
+ * If user is in Nigeria, returns exact NGN without foreign exchange.
+ * If user is outside Nigeria, applies 3x tier multiplier, or $0.003 for overage fee.
+ * Single currency format strictly enforced (e.g. "₦500" or "$1.05").
+ */
+export function convertNgnPrice(ngnAmount: number, currencyInfo?: UserCurrencyInfo | null): ConvertedPrice {
+  const info = currencyInfo || DEFAULT_CURRENCY;
+
+  if (info.currency === "NGN" || info.countryCode === "NG") {
+    const formatted = ngnAmount.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return {
+      usdAmount: ngnAmount / cachedNgnUsdRate,
+      localAmount: ngnAmount,
+      formattedLocal: `₦${formatted}`,
+      symbol: "₦",
+      currency: "NGN",
+    };
+  }
+
+  // Universal overage for non-Nigeria is fixed at $0.003
+  if (ngnAmount === OVERAGE_FEE_NGN) {
+    const usdAmount = OVERAGE_FEE_USD;
+    const rawLocal = usdAmount * info.rateAgainstUSD;
+    const formattedAmount = info.currency === "USD" 
+      ? "0.003"
+      : rawLocal.toLocaleString(undefined, {
+          minimumFractionDigits: 3,
+          maximumFractionDigits: 4,
+        });
+
+    return {
+      usdAmount,
+      localAmount: rawLocal,
+      formattedLocal: `${info.symbol}${formattedAmount}`,
+      symbol: info.symbol,
+      currency: info.currency,
+    };
+  }
+
+  // Triple price for international users (outside Nigeria)
+  const effectiveNgn = ngnAmount * 3;
+  const usdAmount = effectiveNgn / (cachedNgnUsdRate || 1480);
+  const rawLocal = usdAmount * info.rateAgainstUSD;
+  const roundedLocal = Math.round(rawLocal * 100) / 100;
+  const formattedAmount = roundedLocal.toLocaleString(undefined, {
+    minimumFractionDigits: roundedLocal % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+
+  return {
+    usdAmount,
+    localAmount: roundedLocal,
+    formattedLocal: `${info.symbol}${formattedAmount}`,
+    symbol: info.symbol,
+    currency: info.currency,
+  };
+}
+
+export function getOverageFee(currencyInfo?: UserCurrencyInfo | null): ConvertedPrice {
+  return convertNgnPrice(OVERAGE_FEE_NGN, currencyInfo);
+}
+
 /**
  * Converts a base USD amount to the user's detected local currency.
+ * Single currency format strictly enforced (e.g. "$3.50" or "₦5,180").
  */
 export function convertUsdPrice(usdAmount: number, currencyInfo?: UserCurrencyInfo | null): ConvertedPrice {
   const info = currencyInfo || DEFAULT_CURRENCY;
   const rawLocal = usdAmount * info.rateAgainstUSD;
 
   let roundedLocal = rawLocal;
-  if (info.currency === "NGN" || info.currency === "KES") {
+  let formattedAmount = "";
+
+  if (usdAmount > 0 && usdAmount < 0.01) {
+    // Preserve precision for micro-fees such as $0.003 universal overage
+    roundedLocal = Math.round(rawLocal * 10000) / 10000;
+    formattedAmount = roundedLocal.toLocaleString(undefined, {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 4,
+    });
+  } else if (info.currency === "NGN" || info.currency === "KES") {
     roundedLocal = Math.round(rawLocal / 100) * 100;
+    formattedAmount = roundedLocal.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
   } else if (rawLocal > 10) {
     roundedLocal = Math.round(rawLocal);
+    formattedAmount = roundedLocal.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
   } else {
     roundedLocal = Math.round(rawLocal * 100) / 100;
+    formattedAmount = roundedLocal.toLocaleString(undefined, {
+      minimumFractionDigits: roundedLocal % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
   }
 
-  const formattedAmount = roundedLocal.toLocaleString(undefined, {
-    minimumFractionDigits: roundedLocal % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-
-  const formattedLocal = info.currency === "USD"
-    ? `$${usdAmount.toFixed(2)} USD`
-    : `${info.symbol}${formattedAmount} ${info.currency} ($${usdAmount.toFixed(2)} USD)`;
+  const formattedLocal = `${info.symbol}${formattedAmount}`;
 
   return {
     usdAmount,
@@ -262,3 +415,21 @@ export function convertUsdPrice(usdAmount: number, currencyInfo?: UserCurrencyIn
     currency: info.currency,
   };
 }
+
+/**
+ * Formats accrued overage charges for the merchant dashboard.
+ * If user is Nigerian, formatted as integer Naira (₦1 per excess unit).
+ * If non-Nigerian, formatted in single local currency using USD micro-fee rate ($0.003 per unit).
+ */
+export function formatOverageCharges(amount: number, currencyInfo?: UserCurrencyInfo | null): string {
+  const info = currencyInfo || DEFAULT_CURRENCY;
+  if (!amount || amount <= 0) {
+    return info.currency === "NGN" || info.countryCode === "NG" ? "₦0" : `${info.symbol}0.00`;
+  }
+  if (info.currency === "NGN" || info.countryCode === "NG") {
+    return `₦${Math.round(amount).toLocaleString()}`;
+  }
+  const converted = convertUsdPrice(amount, info);
+  return converted.formattedLocal;
+}
+

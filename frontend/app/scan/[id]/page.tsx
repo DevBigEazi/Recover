@@ -41,7 +41,7 @@ interface Shipment {
   status: "Created" | "InTransit" | "Delivered" | "Verified" | "Disputed";
   metadata?: Record<string, unknown> | null;
   events: ShipmentEvent[];
-  isCourierAuthorized?: boolean;
+  isRiderAuthorized?: boolean;
   riderInfo?: {
     name: string | null;
     phone: string | null;
@@ -58,7 +58,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
   const [innerSecret, setInnerSecret] = useState("");
   const [showSecretCode, setShowSecretCode] = useState(false);
   const [recipientName, setRecipientName] = useState("");
-  const [courierPinInput, setCourierPinInput] = useState("");
+  const [riderPinInput, setRiderPinInput] = useState("");
   const [activePin, setActivePin] = useState("");
   const [disputeReason, setDisputeReason] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -79,7 +79,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
   const urlPin = searchParams?.get("pin") || "";
   const effectivePin = urlPin || activePin;
 
-  // Public fetch — no auth required, accepts optional courier PIN in URL or manual input
+  // Public fetch — no auth required, accepts optional rider PIN in URL or manual input
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
     queryKey: ["scan-tracking", id, effectivePin],
     queryFn: async () => {
@@ -143,10 +143,10 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const handleCourierPinSubmit = (e: React.FormEvent) => {
+  const handleRiderPinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!courierPinInput.trim()) return;
-    setActivePin(courierPinInput.trim());
+    if (!riderPinInput.trim()) return;
+    setActivePin(riderPinInput.trim());
     queryClient.invalidateQueries({ queryKey: ["scan-tracking", id] });
   };
 
@@ -291,7 +291,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
             )}
 
             {/* Delivery Rider / Driver Manifest Card — Shown only when unlocked via Rider/Driver PIN / WhatsApp Link */}
-            {shipment.isCourierAuthorized && (
+            {shipment.isRiderAuthorized && (
               <div className="bg-linear-to-r from-blue-950/80 via-indigo-950/70 to-slate-900 border border-blue-800/60 rounded-2xl p-5 backdrop-blur-md shadow-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase font-extrabold text-blue-400 tracking-wider flex items-center gap-1.5">
@@ -321,7 +321,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                         </span>
                       </div>
                       <a
-                        href={`tel:${shipment.metadata.receiverPhone as string}`}
+                        href={`Phone no:${shipment.metadata.receiverPhone as string}`}
                         className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shrink-0"
                       >
                         <Phone className="w-3.5 h-3.5" /> Call
@@ -342,7 +342,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
             )}
 
             {/* Dispatched Delivery Rider / Driver Information Card — Unlocked via Rider/Driver PIN / Link */}
-            {shipment.isCourierAuthorized && shipment.status === "InTransit" && (shipment.riderInfo?.phone || shipment.metadata?.riderPhone) && (
+            {shipment.isRiderAuthorized && shipment.status === "InTransit" && (shipment.riderInfo?.phone || shipment.metadata?.riderPhone) && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-lg space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1.5">
@@ -370,7 +370,7 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                   </div>
 
                   <a
-                    href={`tel:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
+                    href={`Phone no:${(shipment.riderInfo?.phone || shipment.metadata?.riderPhone) as string}`}
                     className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-md shrink-0 cursor-pointer"
                   >
                     <Phone className="w-3.5 h-3.5" /> Call Rider / Driver
@@ -396,17 +396,17 @@ export default function PackageScanPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 {/* Optional Rider / Driver PIN Entry for Riders/Drivers without WhatsApp Link */}
-                {!shipment.isCourierAuthorized && (
+                {!shipment.isRiderAuthorized && (
                   <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <KeyRound className="w-4 h-4 text-blue-400 shrink-0" />
                       <p className="text-[11px] text-slate-400">Are you the delivery rider/driver or recipient?</p>
                     </div>
-                    <form onSubmit={handleCourierPinSubmit} className="flex gap-1.5 shrink-0">
+                    <form onSubmit={handleRiderPinSubmit} className="flex gap-1.5 shrink-0">
                       <input
                         type="text"
-                        value={courierPinInput}
-                        onChange={(e) => setCourierPinInput(e.target.value)}
+                        value={riderPinInput}
+                        onChange={(e) => setRiderPinInput(e.target.value)}
                         placeholder="4-digit PIN"
                         maxLength={4}
                         className="w-20 bg-slate-950 border border-slate-800 text-center font-mono text-xs text-white rounded-lg py-1 px-2 focus:border-blue-500 outline-none"

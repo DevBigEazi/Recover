@@ -6,11 +6,15 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
+    "@types/bcryptjs": "^3.0.0",
     "@types/web-push": "^3.6.4",
+    "bcryptjs": "^3.0.3",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.24.0",
     "mongoose": "^9.8.0",
     "next": "16.2.10",
@@ -20,7 +24,8 @@
     "react-icons": "^5.7.0",
     "stripe": "^22.4.0",
     "thirdweb": "^5.120.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "zeptomail": "^8.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

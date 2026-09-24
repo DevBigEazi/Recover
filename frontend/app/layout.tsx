@@ -43,14 +43,16 @@ const metadataBase = getMetadataBaseUrl();
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "Recover — Physical Item Protection & Package Tracking",
+    default: "Recover — Physical Item Protection, Digital Receipts & Package Tracking",
     template: "%s | Recover",
   },
   description:
-    "Protect personal valuables with scannable QR stickers & power commercial parcel dispatches with instant location alerts, scratch-off PIN handovers, and developer REST API integration.",
+    "Protect personal valuables with scannable QR stickers, issue smart digital POS receipts, and power commercial package dispatches with instant location alerts, scratch-off PIN handovers, and developer REST API integration.",
   keywords: [
     "scannable QR stickers",
     "physical lost and found",
+    "digital receipts",
+    "POS terminal",
     "package tracking",
     "location alerts",
     "PIN handover verification",
@@ -63,16 +65,16 @@ export const metadata: Metadata = {
   publisher: "Recover Protocol",
   openGraph: {
     ...sharedOpenGraph,
-    title: "Recover — Physical Item Protection & Package Tracking",
+    title: "Recover — Physical Item Protection, Digital Receipts & Package Tracking",
     description:
-      "Protect personal belongings with scannable QR stickers & track commercial dispatches with instant location alerts, PIN handovers, and REST API integration.",
+      "Protect personal belongings with scannable QR stickers, issue verifiable digital POS receipts, and track commercial package dispatches with instant location alerts, PIN handovers, and REST API integration.",
     url: metadataBase.origin,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Recover — Physical Item Protection & Package Tracking",
+    title: "Recover — Physical Item Protection, Digital Receipts & Package Tracking",
     description:
-      "Protect personal belongings with scannable QR stickers & track commercial dispatches with instant location alerts and PIN handovers.",
+      "Protect personal belongings with scannable QR stickers, issue digital POS receipts, and track commercial package dispatches with instant location alerts and PIN handovers.",
     images: ["/og-image.png"],
   },
   manifest: "/manifest.json",

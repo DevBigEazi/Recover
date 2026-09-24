@@ -85,7 +85,7 @@ export default function LogHandoverModal({
       onSuccess({
         riderLink: data.riderLink,
         recipientLink: data.recipientLink,
-        courierPin: data.courierPin,
+        riderPin: data.riderPin || data.pin || "",
         riderPhone: data.riderPhone || handoverRiderPhone.trim() || null,
         riderName: data.riderName || handoverRiderName.trim() || null,
       });
