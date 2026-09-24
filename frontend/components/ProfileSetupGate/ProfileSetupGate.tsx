@@ -340,10 +340,13 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             walletAddress: account.address,
             fullName: accountType === "merchant" && !fullName.trim() ? companyName.trim() : (fullName.trim() || undefined),
             companyName: accountType === "merchant" ? companyName.trim() : undefined,
+            businessPhone: accountType === "merchant" ? phone.trim() : undefined,
+            businessEmail: accountType === "merchant" ? email.trim() : undefined,
             username: cleanedUsername,
             phone: phone.trim(),
-            whatsapp: accountType === "merchant" ? undefined : whatsapp.trim(),
+            whatsapp: whatsapp.trim() || undefined,
             email: email.trim(),
+            activeMode: accountType === "merchant" ? "merchant" : "personal",
             role: accountType,
             plan: accountType === "merchant" ? selectedPlan : "free",
             billingCycle: accountType === "merchant" ? billingCycle : "monthly",
@@ -357,6 +360,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
 
         if (typeof window !== "undefined") {
           localStorage.removeItem("recover_onboarding_draft");
+          localStorage.setItem("recover_active_mode", accountType === "merchant" ? "merchant" : "personal");
         }
 
         toast.success("Profile setup complete!");
