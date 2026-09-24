@@ -24,7 +24,7 @@ import MobileExploreDrawer from "./MobileExploreDrawer";
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { account } = useAuthReady();
-  const { role } = useProfile();
+  const { activeMode } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>("receipts");
@@ -176,7 +176,7 @@ export default function MobileBottomNav() {
               </button>
             </>
           ) : account ? (
-            role === "merchant" ? (
+            activeMode === "merchant" ? (
               /* Mode 2: Merchant Owner Navigation Tabs */
               <>
                 <Link

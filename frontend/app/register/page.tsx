@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Header from "@/components/Header/Header";
-import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -16,14 +15,7 @@ import { detectUserCurrency, UserCurrencyInfo } from "@/lib/currency";
 export default function RegisterPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail, role, isProfileLoaded } = useProfile();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (account && role && role === "merchant") {
-      router.replace("/shipments");
-    }
-  }, [account, role, router]);
+  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail, isProfileLoaded } = useProfile();
 
   // Form states
   const [name, setName] = useState("");
@@ -90,10 +82,6 @@ export default function RegisterPage() {
         </div>
       </main>
     );
-  }
-
-  if (account && role === "merchant") {
-    return null;
   }
 
   const handleGenerateAiInstructions = async () => {

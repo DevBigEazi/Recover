@@ -3,14 +3,14 @@
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { ArrowRight, Truck, Lock, Smartphone, Bot, Receipt, Users, ShieldCheck } from "lucide-react";
+import { ArrowRight, Truck, Lock, Smartphone, Bot, Receipt, Users, ShieldCheck, ArrowLeftRight } from "lucide-react";
 
 export default function AboutPage() {
   const steps = [
     {
       num: "01",
-      title: "Issue Digital Receipts or Register Physical Assets",
-      desc: "Retailers issue itemized digital receipts via the POS terminal, logistics operators create commercial package dispatches, and individuals protect everyday valuables. Retail buyers can instantly convert purchased items into protected vault items with 1-tap.",
+      title: "Single Account, Dual Modes: Personal Vault & POS Workspace",
+      desc: "One unified account powers both an individual Valuables Vault and a commercial Business Workspace. Retailers issue digital POS receipts and dispatch tracked packages, while individuals protect everyday belongings. Switch between modes with 1 tap in your profile menu.",
     },
     {
       num: "02",
@@ -135,6 +135,15 @@ export default function AboutPage() {
                   Google Gemini 2.0 automatically analyzes report coordinates to offer semantic safety context and assists owners with tailored recovery guidance.
                 </p>
               </div>
+
+              <div className="space-y-1.5 sm:space-y-2">
+                <h4 className="font-bold text-primary flex items-center gap-1.5">
+                  <ArrowLeftRight className="w-4 h-4 text-accent" /> Unified Account &amp; Mode Switch
+                </h4>
+                <p className="text-neutral-slate">
+                  Manage personal belongings and commercial operations from a single profile with 1-tap mode toggling, keeping store staff cleanly authenticated via PINs.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -167,6 +176,22 @@ export default function AboutPage() {
               <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
                 <div>
                   <h4 className="font-bold text-primary flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-accent" /> Personal Items Vault
+                  </h4>
+                  <p className="text-xs text-neutral-slate leading-relaxed mt-1">
+                    Protect smartphones, laptops, keys, and pets with scannable QR stickers and finder alerts.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Link href="/dashboard" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+                    Open Personal Vault <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-primary flex items-center gap-1.5">
                     <Truck className="w-4 h-4 text-indigo-600" /> Logistics Dispatch
                   </h4>
                   <p className="text-xs text-neutral-slate leading-relaxed mt-1">
@@ -176,22 +201,6 @@ export default function AboutPage() {
                 <div className="pt-2">
                   <Link href="/shipments" className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
                     Open Logistics Dispatch <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="space-y-2 bg-neutral-mist/35 p-5 rounded-xl border border-neutral-mist flex flex-col justify-between">
-                <div>
-                  <h4 className="font-bold text-primary flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-accent" /> Personal Valuables
-                  </h4>
-                  <p className="text-xs text-neutral-slate leading-relaxed mt-1">
-                    Protect smartphones, laptops, keys, and pets with scannable QR stickers.
-                  </p>
-                </div>
-                <div className="pt-2">
-                  <Link href="/register" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
-                    Register Personal Item <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               </div>

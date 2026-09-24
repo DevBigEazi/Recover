@@ -41,7 +41,15 @@ export default function MobileExploreDrawer({
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
   const { openLogin } = useAuth();
-  const { fullName, companyName, businessLogo, username, role, plan } = useProfile();
+  const {
+    fullName,
+    companyName,
+    businessLogo,
+    username,
+    plan,
+    activeMode,
+    switchMode,
+  } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 
   const isExplorePage =
@@ -54,11 +62,15 @@ export default function MobileExploreDrawer({
     ? null
     : isStaffMode
     ? workspaceSession?.businessLogo || businessLogo
-    : businessLogo;
+    : activeMode === "merchant"
+    ? businessLogo
+    : null;
 
   const brandTitle = isStaffMode
     ? (workspaceSession?.merchantName || companyName || "Workspace")
-    : (companyName || fullName || username || "Recover");
+    : activeMode === "merchant"
+    ? (companyName || fullName || username || "Recover")
+    : "Recover";
 
   if (!isOpen) return null;
 
@@ -126,7 +138,7 @@ export default function MobileExploreDrawer({
           {/* Top Bar: Logo & Close Button */}
           <div className="flex items-center justify-between border-b border-neutral-mist pb-3">
             <Link
-              href={isExplorePage ? "/" : role === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
+              href={isExplorePage ? "/" : isStaffMode ? "/workspace" : activeMode === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
               onClick={onClose}
               className="flex items-center space-x-2 min-w-0"
             >
@@ -196,31 +208,75 @@ export default function MobileExploreDrawer({
               </span>
             </div>
           ) : account ? (
-            <div className="bg-neutral-mist/50 border border-neutral-mist rounded-xl p-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs font-bold shrink-0 overflow-hidden">
-                  {role === "merchant" && businessLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={businessLogo} alt="" className="w-full h-full object-contain" />
-                  ) : (
-                    role === "merchant" ? "🏪" : <UserIcon className="w-4 h-4 text-primary" />
-                  )}
-                </div>
-                <div className="overflow-hidden min-w-0">
-                  <div className="text-xs font-bold text-primary truncate">
-                    {role === "merchant"
-                      ? companyName || fullName || username || "Merchant"
-                      : fullName || username || "Owner"}
+            <div className="space-y-3">
+              <div className="bg-neutral-mist/50 border border-neutral-mist rounded-xl p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-xs font-bold shrink-0 overflow-hidden">
+                    {activeMode === "merchant" && businessLogo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={businessLogo} alt="" className="w-full h-full object-contain" />
+                    ) : activeMode === "merchant" ? (
+                      "🏪"
+                    ) : (
+                      <UserIcon className="w-4 h-4 text-primary" />
+                    )}
                   </div>
-                  <div className="text-[10px] font-mono text-neutral-slate truncate">
-                    {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                  <div className="overflow-hidden min-w-0">
+                    <div className="text-xs font-bold text-primary truncate">
+                      {activeMode === "merchant"
+                        ? companyName || fullName || username || "Business"
+                        : fullName || username || "Personal"}
+                    </div>
+                    <div className="text-[10px] font-mono text-neutral-slate truncate">
+                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                    </div>
                   </div>
                 </div>
+                {activeMode === "merchant" && (
+                  <span className="bg-indigo-100 text-indigo-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase shrink-0">
+                    {plan === "free" ? "Free" : "Pro"}
+                  </span>
+                )}
               </div>
-              {role === "merchant" && (
-                <span className="bg-indigo-100 text-indigo-800 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase shrink-0">
-                  {plan === "free" ? "Free" : "Pro"}
-                </span>
+
+              {/* Mode Switcher Segmented Control */}
+              {!isStaffMode && (
+                <div className="p-1 bg-neutral-mist/80 rounded-xl flex border border-neutral-mist">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchMode("personal");
+                      if (pathname.startsWith("/workspace")) {
+                        router.push("/dashboard");
+                      }
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      activeMode === "personal"
+                        ? "bg-neutral-white text-primary shadow-xs"
+                        : "text-neutral-slate hover:text-primary"
+                    }`}
+                  >
+                    <span>👤</span>
+                    <span>Personal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchMode("merchant");
+                      if (pathname === "/dashboard" || pathname === "/register") {
+                        router.push("/workspace");
+                      }
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      activeMode === "merchant"
+                        ? "bg-neutral-white text-primary shadow-xs"
+                        : "text-neutral-slate hover:text-primary"
+                    }`}
+                  >
+                    <span>🏪</span>
+                    <span>Business</span>
+                  </button>
+                </div>
               )}
             </div>
           ) : null}
@@ -229,29 +285,11 @@ export default function MobileExploreDrawer({
           {account && (
             <div className="space-y-1">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-slate/80 px-2 block">
-                {role === "merchant" ? "Merchant Account" : "My Account"}
+                {activeMode === "merchant" ? "Business Workspace" : "Personal Items"}
               </span>
 
               <nav className="space-y-1">
-                <Link
-                  href="/settings"
-                  onClick={onClose}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
-                    isActive("/settings")
-                      ? "text-primary bg-neutral-mist font-bold"
-                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Settings className="w-4 h-4 text-blue-600" />
-                    <span className="font-semibold">
-                      {role === "merchant" ? "Merchant Settings" : "Settings"}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
-                </Link>
-
-                {role === "merchant" ? (
+                {activeMode === "merchant" ? (
                   <Link
                     href="/workspace"
                     onClick={onClose}
@@ -268,22 +306,56 @@ export default function MobileExploreDrawer({
                     <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
                   </Link>
                 ) : (
-                  <Link
-                    href="/dashboard"
-                    onClick={onClose}
-                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
-                      isActive("/dashboard")
-                        ? "text-primary bg-neutral-mist font-bold"
-                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <LayoutDashboard className="w-4 h-4 text-accent" />
-                      <span>Items Dashboard</span>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
-                  </Link>
+                  <>
+                    <Link
+                      href="/dashboard"
+                      onClick={onClose}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                        isActive("/dashboard")
+                          ? "text-primary bg-neutral-mist font-bold"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <LayoutDashboard className="w-4 h-4 text-accent" />
+                        <span>Items Dashboard</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                    </Link>
+
+                    <Link
+                      href="/register"
+                      onClick={onClose}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                        isActive("/register")
+                          ? "text-primary bg-neutral-mist font-bold"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Tag className="w-4 h-4 text-primary" />
+                        <span>Register Item</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                    </Link>
+                  </>
                 )}
+
+                <Link
+                  href="/settings"
+                  onClick={onClose}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                    isActive("/settings")
+                      ? "text-primary bg-neutral-mist font-bold"
+                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Settings className="w-4 h-4 text-blue-600" />
+                    <span className="font-semibold">Settings</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                </Link>
               </nav>
             </div>
           )}

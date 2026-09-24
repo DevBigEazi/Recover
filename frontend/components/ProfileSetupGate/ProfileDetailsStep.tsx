@@ -45,45 +45,54 @@ export default function ProfileDetailsStep({
 }: ProfileDetailsStepProps) {
   return (
     <>
-      {/* Account Type Options */}
-      <div className="space-y-3">
-        <span className="block text-xs font-bold text-neutral-slate uppercase tracking-wider">
-          I want to use Recover as a:
-        </span>
-        <div className="grid grid-cols-1 gap-3">
+      {/* Starting Focus Options */}
+      <div className="space-y-2.5">
+        <div>
+          <span className="block text-xs font-bold text-neutral-slate uppercase tracking-wider">
+            Choose your starting focus:
+          </span>
+          <p className="text-[11px] text-neutral-slate mt-0.5">
+            One account covers both. You can toggle between Personal and Business modes anytime from the navigation bar.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => setAccountType("user")}
-            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
               accountType === "user"
                 ? "border-accent bg-accent/5 ring-1 ring-accent"
                 : "border-neutral-mist hover:border-gray-300 bg-neutral-white"
             }`}
           >
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-extrabold text-primary">Individual User</span>
+              <span className="text-xs font-extrabold text-primary flex items-center gap-1.5">
+                <span>👤</span> Personal Items
+              </span>
               {accountType === "user" && <span className="text-xs text-accent">●</span>}
             </div>
             <p className="text-[11px] text-neutral-slate leading-normal">
-              Register personal items (keys, phones, pets) and configure contact details for lost alerts.
+              Protect personal phones, keys, pets, and laptops with smart QR stickers.
             </p>
           </button>
 
           <button
             type="button"
             onClick={() => setAccountType("merchant")}
-            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
               accountType === "merchant"
                 ? "border-accent bg-accent/5 ring-1 ring-accent"
                 : "border-neutral-mist hover:border-gray-300 bg-neutral-white"
             }`}
           >
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-extrabold text-primary">Merchant / Business Account</span>
+              <span className="text-xs font-extrabold text-primary flex items-center gap-1.5">
+                <span>🏪</span> Business & Retail
+              </span>
               {accountType === "merchant" && <span className="text-xs text-accent">●</span>}
             </div>
             <p className="text-[11px] text-neutral-slate leading-normal">
-              Issue digital receipts, track tamper-proof deliveries, print dispatch QR codes, and receive webhook triggers.
+              Issue digital receipts, run POS, dispatch parcels, and invite staff.
             </p>
           </button>
         </div>

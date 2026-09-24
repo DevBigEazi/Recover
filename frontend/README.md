@@ -17,6 +17,7 @@ NEXT_PUBLIC_RECOVER_RECEIPT_CONTRACT_ADDRESS=0xe7Fd5C712BA26cd3a25faaDE4Be258585
 BACKEND_SIGNER_PRIVATE_KEY=0x...   # Gasless relayer and serverAuth admin key
 
 # Stripe Payment Processing
+PAYSTACK_SECRET_KEY=sk_test_
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
@@ -54,6 +55,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Core Features & Integrations
 
+- **Unified Single Account & Dual Mode Switcher**: Single wallet authentication providing seamless 1-tap switching between **Personal Mode** (lost-and-found vault, items, QR stickers) and **Business Mode** (merchant receipts, POS, dispatches, teams) with zero artificial route barriers.
 - **Proof of Purchase & Merchant POS Workspace (`/workspace`, `/receipts`, `/r/[receiptNumber]`)**: Fast point-of-sale receipt terminal, multi-item cart, store credit/debtor management, automated sales analytics, one-click PDF receipts/reports, and permanent immutable audit trails for every transaction.
 - **Merchant Teams, Branches & PIN-Based Staff Auth (`/settings`, `/workspace/login`)**: Role-based access control (Owner, Manager, Sales Rep), multi-branch store operations, passwordless 6-digit numeric PIN authentication via ZeptoMail transactional email, and 12-hour HttpOnly session cookies.
 - **Enterprise Logistics Tracking (`/shipments`, `/scan/[id]`)**: Commercial package dispatching with scratch-off handover PINs (`RCVR-XXXX`), rider dispatch manifests, dual WhatsApp link generation, and real-time chain-of-custody updates.

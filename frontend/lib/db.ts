@@ -57,10 +57,18 @@ export interface IUser {
   companyName: string | null;
   /** Optional business logo image (Base64 data URL or URL) for merchants */
   businessLogo?: string | null;
+  /** Dedicated customer support phone line for merchants (distinct from personal phone) */
+  businessPhone?: string | null;
+  /** Dedicated business/invoice email for merchants (distinct from personal email) */
+  businessEmail?: string | null;
   username: string;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
+  /** Active UI mode chosen by user — toggles between personal and business navigation */
+  activeMode: "personal" | "merchant";
+  /** Flag indicating whether the user has set up their business details */
+  hasMerchantProfile: boolean;
   subscriptionActive: boolean;
   role: "user" | "merchant";
   /**
@@ -350,10 +358,16 @@ const UserSchema = new Schema<IUser>(
     companyName: { type: String, default: null },
     /** Business logo Base64 data URL or external URL (merchants only) */
     businessLogo: { type: String, default: null },
+    /** Dedicated customer support phone line for merchants */
+    businessPhone: { type: String, default: null },
+    /** Dedicated business/invoice email for merchants */
+    businessEmail: { type: String, default: null },
     username: { type: String, required: true, unique: true, index: true },
     phone: { type: String, default: null },
     whatsapp: { type: String, default: null },
     email: { type: String, default: null },
+    activeMode: { type: String, enum: ["personal", "merchant"], default: "personal" },
+    hasMerchantProfile: { type: Boolean, default: false },
     subscriptionActive: { type: Boolean, default: false },
     // Index on role enables efficient merchant-only queries (e.g., shipment create guard)
     role: { type: String, enum: ["user", "merchant"], default: "user", index: true },

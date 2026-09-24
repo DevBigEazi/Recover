@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useProfile } from "@/context/ProfileContext";
 import { toast } from "react-hot-toast";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Store, User as UserIcon } from "lucide-react";
 
 interface ProfileDetailsCardProps {
   walletAddress: string;
@@ -18,18 +18,29 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     phone,
     whatsapp,
     email,
-    role,
+    businessPhone,
+    businessEmail,
+    activeMode,
     refetchProfile,
   } = useProfile();
 
+  // Shared Account Owner Name (identical across both Personal and Business modes)
   const [nameInput, setNameInput] = useState("");
-  const [companyNameInput, setCompanyNameInput] = useState("");
-  const [logoInput, setLogoInput] = useState<string | null>(null);
-  const [isReadingLogo, setIsReadingLogo] = useState(false);
+
+  // Personal Mode Fields
   const [usernameInput, setUsernameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [whatsappInput, setWhatsappInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+
+  // Business Mode Fields
+  const [companyNameInput, setCompanyNameInput] = useState("");
+  const [businessPhoneInput, setBusinessPhoneInput] = useState("");
+  const [businessEmailInput, setBusinessEmailInput] = useState("");
+  const [logoInput, setLogoInput] = useState<string | null>(null);
+  const [isReadingLogo, setIsReadingLogo] = useState(false);
+
+  // Notification and Form States
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
   const [isRegisteringPush, setIsRegisteringPush] = useState(false);
@@ -37,7 +48,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Sync profile details when loaded
+  // Sync profile details when profile data is loaded or refetched
   useEffect(() => {
     if (fullName) setNameInput(fullName);
     if (companyName) setCompanyNameInput(companyName);
@@ -46,7 +57,9 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     if (phone) setPhoneInput(phone);
     if (whatsapp) setWhatsappInput(whatsapp);
     if (email) setEmailInput(email);
-  }, [fullName, companyName, businessLogo, username, phone, whatsapp, email]);
+    if (businessPhone) setBusinessPhoneInput(businessPhone);
+    if (businessEmail) setBusinessEmailInput(businessEmail);
+  }, [fullName, companyName, businessLogo, username, phone, whatsapp, email, businessPhone, businessEmail]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -221,112 +234,169 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     setProfileError(null);
 
     const cleanedName = nameInput.trim();
-    const cleanedCompanyName = companyNameInput.trim();
-    const cleanedUsername = usernameInput.trim().toLowerCase();
-    const cleanedPhone = phoneInput.trim();
-    const cleanedWhatsapp = whatsappInput.trim();
-    const cleanedEmail = emailInput.trim();
 
-    if (role !== "merchant" && (cleanedName.length === 0 || cleanedName.length > 50)) {
+    if (cleanedName.length === 0 || cleanedName.length > 50) {
       setProfileError("Full Name must be between 1 and 50 characters.");
       toast.error("Full Name must be between 1 and 50 characters.");
       setIsSaving(false);
       return;
     }
 
-    if (role === "merchant" && (cleanedCompanyName.length === 0 || cleanedCompanyName.length > 80)) {
-      setProfileError("Business Name must be between 1 and 80 characters.");
-      toast.error("Business Name must be between 1 and 80 characters.");
-      setIsSaving(false);
-      return;
-    }
+    if (activeMode === "personal") {
+      const cleanedUsername = usernameInput.trim().toLowerCase();
+      const cleanedPhone = phoneInput.trim();
+      const cleanedWhatsapp = whatsappInput.trim();
+      const cleanedEmail = emailInput.trim();
 
-    if (!/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
-      setProfileError(
-        "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
-      );
-      toast.error(
-        "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
-      );
-      setIsSaving(false);
-      return;
-    }
-
-    if (role === "merchant") {
-      if (!cleanedPhone || !cleanedEmail) {
-        setProfileError("All Business Contact Channels (Support Phone and Support Email) are compulsory.");
-        toast.error("Support Phone and Business Support Email are required.");
+      if (!/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
+        setProfileError(
+          "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
+        );
+        toast.error("Username must be between 3 and 30 characters.");
         setIsSaving(false);
         return;
       }
-    } else {
+
       if (!cleanedPhone && !cleanedWhatsapp && !cleanedEmail) {
         setProfileError(
-          "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required on your profile."
+          "At least one personal contact method (Phone, WhatsApp, or Email) is required on your profile."
         );
-        toast.error(
-          "At least one contact method (Phone, WhatsApp, or Email) is required on your profile."
-        );
+        toast.error("At least one personal contact method (Phone, WhatsApp, or Email) is required.");
         setIsSaving(false);
         return;
       }
-    }
 
-    try {
-      const response = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          walletAddress,
-          fullName: role === "merchant" ? (cleanedName || undefined) : cleanedName,
-          companyName: role === "merchant" ? cleanedCompanyName : undefined,
-          businessLogo: role === "merchant" ? logoInput : undefined,
-          username: cleanedUsername,
-          phone: cleanedPhone,
-          whatsapp: role === "merchant" ? undefined : cleanedWhatsapp,
-          email: cleanedEmail,
-        }),
-      });
+      try {
+        const response = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            walletAddress,
+            fullName: cleanedName,
+            username: cleanedUsername,
+            phone: cleanedPhone || undefined,
+            whatsapp: cleanedWhatsapp || undefined,
+            email: cleanedEmail || undefined,
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update settings.");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to update profile settings.");
+        }
+
+        refetchProfile();
+        setProfileSuccess(true);
+        toast.success("Personal profile updated successfully!");
+        setTimeout(() => setProfileSuccess(false), 3000);
+      } catch (err: unknown) {
+        console.error(err);
+        const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+        setProfileError(msg);
+        toast.error(msg);
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Business Mode Save
+      const cleanedCompanyName = companyNameInput.trim();
+      const cleanedBusinessPhone = businessPhoneInput.trim();
+      const cleanedBusinessEmail = businessEmailInput.trim();
+
+      if (cleanedCompanyName.length === 0 || cleanedCompanyName.length > 80) {
+        setProfileError("Store or Business Name must be between 1 and 80 characters.");
+        toast.error("Store or Business Name must be between 1 and 80 characters.");
+        setIsSaving(false);
+        return;
       }
 
-      refetchProfile();
-      setProfileSuccess(true);
-      toast.success("Profile settings updated successfully!");
-      setTimeout(() => setProfileSuccess(false), 3000);
-    } catch (err: unknown) {
-      console.error(err);
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
-      setProfileError(msg);
-      toast.error(msg);
-    } finally {
-      setIsSaving(false);
+      try {
+        const response = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            walletAddress,
+            fullName: cleanedName,
+            companyName: cleanedCompanyName,
+            businessLogo: logoInput || undefined,
+            businessPhone: cleanedBusinessPhone || undefined,
+            businessEmail: cleanedBusinessEmail || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to update business settings.");
+        }
+
+        refetchProfile();
+        setProfileSuccess(true);
+        toast.success("Business profile updated successfully!");
+        setTimeout(() => setProfileSuccess(false), 3000);
+      } catch (err: unknown) {
+        console.error(err);
+        const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+        setProfileError(msg);
+        toast.error(msg);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
+  // Determine dirty state based strictly on activeMode
+  const isPersonalDirty =
+    activeMode === "personal" &&
+    (nameInput.trim() !== (fullName || "").trim() ||
+      usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
+      phoneInput.trim() !== (phone || "").trim() ||
+      whatsappInput.trim() !== (whatsapp || "").trim() ||
+      emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase());
+
+  const isBusinessDirty =
+    activeMode === "merchant" &&
+    (nameInput.trim() !== (fullName || "").trim() ||
+      companyNameInput.trim() !== (companyName || "").trim() ||
+      businessPhoneInput.trim() !== (businessPhone || "").trim() ||
+      businessEmailInput.trim().toLowerCase() !== (businessEmail || "").trim().toLowerCase() ||
+      logoInput !== (businessLogo || null));
+
+  const isDirty = isPersonalDirty || isBusinessDirty;
+
   return (
     <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 shadow-xs">
-      <h2 className="text-lg font-bold text-primary font-display mb-2">
-        {role === "merchant" ? "Merchant Profile Details" : "Profile Details"}
-      </h2>
-      <div className="flex items-center gap-2 mb-3">
-        <span
-          className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-            role === "merchant"
-              ? "bg-blue-50 text-blue-700 border-blue-200"
-              : "bg-green-50 text-green-700 border-green-200"
-          }`}
-        >
-          {role === "merchant" ? "🏪 Merchant Account" : "👤 Individual Account"}
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+        <h2 className="text-lg font-bold text-primary font-display flex items-center gap-2">
+          {activeMode === "merchant" ? (
+            <>
+              <Store className="w-5 h-5 text-blue-600" />
+              <span>Business &amp; Store Profile</span>
+            </>
+          ) : (
+            <>
+              <UserIcon className="w-5 h-5 text-primary" />
+              <span>Personal Profile Details</span>
+            </>
+          )}
+        </h2>
+
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+              activeMode === "merchant"
+                ? "bg-blue-50 text-blue-700 border-blue-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            }`}
+          >
+            {activeMode === "merchant" ? "🏪 Business Mode" : "👤 Personal Mode"}
+          </span>
+        </div>
       </div>
+
       <p className="text-xs text-neutral-slate mb-6">
-        {role === "merchant"
-          ? "Manage your business name, official store logo, contact channels, and dispatch username."
-          : "Manage your display name and username associated with physical sticker reports."}
+        {activeMode === "merchant"
+          ? "Manage your commercial store identity, official brand logo, and customer support channels for POS & dispatches."
+          : "Manage your display name, username, and contact buttons used by finders on physical sticker reports."}
       </p>
 
       <form onSubmit={handleProfileSave} className="space-y-6">
@@ -348,153 +418,74 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           </div>
         )}
 
-        {/* Business Logo Upload (Merchants Only) */}
-        {role === "merchant" && (
-          <div className="p-4 rounded-xl border border-neutral-mist bg-neutral-cream/20 space-y-3">
-            <div className="flex items-center justify-between">
+        {/* ========================================================================= */}
+        {/* MODE A: PERSONAL PROFILE ONLY */}
+        {/* ========================================================================= */}
+        {activeMode === "personal" && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-primary">
-                  Business Logo
-                </label>
-                <p className="text-[11px] text-neutral-slate">
-                  This logo will appear on your digital receipts, counter QR displays, and sales reports.
-                </p>
-              </div>
-              {logoInput && (
-                <button
-                  type="button"
-                  onClick={handleRemoveLogo}
-                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Remove</span>
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              {logoInput ? (
-                <div className="relative w-16 h-16 rounded-xl border border-neutral-mist bg-neutral-white overflow-hidden shrink-0 shadow-xs flex items-center justify-center p-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logoInput}
-                    alt="Business Logo Preview"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="w-16 h-16 rounded-xl border-2 border-dashed border-neutral-mist bg-neutral-white flex items-center justify-center text-neutral-slate/60 shrink-0">
-                  <ImageIcon className="w-6 h-6" />
-                </div>
-              )}
-
-              <div className="flex-1 min-w-0">
-                <label
-                  htmlFor="business-logo-upload"
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-slate/20 bg-neutral-white hover:bg-neutral-mist/50 text-xs font-bold text-primary shadow-xs cursor-pointer transition-all"
-                >
-                  <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{isReadingLogo ? "Processing..." : logoInput ? "Change Logo" : "Upload Business Logo"}</span>
-                  <input
-                    id="business-logo-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleLogoChange}
-                    disabled={isReadingLogo}
-                    className="hidden"
-                  />
-                </label>
-                <p className="text-[10px] text-neutral-slate/70 mt-1">
-                  Supported formats: PNG, JPG, WebP. Resized and optimized automatically.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {role === "merchant" && (
-            <div className="md:col-span-2">
-              <label htmlFor="companyName" className="block text-xs font-semibold text-primary mb-2">
-                Business Name *
-              </label>
-              <input
-                type="text"
-                id="companyName"
-                value={companyNameInput}
-                onChange={(e) => setCompanyNameInput(e.target.value)}
-                placeholder="e.g. Acme Supermarket or Big Eazi Logistics"
-                className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent font-semibold"
-                required
-                maxLength={80}
-              />
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="fullName" className="block text-xs font-semibold text-primary mb-2">
-              {role === "merchant" ? "Primary Contact Name (Optional)" : "Display Name / Full Name"}
-            </label>
-            <input
-              type="text"
-              id="fullName"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder={role === "merchant" ? "e.g. Jane Smith" : "Enter your name"}
-              className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
-              required={role !== "merchant"}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="username" className="block text-xs font-semibold text-primary mb-2">
-              {role === "merchant" ? "Merchant ID / Username" : "Username"}
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder={role === "merchant" ? "e.g. acme_dispatch" : "e.g. johndoe"}
-              className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
-              required
-            />
-            <span className="block text-[10px] text-neutral-slate mt-1.5 leading-relaxed">
-              Allowed characters: lowercase letters, numbers, underscores, and hyphens.
-            </span>
-          </div>
-
-          <div className="md:col-span-2 border-t border-neutral-mist pt-4 space-y-4">
-            <div>
-              <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
-                {role === "merchant" ? "Support Contact Channels" : "Permanent Contact Channels (At least 1 required)"}
-              </h4>
-              <p className="text-[11px] text-neutral-slate mt-0.5">
-                {role === "merchant"
-                  ? "Both customer support phone line and support email details are mandatory for logistics company tracking updates."
-                  : "Finders will use these buttons on your item verify page to contact you directly when an item is found."}
-              </p>
-            </div>
-
-            <div className={`grid grid-cols-1 md:grid-cols-${role === "merchant" ? 2 : 3} gap-4`}>
-              <div>
-                <label htmlFor="settings_phone" className="block text-xs font-semibold text-primary mb-1.5">
-                  {role === "merchant" ? "📞 Support Phone Number *" : "📞 Phone Number (Calls)"}
+                <label htmlFor="fullName" className="block text-xs font-semibold text-primary mb-1.5">
+                  Display Name / Full Name *
                 </label>
                 <input
-                  id="settings_phone"
-                  type="tel"
-                  required={role === "merchant"}
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  placeholder="e.g. +2348012345678"
-                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                  type="text"
+                  id="fullName"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="Enter your name"
+                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
+                  required
                 />
+                <span className="block text-[10px] text-neutral-slate mt-1">
+                  Account owner name (shared identically with Business mode).
+                </span>
               </div>
 
-              {role !== "merchant" && (
+              <div>
+                <label htmlFor="username" className="block text-xs font-semibold text-primary mb-1.5">
+                  Username *
+                </label>
+                <input
+                  type="text"
+                  id="username"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="e.g. johndoe"
+                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
+                  required
+                />
+                <span className="block text-[10px] text-neutral-slate mt-1">
+                  Lowercase letters, numbers, underscores, and hyphens.
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-primary mb-1">
+                Personal Contact Channels (At least 1 required)
+              </label>
+              <p className="text-[11px] text-neutral-slate mb-3">
+                Finders will use these buttons on your item verification page to contact you directly if an item is found.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label htmlFor="settings_whatsapp" className="block text-xs font-semibold text-primary mb-1.5">
+                  <label htmlFor="settings_phone" className="block text-[11px] font-semibold text-primary mb-1">
+                    📞 Phone Number (Calls)
+                  </label>
+                  <input
+                    id="settings_phone"
+                    type="tel"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="e.g. +2348012345678"
+                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="settings_whatsapp" className="block text-[11px] font-semibold text-primary mb-1">
                     💬 WhatsApp Number
                   </label>
                   <input
@@ -503,30 +494,181 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                     value={whatsappInput}
                     onChange={(e) => setWhatsappInput(e.target.value)}
                     placeholder="e.g. +2348012345678"
-                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
                   />
                 </div>
-              )}
 
-              <div>
-                <label htmlFor="settings_email" className="block text-xs font-semibold text-primary mb-1.5">
-                  {role === "merchant" ? "✉️ Business Support Email *" : "✉️ Email Address"}
-                </label>
-                <input
-                  id="settings_email"
-                  type="email"
-                  required={role === "merchant"}
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder={role === "merchant" ? "e.g. support@acme.com" : "e.g. owner@example.com"}
-                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
-                />
+                <div>
+                  <label htmlFor="settings_email" className="block text-[11px] font-semibold text-primary mb-1">
+                    ✉️ Email Address
+                  </label>
+                  <input
+                    id="settings_email"
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder="e.g. owner@example.com"
+                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="border-t border-neutral-mist pt-6 space-y-5">
+        {/* ========================================================================= */}
+        {/* MODE B: BUSINESS & STORE PROFILE ONLY */}
+        {/* ========================================================================= */}
+        {activeMode === "merchant" && (
+          <div className="space-y-5 animate-fadeIn">
+            {/* Account Owner Name (Shared) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="ownerFullName" className="block text-xs font-semibold text-primary mb-1.5">
+                  Account Owner / Representative Name *
+                </label>
+                <input
+                  type="text"
+                  id="ownerFullName"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="e.g. Jane Doe"
+                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
+                  required
+                />
+                <span className="block text-[10px] text-neutral-slate mt-1">
+                  Account owner name (shared identically with Personal mode).
+                </span>
+              </div>
+
+              <div>
+                <label htmlFor="companyName" className="block text-xs font-semibold text-primary mb-1.5">
+                  Store / Business Name *
+                </label>
+                <input
+                  type="text"
+                  id="companyName"
+                  value={companyNameInput}
+                  onChange={(e) => setCompanyNameInput(e.target.value)}
+                  placeholder="e.g. Acme Supermarket or Big Eazi Logistics"
+                  className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-semibold focus:outline-none focus:border-accent"
+                  required
+                  maxLength={80}
+                />
+                <span className="block text-[10px] text-neutral-slate mt-1">
+                  Appears on customer digital receipts, invoices, and dispatch tracking.
+                </span>
+              </div>
+            </div>
+
+            {/* Official Business Logo Upload */}
+            <div className="p-4 rounded-xl border border-neutral-mist bg-neutral-cream/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-xs font-bold text-primary">
+                    Official Business Logo
+                  </label>
+                  <p className="text-[11px] text-neutral-slate">
+                    Appears on customer digital receipts, counter POS screens, and dispatch receipts.
+                  </p>
+                </div>
+                {logoInput && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                {logoInput ? (
+                  <div className="relative w-16 h-16 rounded-xl border border-neutral-mist bg-neutral-white overflow-hidden shrink-0 shadow-xs flex items-center justify-center p-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={logoInput}
+                      alt="Business Logo Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-neutral-mist bg-neutral-white flex items-center justify-center text-neutral-slate/60 shrink-0">
+                    <ImageIcon className="w-6 h-6" />
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor="business-logo-upload"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-slate/20 bg-neutral-white hover:bg-neutral-mist/50 text-xs font-bold text-primary shadow-xs cursor-pointer transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-blue-600" />
+                    <span>{isReadingLogo ? "Processing..." : logoInput ? "Change Logo" : "Upload Business Logo"}</span>
+                    <input
+                      id="business-logo-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleLogoChange}
+                      disabled={isReadingLogo}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-[10px] text-neutral-slate/70 mt-1">
+                    Supported formats: PNG, JPG, WebP. Resized and optimized automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Business Support Channels */}
+            <div>
+              <label className="block text-xs font-bold text-primary mb-1">
+                Customer Support &amp; Dispatch Channels
+              </label>
+              <p className="text-[11px] text-neutral-slate mb-3">
+                Printed on digital customer receipts and accessible to package recipients.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="businessPhone" className="block text-[11px] font-semibold text-primary mb-1">
+                    📞 Business Support Phone
+                  </label>
+                  <input
+                    type="tel"
+                    id="businessPhone"
+                    value={businessPhoneInput}
+                    onChange={(e) => setBusinessPhoneInput(e.target.value)}
+                    placeholder="e.g. +2348001234567"
+                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="businessEmail" className="block text-[11px] font-semibold text-primary mb-1">
+                    ✉️ Business Support Email
+                  </label>
+                  <input
+                    type="email"
+                    id="businessEmail"
+                    value={businessEmailInput}
+                    onChange={(e) => setBusinessEmailInput(e.target.value)}
+                    placeholder="e.g. support@yourcompany.com"
+                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* NOTIFICATION PREFERENCES (COMMON UTILITY) */}
+        {/* ========================================================================= */}
+        <div className="border-t border-neutral-mist pt-6 space-y-4">
           <h4 className="text-xs font-bold text-primary uppercase tracking-wider">Notification Preferences</h4>
 
           <div
@@ -544,7 +686,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                   </span>
                 </div>
                 <span className="block text-[11px] text-neutral-slate leading-normal">
-                  Receive instant push alerts on your phone or device screen when a scan or report occurs.
+                  Receive instant alerts on your screen when an item is scanned or when a shipment handover occurs.
                 </span>
               </div>
 
@@ -571,33 +713,20 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           </div>
         </div>
 
-        {/* Compute dirty status so save button is only active when fields are modified */}
-        {(() => {
-          const isDirty =
-            nameInput.trim() !== (fullName || "").trim() ||
-            companyNameInput.trim() !== (companyName || "").trim() ||
-            logoInput !== (businessLogo || null) ||
-            usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
-            phoneInput.trim() !== (phone || "").trim() ||
-            whatsappInput.trim() !== (whatsapp || "").trim() ||
-            emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase();
-
-          return (
-            <div className="pt-4 flex justify-end">
-              <button
-                type="submit"
-                disabled={!isDirty || isSaving || isReadingLogo}
-                className={`font-semibold rounded-lg px-6 py-2.5 text-xs transition-colors shadow-xs flex items-center gap-2 ${
-                  isDirty && !isSaving && !isReadingLogo
-                    ? "bg-primary hover:bg-primary-light text-neutral-white cursor-pointer"
-                    : "bg-neutral-slate/15 text-neutral-slate border border-neutral-mist cursor-not-allowed opacity-60"
-                }`}
-              >
-                {isSaving ? "Saving profile details..." : "Save Settings"}
-              </button>
-            </div>
-          );
-        })()}
+        {/* Save Button */}
+        <div className="pt-4 flex justify-end">
+          <button
+            type="submit"
+            disabled={!isDirty || isSaving || isReadingLogo}
+            className={`font-semibold rounded-lg px-6 py-2.5 text-xs transition-colors shadow-xs flex items-center gap-2 ${
+              isDirty && !isSaving && !isReadingLogo
+                ? "bg-primary hover:bg-primary-light text-neutral-white cursor-pointer"
+                : "bg-neutral-slate/15 text-neutral-slate border border-neutral-mist cursor-not-allowed opacity-60"
+            }`}
+          >
+            {isSaving ? "Saving..." : activeMode === "merchant" ? "Save Business Settings" : "Save Personal Settings"}
+          </button>
+        </div>
       </form>
     </div>
   );

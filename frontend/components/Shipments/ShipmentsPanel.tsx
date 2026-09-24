@@ -25,7 +25,6 @@ export default function ShipmentsPanel() {
   const {
     apiKey,
     subscriptionActive,
-    role,
     plan,
     billingCycle,
     billingCycleStart,
@@ -79,7 +78,7 @@ export default function ShipmentsPanel() {
       if (!response.ok) throw new Error("Failed to load shipments");
       return response.json();
     },
-    enabled: !!effectiveAddress && (role === "merchant" || isStaffMode),
+    enabled: !!effectiveAddress,
     refetchInterval: 5000,
     staleTime: 3000,
   });
@@ -143,7 +142,6 @@ export default function ShipmentsPanel() {
             <MerchantUpgradeCard
               walletAddress={effectiveAddress || ""}
               plan={plan || "free"}
-              role={role || "merchant"}
               billingCycle={billingCycle}
               subscriptionActive={subscriptionActive}
               userCurrency={userCurrency}

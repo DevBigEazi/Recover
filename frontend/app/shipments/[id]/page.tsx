@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, use, useEffect } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Header from "@/components/Header/Header";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRightLeft, AlertTriangle, User, MapPin, X, Loader2, FileText, Calendar, CheckCircle, ChevronLeft, Globe, Share2, ShieldAlert, Lock } from "lucide-react";
@@ -39,11 +38,10 @@ interface Shipment {
 
 export default function ShipmentTrackingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { role, companyName, isProfileLoaded, apiKey } = useProfile();
+  const { companyName, isProfileLoaded, apiKey } = useProfile();
 
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [riderName, setRiderName] = useState("");
@@ -62,13 +60,6 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
 
   // Edit Package state
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // Redirect individual users immediately
-  useEffect(() => {
-    if (account && isProfileLoaded && role !== "merchant") {
-      router.replace("/dashboard");
-    }
-  }, [account, isProfileLoaded, role, router]);
 
   // Fetch shipment details — only for merchants
   const { data: shipment, isLoading, error } = useQuery<Shipment>({
@@ -92,7 +83,7 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
       if (!response.ok) throw new Error("Failed to load shipment details");
       return response.json();
     },
-    enabled: !!account && role === "merchant",
+    enabled: !!account,
     refetchInterval: 5000,
     staleTime: 3000,
   });
@@ -185,19 +176,6 @@ export default function ShipmentTrackingPage({ params }: { params: Promise<{ id:
               Sign In
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Role guard — individual user somehow reached this page
-  if (role !== "merchant") {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white font-sans pb-12">
-        <Header />
-        <div className="flex flex-col justify-center items-center py-32 gap-3">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          <p className="text-slate-400 text-xs">Redirecting to your personal dashboard...</p>
         </div>
       </div>
     );

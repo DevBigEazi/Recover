@@ -7,16 +7,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileContextType {
   fullName: string | null;
-  /** Company/business display name — non-null only for role === "merchant" accounts. */
+  /** Company/business display name */
   companyName: string | null;
-  /** Business logo Base64 or URL — non-null only for role === "merchant" accounts. */
+  /** Business logo Base64 or URL */
   businessLogo: string | null;
+  /** Dedicated customer support phone line for merchants */
+  businessPhone: string | null;
+  /** Dedicated business/invoice email for merchants */
+  businessEmail: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
   subscriptionActive: boolean;
   role: "user" | "merchant";
+  /** Currently active UI navigation mode */
+  activeMode: "personal" | "merchant";
+  /** Whether the user has configured business/merchant details */
+  hasMerchantProfile: boolean;
+  switchMode: (targetMode: "personal" | "merchant") => Promise<void>;
   plan: "free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
   billingCycle: "monthly" | "yearly";
   billingCycleStart: string | null;
@@ -91,6 +100,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     });
   }, [walletAddress]);
 
+  const [localMode, setLocalMode] = useState<"personal" | "merchant" | null>(null);
+
+  // Sync initial localMode from profileData or fallback to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedMode = localStorage.getItem("recover_active_mode") as "personal" | "merchant" | null;
+      if (savedMode === "personal" || savedMode === "merchant") {
+        setLocalMode(savedMode);
+      }
+    }
+  }, []);
+
   const openProfileSetup = useCallback(() => setIsOpenSetup(true), []);
   const closeProfileSetup = useCallback(() => setIsOpenSetup(false), []);
 
@@ -103,6 +124,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
   const companyName = profileData && !("isNotFound" in profileData) ? profileData.companyName || null : null;
   const businessLogo = profileData && !("isNotFound" in profileData) ? profileData.businessLogo || null : null;
+  const businessPhone = profileData && !("isNotFound" in profileData) ? profileData.businessPhone || null : null;
+  const businessEmail = profileData && !("isNotFound" in profileData) ? profileData.businessEmail || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
@@ -116,6 +139,47 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const rolloverQuota = profileData && !("isNotFound" in profileData) ? Number(profileData.rolloverQuota || 0) : 0;
   const overageCharges = profileData && !("isNotFound" in profileData) ? Number(profileData.overageCharges || 0) : 0;
 
+  const hasMerchantProfile = Boolean(
+    profileData &&
+      !("isNotFound" in profileData) &&
+      (profileData.hasMerchantProfile || Boolean(profileData.companyName))
+  );
+
+  const activeMode: "personal" | "merchant" =
+    localMode ||
+    (profileData && !("isNotFound" in profileData) && (profileData.activeMode === "personal" || profileData.activeMode === "merchant")
+      ? profileData.activeMode
+      : hasMerchantProfile
+      ? "merchant"
+      : "personal");
+
+  const switchMode = useCallback(
+    async (targetMode: "personal" | "merchant") => {
+      setLocalMode(targetMode);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("recover_active_mode", targetMode);
+      }
+      if (walletAddress) {
+        try {
+          await fetch("/api/profile", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-owner-address": walletAddress,
+            },
+            body: JSON.stringify({
+              walletAddress,
+              activeMode: targetMode,
+            }),
+          });
+          queryClient.invalidateQueries({ queryKey: ["profile", walletAddress] });
+        } catch (e) {
+          console.error("Failed to sync activeMode with server:", e);
+        }
+      }
+    },
+    [walletAddress, queryClient]
+  );
 
   const apiKey = profileData && !("isNotFound" in profileData) ? profileData.apiKey || null : null;
   const testApiKey = profileData && !("isNotFound" in profileData) ? profileData.testApiKey || null : null;
@@ -128,12 +192,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       fullName,
       companyName,
       businessLogo,
+      businessPhone,
+      businessEmail,
       username,
       phone,
       whatsapp,
       email,
       subscriptionActive,
       role,
+      activeMode,
+      hasMerchantProfile,
+      switchMode,
       plan,
       billingCycle,
       billingCycleStart,
@@ -157,12 +226,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       fullName,
       companyName,
       businessLogo,
+      businessPhone,
+      businessEmail,
       username,
       phone,
       whatsapp,
       email,
       subscriptionActive,
       role,
+      activeMode,
+      hasMerchantProfile,
+      switchMode,
       plan,
       billingCycle,
       billingCycleStart,

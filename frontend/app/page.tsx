@@ -3,7 +3,7 @@
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Truck, Lock, Smartphone, Bot, Receipt, Users } from "lucide-react";
+import { ArrowRight, ShieldCheck, Truck, Lock, Smartphone, Bot, Receipt, Users, ArrowLeftRight, User, Briefcase } from "lucide-react";
 
 export default function Home() {
   return (
@@ -21,7 +21,7 @@ export default function Home() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
                 </span>
-                <span className="font-bold tracking-tight text-primary">Three-Pillar Protocol</span>
+                <span className="font-bold tracking-tight text-primary">Single Unified Account · Dual Modes</span>
               </div>
 
               <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl lg:text-6xl leading-tight">
@@ -29,30 +29,30 @@ export default function Home() {
               </h1>
               
               <p className="text-sm sm:text-lg text-neutral-slate leading-relaxed max-w-2xl mx-auto">
-                Recover bridges physical assets with digital certainty — empowering SME merchants with fast digital POS receipts, securing commercial packages with tamperproof custody tracking, and protecting everyday valuables with scannable QR stickers.
+                One account, two modes: protect everyday personal belongings with scannable QR stickers, or switch to business mode for fast digital POS receipts, package dispatches, and multi-branch store operations.
               </p>
 
-              {/* 3 Core Action CTAs */}
+              {/* Core Action CTAs */}
               <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
                 <Link
                   href="/workspace"
                   className="w-full sm:w-auto bg-primary hover:bg-primary-light text-neutral-white font-semibold rounded-xl px-6 py-3.5 text-sm transition-all shadow-md hover:shadow-lg text-center cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Receipt className="w-4 h-4 text-emerald-400" /> POS &amp; Receipts Workspace
+                  <Receipt className="w-4 h-4 text-emerald-400" /> Business Workspace
                 </Link>
                 
-                <Link
-                  href="/shipments"
-                  className="w-full sm:w-auto bg-neutral-white hover:bg-neutral-mist border border-neutral-slate/20 text-primary font-semibold rounded-xl px-6 py-3.5 text-sm transition-all shadow-xs text-center cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Truck className="w-4 h-4 text-indigo-600" /> Logistics Dispatch
-                </Link>
-
                 <Link
                   href="/dashboard"
                   className="w-full sm:w-auto bg-neutral-white hover:bg-neutral-mist border border-neutral-slate/20 text-primary font-semibold rounded-xl px-6 py-3.5 text-sm transition-all shadow-xs text-center cursor-pointer flex items-center justify-center gap-2"
                 >
                   <ShieldCheck className="w-4 h-4 text-accent" /> Personal Items Vault
+                </Link>
+
+                <Link
+                  href="/shipments"
+                  className="w-full sm:w-auto bg-neutral-white hover:bg-neutral-mist border border-neutral-slate/20 text-primary font-semibold rounded-xl px-6 py-3.5 text-sm transition-all shadow-xs text-center cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Truck className="w-4 h-4 text-indigo-600" /> Logistics Dispatch
                 </Link>
               </div>
             </div>
@@ -135,6 +135,86 @@ export default function Home() {
                   <Link href="/register" className="text-xs font-bold text-accent hover:text-accent/80 inline-flex items-center gap-1">
                     Register a Valued Item →
                   </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Single Unified Account & Switch Mode Showcase */}
+        <section className="py-10 sm:py-16 bg-neutral-white border-b border-neutral-mist">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="bg-neutral-mist/30 border border-neutral-slate/15 rounded-3xl p-6 sm:p-10 shadow-xs space-y-8">
+              <div className="text-center max-w-2xl mx-auto space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/15 text-[11px] text-primary font-bold">
+                  <ArrowLeftRight className="w-3.5 h-3.5 text-accent" />
+                  <span>Unified Identity Architecture</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-primary font-display">
+                  One Unified Account, Two Powerful Modes
+                </h2>
+                <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed">
+                  No separate logins or fragmented tools. Use your single profile to manage both your personal valuables and your commercial enterprise with an instant 1-tap mode switch.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Mode Card */}
+                <div className="bg-neutral-white border border-neutral-slate/15 rounded-2xl p-6 space-y-4 shadow-xs flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-accent/10 text-accent px-2.5 py-0.5 rounded-full">
+                        Personal Mode
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-primary font-display">
+                      Personal Valuables Vault
+                    </h3>
+                    <p className="text-xs text-neutral-slate leading-relaxed">
+                      Register phones, laptops, wallets, keys, and pets. Export customizable QR stickers, view finder scan location coordinates, and unlock reports without monthly commitments.
+                    </p>
+                  </div>
+                  <div className="pt-4 border-t border-neutral-mist flex items-center justify-between">
+                    <span className="text-xs font-semibold text-neutral-slate">Personal Hub</span>
+                    <Link
+                      href="/dashboard"
+                      className="text-xs font-bold text-accent hover:text-accent/80 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      Open Personal Vault <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Business Mode Card */}
+                <div className="bg-neutral-white border border-neutral-slate/15 rounded-2xl p-6 space-y-4 shadow-xs flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-700 px-2.5 py-0.5 rounded-full">
+                        Business Mode
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-primary font-display">
+                      Merchant Operations Workspace
+                    </h3>
+                    <p className="text-xs text-neutral-slate leading-relaxed">
+                      Fast multi-item POS receipts, debtor tracking, tamperproof package dispatches, multi-branch management, and PIN-based email invites for store staff.
+                    </p>
+                  </div>
+                  <div className="pt-4 border-t border-neutral-mist flex items-center justify-between">
+                    <span className="text-xs font-semibold text-neutral-slate">Merchant Hub</span>
+                    <Link
+                      href="/workspace"
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      Open Business Workspace <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
