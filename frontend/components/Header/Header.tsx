@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown, Bell } from "lucide-react";
+import { ChevronDown, Bell, Settings } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useActiveWallet, useDisconnect } from "thirdweb/react";
@@ -736,6 +736,14 @@ export default function Header() {
             ) : account ? (
               <div className="flex items-center gap-1">
                 <Link
+                  href="/settings"
+                  className="p-1.5 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-lg transition-colors cursor-pointer"
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <Settings className="w-5 h-5" />
+                </Link>
+                <Link
                   href="/notifications"
                   className="p-1.5 text-neutral-slate hover:text-primary hover:bg-neutral-mist rounded-lg transition-colors relative cursor-pointer"
                   aria-label="Notifications"
@@ -743,18 +751,6 @@ export default function Header() {
                   <Bell className="w-5 h-5" />
                   {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 bg-critical rounded-full" />
-                  )}
-                </Link>
-                <Link
-                  href={role === "merchant" ? "/workspace" : "/dashboard"}
-                  className="w-7 h-7 rounded-full bg-neutral-mist border border-neutral-mist flex items-center justify-center text-xs overflow-hidden shrink-0"
-                  aria-label="Profile"
-                >
-                  {role === "merchant" && businessLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={businessLogo} alt="" className="w-full h-full object-contain" />
-                  ) : (
-                    role === "merchant" ? "🏪" : "👤"
                   )}
                 </Link>
               </div>

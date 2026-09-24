@@ -13,6 +13,9 @@ import {
   User as UserIcon,
   ChevronRight,
   KeyRound,
+  Settings,
+  Store,
+  LayoutDashboard,
 } from "lucide-react";
 import { useActiveWallet, useDisconnect } from "thirdweb/react";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -221,6 +224,69 @@ export default function MobileExploreDrawer({
               )}
             </div>
           ) : null}
+
+          {/* Section: Account & Management Links (Logged in) */}
+          {account && (
+            <div className="space-y-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-slate/80 px-2 block">
+                {role === "merchant" ? "Merchant Account" : "My Account"}
+              </span>
+
+              <nav className="space-y-1">
+                <Link
+                  href="/settings"
+                  onClick={onClose}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                    isActive("/settings")
+                      ? "text-primary bg-neutral-mist font-bold"
+                      : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Settings className="w-4 h-4 text-blue-600" />
+                    <span className="font-semibold">
+                      {role === "merchant" ? "Merchant Settings" : "Settings"}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                </Link>
+
+                {role === "merchant" ? (
+                  <Link
+                    href="/workspace"
+                    onClick={onClose}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                      isActive("/workspace")
+                        ? "text-primary bg-neutral-mist font-bold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Store className="w-4 h-4 text-accent" />
+                      <span>Workspace Hub</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                  </Link>
+                ) : (
+                  <Link
+                    href="/dashboard"
+                    onClick={onClose}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
+                      isActive("/dashboard")
+                        ? "text-primary bg-neutral-mist font-bold"
+                        : "text-neutral-slate hover:text-primary hover:bg-neutral-mist/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <LayoutDashboard className="w-4 h-4 text-accent" />
+                      <span>Items Dashboard</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-slate/40" />
+                  </Link>
+                )}
+              </nav>
+            </div>
+          )}
 
           {/* Section: Explore & Informational Pages */}
           <div className="space-y-1">
