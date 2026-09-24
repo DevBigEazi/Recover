@@ -563,51 +563,6 @@ export default function Header() {
 
                     {isUserMenuOpen && (
                       <div className="absolute right-0 mt-2 w-56 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
-                        {/* 1-Tap Mode Switcher or Activation Prompt in Menu */}
-                        {!isStaffMode && (
-                          <div className="px-3 py-1.5 border-b border-neutral-mist mb-1">
-                            {hasPersonalProfile && hasMerchantProfile ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextMode = activeMode === "personal" ? "merchant" : "personal";
-                                  switchMode(nextMode);
-                                  setIsUserMenuOpen(false);
-                                  router.push(nextMode === "merchant" ? "/workspace" : "/dashboard");
-                                }}
-                                className="w-full flex items-center justify-between px-2.5 py-1.5 bg-neutral-mist/60 hover:bg-neutral-mist rounded-lg text-xs font-semibold text-primary transition-colors cursor-pointer"
-                              >
-                                <span className="flex items-center gap-1.5">
-                                  {activeMode === "personal" ? "🏪 Switch to Business" : "👤 Switch to Personal"}
-                                </span>
-                                <span className="text-[10px] text-blue-600 font-bold">Switch →</span>
-                              </button>
-                            ) : hasPersonalProfile && !hasMerchantProfile ? (
-                              <Link
-                                href="/settings"
-                                onClick={() => setIsUserMenuOpen(false)}
-                                className="w-full flex items-center justify-between px-2.5 py-1.5 bg-neutral-mist/60 hover:bg-neutral-mist rounded-lg text-xs font-semibold text-primary transition-colors cursor-pointer"
-                              >
-                                <span className="flex items-center gap-1.5 text-emerald-600">
-                                  🏪 Activate Business
-                                </span>
-                                <span className="text-[10px] text-emerald-600 font-bold">Set up →</span>
-                              </Link>
-                            ) : (
-                              <Link
-                                href="/settings"
-                                onClick={() => setIsUserMenuOpen(false)}
-                                className="w-full flex items-center justify-between px-2.5 py-1.5 bg-neutral-mist/60 hover:bg-neutral-mist rounded-lg text-xs font-semibold text-primary transition-colors cursor-pointer"
-                              >
-                                <span className="flex items-center gap-1.5 text-accent">
-                                  👤 Activate Personal Vault
-                                </span>
-                                <span className="text-[10px] text-accent font-bold">Set up →</span>
-                              </Link>
-                            )}
-                          </div>
-                        )}
-
                         {activeMode === "merchant" ? (
                           <>
                             <div className="px-4 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">

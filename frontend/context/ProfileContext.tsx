@@ -15,6 +15,8 @@ interface ProfileContextType {
   businessPhone: string | null;
   /** Dedicated business/invoice email for merchants */
   businessEmail: string | null;
+  /** Unique store / company handle (e.g. acme_logistics) — distinct from personal username */
+  businessHandle: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
@@ -128,6 +130,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const businessLogo = profileData && !("isNotFound" in profileData) ? profileData.businessLogo || null : null;
   const businessPhone = profileData && !("isNotFound" in profileData) ? profileData.businessPhone || null : null;
   const businessEmail = profileData && !("isNotFound" in profileData) ? profileData.businessEmail || null : null;
+  const businessHandle = profileData && !("isNotFound" in profileData) ? profileData.businessHandle || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
@@ -150,9 +153,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const hasPersonalProfile = Boolean(
     profileData &&
       !("isNotFound" in profileData) &&
-      (profileData.hasPersonalProfile ||
-        (Boolean(profileData.username) &&
-          Boolean(profileData.phone || profileData.whatsapp || profileData.email)))
+      (profileData.hasPersonalProfile !== undefined
+        ? profileData.hasPersonalProfile
+        : Boolean(profileData.username) && Boolean(profileData.phone || profileData.whatsapp || profileData.email))
   );
 
   // If user only has merchant profile, activeMode defaults to merchant.
@@ -213,6 +216,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       businessLogo,
       businessPhone,
       businessEmail,
+      businessHandle,
       username,
       phone,
       whatsapp,
@@ -248,6 +252,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       businessLogo,
       businessPhone,
       businessEmail,
+      businessHandle,
       username,
       phone,
       whatsapp,

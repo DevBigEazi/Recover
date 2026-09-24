@@ -13,6 +13,7 @@ interface ActivateMerchantModalProps {
   businessDetails: {
     fullName: string;
     companyName: string;
+    businessHandle?: string;
     businessLogo?: string | null;
     businessPhone?: string;
     businessEmail?: string;
@@ -66,6 +67,7 @@ export default function ActivateMerchantModal({
           currency: userCurrency?.currency,
           isOnboarding: true,
           companyName: businessDetails.companyName.trim(),
+          businessHandle: businessDetails.businessHandle?.trim().toLowerCase() || undefined,
           phone: businessDetails.businessPhone?.trim(),
           fullName: businessDetails.fullName.trim() || businessDetails.companyName.trim(),
         }),
@@ -101,10 +103,13 @@ export default function ActivateMerchantModal({
           walletAddress,
           fullName: businessDetails.fullName.trim(),
           companyName: businessDetails.companyName.trim(),
+          businessHandle: businessDetails.businessHandle?.trim().toLowerCase() || undefined,
           businessLogo: businessDetails.businessLogo || undefined,
           businessPhone: businessDetails.businessPhone?.trim() || undefined,
           businessEmail: businessDetails.businessEmail?.trim() || undefined,
           role: "merchant",
+          activeMode: "merchant",
+          hasMerchantProfile: true,
           plan: "free",
           billingCycle: "monthly",
         }),

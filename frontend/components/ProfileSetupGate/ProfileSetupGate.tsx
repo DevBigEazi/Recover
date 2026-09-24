@@ -25,12 +25,22 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const pathname = usePathname();
   const isPublicPage = pathname === "/" || pathname === "/about" || pathname.startsWith("/verify/");
 
-  const [fullName, setFullName] = useState("");
-  const [companyName, setCompanyName] = useState("");
+  // Personal Onboarding State
+  const [personalFullName, setPersonalFullName] = useState("");
   const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [email, setEmail] = useState("");
+  const [personalPhone, setPersonalPhone] = useState("");
+  const [personalWhatsapp, setPersonalWhatsapp] = useState("");
+  const [personalEmail, setPersonalEmail] = useState("");
+  const [isUsernameManuallyEdited, setIsUsernameManuallyEdited] = useState(false);
+
+  // Business Onboarding State
+  const [companyName, setCompanyName] = useState("");
+  const [businessRepName, setBusinessRepName] = useState("");
+  const [businessHandle, setBusinessHandle] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [isBusinessHandleManuallyEdited, setIsBusinessHandleManuallyEdited] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<"user" | "merchant">("user");
@@ -38,7 +48,6 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [billingCycle, setBillingCycle] = useState<"monthly">("monthly");
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
-  const [isUsernameManuallyEdited, setIsUsernameManuallyEdited] = useState(false);
   const [randomSuffix] = useState(() => Math.floor(100 + Math.random() * 900));
 
   const [hasAccess, setHasAccess] = useState(false);
@@ -63,12 +72,18 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         if (raw) {
           const draft = JSON.parse(raw);
           if (draft.accountType) setAccountType(draft.accountType);
-          if (draft.companyName) setCompanyName(draft.companyName);
-          if (draft.fullName) setFullName(draft.fullName);
+          if (draft.personalFullName) setPersonalFullName(draft.personalFullName);
           if (draft.username) setUsername(draft.username);
-          if (draft.phone) setPhone(draft.phone);
-          if (draft.whatsapp) setWhatsapp(draft.whatsapp);
-          if (draft.email) setEmail(draft.email);
+          if (draft.personalPhone) setPersonalPhone(draft.personalPhone);
+          if (draft.personalWhatsapp) setPersonalWhatsapp(draft.personalWhatsapp);
+          if (draft.personalEmail) setPersonalEmail(draft.personalEmail);
+
+          if (draft.companyName) setCompanyName(draft.companyName);
+          if (draft.businessRepName) setBusinessRepName(draft.businessRepName);
+          if (draft.businessHandle) setBusinessHandle(draft.businessHandle);
+          if (draft.businessPhone) setBusinessPhone(draft.businessPhone);
+          if (draft.businessEmail) setBusinessEmail(draft.businessEmail);
+
           if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
           if (draft.step) setStep(draft.step);
         }
@@ -120,7 +135,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         try {
           const mail = await getUserEmail({ client });
           if (mail) {
-            setEmail(mail);
+            setPersonalEmail((prev) => prev || mail);
+            setBusinessEmail((prev) => prev || mail);
             return;
           }
         } catch {
@@ -135,7 +151,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             const profiles = await walletWithProfile.getProfiles();
             const emailProfile = profiles.find((p) => p.email);
             if (emailProfile && emailProfile.email) {
-              setEmail(emailProfile.email);
+              setPersonalEmail((prev) => prev || emailProfile.email!);
+              setBusinessEmail((prev) => prev || emailProfile.email!);
             }
           }
         } catch (err) {
@@ -144,10 +161,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       }
     };
 
-    if (!email) {
-      fetchWalletEmail();
-    }
-  }, [activeWallet, email]);
+    fetchWalletEmail();
+  }, [activeWallet]);
 
   // 1. Hydration safety loading state
   if (!isMounted && account && !isPublicPage) {
@@ -198,8 +213,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   // 5. If profile setup is not done and account is logged in, intercept rendering with the setup card
   if (account && isOpenSetup && !isPublicPage) {
     const handleProPayment = async () => {
-      if (!email.trim()) {
-        toast.error("Please provide an email address first to proceed with the subscription payment.");
+      if (!businessEmail.trim()) {
+        toast.error("Please provide a business support email first to proceed with the subscription payment.");
         return;
       }
       setIsUpgrading(true);
@@ -210,12 +225,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             "recover_onboarding_draft",
             JSON.stringify({
               accountType,
-              fullName,
               companyName,
-              username: username.trim().toLowerCase(),
-              phone,
-              whatsapp,
-              email,
+              businessRepName,
+              businessHandle: businessHandle.trim().toLowerCase(),
+              businessPhone,
+              businessEmail,
               selectedPlan,
               step: 2,
             })
@@ -228,7 +242,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             walletAddress: account.address,
-            email: email.trim(),
+            email: businessEmail.trim(),
             planTier: selectedPlan,
             billingCycle: "monthly",
             gateway: isNigeria ? "paystack" : "stripe",
@@ -236,9 +250,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             currency: userCurrency?.currency,
             isOnboarding: true,
             companyName: companyName.trim(),
-            username: username.trim().toLowerCase(),
-            phone: phone.trim(),
-            fullName: fullName.trim() || companyName.trim(),
+            businessHandle: businessHandle.trim().toLowerCase(),
+            phone: businessPhone.trim(),
+            fullName: businessRepName.trim() || companyName.trim(),
           }),
         });
 
@@ -264,40 +278,39 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
 
     const handleSubmit = async (e: React.SyntheticEvent) => {
       e.preventDefault();
-      if (accountType === "user" && !fullName.trim()) return;
-      if (!username.trim()) return;
-      if (accountType === "merchant" && !companyName.trim()) return;
 
-      const cleanedUsername = username.trim().toLowerCase();
-      if (!/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
-        setError(
-          "Username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens."
-        );
-        toast.error(
-          "Username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens."
-        );
-        return;
-      }
-
-      if (accountType === "merchant") {
-        if (!companyName.trim()) {
-          setError("Company name is required.");
-          toast.error("Please enter your company name.");
+      if (accountType === "user") {
+        if (!personalFullName.trim()) {
+          setError("Full name is required.");
+          toast.error("Please enter your full name.");
           return;
         }
-        if (!phone.trim() || !email.trim()) {
-          setError("All Business Contact Channels (Support Phone and Support Email) are compulsory.");
-          toast.error("Support Phone and Business Support Email are required.");
+        const cleanedUsername = username.trim().toLowerCase();
+        if (!cleanedUsername || !/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
+          setError("Personal username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.");
+          toast.error("Personal username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.");
+          return;
+        }
+        if (!personalPhone.trim() && !personalWhatsapp.trim() && !personalEmail.trim()) {
+          setError("At least one contact method (Phone, WhatsApp, or Email) is required on your personal profile.");
+          toast.error("At least one contact method (Phone, WhatsApp, or Email) is required.");
           return;
         }
       } else {
-        if (!phone.trim() && !whatsapp.trim() && !email.trim()) {
-          setError(
-            "At least one contact method (Phone Number, WhatsApp Number, or Email Address) is required so finders can reach you."
-          );
-          toast.error(
-            "At least one contact method (Phone, WhatsApp, or Email) is required."
-          );
+        if (!companyName.trim()) {
+          setError("Store / Business name is required.");
+          toast.error("Please enter your Store / Business name.");
+          return;
+        }
+        const cleanedBusinessHandle = businessHandle.trim().toLowerCase();
+        if (!cleanedBusinessHandle || !/^[a-z0-9_-]{3,30}$/.test(cleanedBusinessHandle)) {
+          setError("Business Handle must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.");
+          toast.error("Business Handle must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.");
+          return;
+        }
+        if (!businessPhone.trim() || !businessEmail.trim()) {
+          setError("All Business Contact Channels (Support Phone and Support Email) are compulsory.");
+          toast.error("Support Phone and Business Support Email are required.");
           return;
         }
       }
@@ -308,12 +321,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             "recover_onboarding_draft",
             JSON.stringify({
               accountType,
-              fullName,
               companyName,
-              username: cleanedUsername,
-              phone,
-              whatsapp,
-              email,
+              businessRepName,
+              businessHandle: businessHandle.trim().toLowerCase(),
+              businessPhone,
+              businessEmail,
               selectedPlan,
               step: 2,
             })
@@ -333,24 +345,41 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       setError(null);
 
       try {
+        const payload =
+          accountType === "merchant"
+            ? {
+                walletAddress: account.address,
+                fullName: businessRepName.trim() || companyName.trim(),
+                companyName: companyName.trim(),
+                businessPhone: businessPhone.trim(),
+                businessEmail: businessEmail.trim(),
+                businessHandle: businessHandle.trim().toLowerCase(),
+                activeMode: "merchant",
+                hasMerchantProfile: true,
+                hasPersonalProfile: false,
+                role: "merchant",
+                plan: selectedPlan,
+                billingCycle: billingCycle,
+              }
+            : {
+                walletAddress: account.address,
+                fullName: personalFullName.trim(),
+                username: username.trim().toLowerCase(),
+                phone: personalPhone.trim() || undefined,
+                whatsapp: personalWhatsapp.trim() || undefined,
+                email: personalEmail.trim() || undefined,
+                activeMode: "personal",
+                hasPersonalProfile: true,
+                hasMerchantProfile: false,
+                role: "user",
+                plan: "free",
+                billingCycle: "monthly",
+              };
+
         const res = await fetch("/api/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            walletAddress: account.address,
-            fullName: accountType === "merchant" && !fullName.trim() ? companyName.trim() : (fullName.trim() || undefined),
-            companyName: accountType === "merchant" ? companyName.trim() : undefined,
-            businessPhone: accountType === "merchant" ? phone.trim() : undefined,
-            businessEmail: accountType === "merchant" ? email.trim() : undefined,
-            username: cleanedUsername,
-            phone: phone.trim(),
-            whatsapp: whatsapp.trim() || undefined,
-            email: email.trim(),
-            activeMode: accountType === "merchant" ? "merchant" : "personal",
-            role: accountType,
-            plan: accountType === "merchant" ? selectedPlan : "free",
-            billingCycle: accountType === "merchant" ? billingCycle : "monthly",
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -391,7 +420,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             </h2>
             <p className="text-xs text-neutral-slate max-w-xs mx-auto">
               {accountType === "user"
-                ? "Choose your profile display details and at least one contact method so finders can reach you when items are found."
+                ? "Choose your personal display details and at least one contact method so finders can reach you when items are found."
                 : "Set up your company profile details. Customer support phone line and business email are compulsory for deliveries."}
             </p>
           </div>
@@ -408,21 +437,31 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
               <ProfileDetailsStep
                 accountType={accountType}
                 setAccountType={setAccountType}
-                fullName={fullName}
-                setFullName={setFullName}
-                companyName={companyName}
-                setCompanyName={setCompanyName}
+                personalFullName={personalFullName}
+                setPersonalFullName={setPersonalFullName}
                 username={username}
                 setUsername={setUsername}
                 isUsernameManuallyEdited={isUsernameManuallyEdited}
                 setIsUsernameManuallyEdited={setIsUsernameManuallyEdited}
+                personalPhone={personalPhone}
+                setPersonalPhone={setPersonalPhone}
+                personalWhatsapp={personalWhatsapp}
+                setPersonalWhatsapp={setPersonalWhatsapp}
+                personalEmail={personalEmail}
+                setPersonalEmail={setPersonalEmail}
+                companyName={companyName}
+                setCompanyName={setCompanyName}
+                businessRepName={businessRepName}
+                setBusinessRepName={setBusinessRepName}
+                businessHandle={businessHandle}
+                setBusinessHandle={setBusinessHandle}
+                isBusinessHandleManuallyEdited={isBusinessHandleManuallyEdited}
+                setIsBusinessHandleManuallyEdited={setIsBusinessHandleManuallyEdited}
+                businessPhone={businessPhone}
+                setBusinessPhone={setBusinessPhone}
+                businessEmail={businessEmail}
+                setBusinessEmail={setBusinessEmail}
                 randomSuffix={randomSuffix}
-                phone={phone}
-                setPhone={setPhone}
-                whatsapp={whatsapp}
-                setWhatsapp={setWhatsapp}
-                email={email}
-                setEmail={setEmail}
                 isLoading={isLoading}
               />
             ) : (

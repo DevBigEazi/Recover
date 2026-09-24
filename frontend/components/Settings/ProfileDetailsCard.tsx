@@ -21,6 +21,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     email,
     businessPhone,
     businessEmail,
+    businessHandle,
     activeMode,
     hasPersonalProfile,
     hasMerchantProfile,
@@ -38,12 +39,16 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   }, [activeMode]);
 
   // Form State
-  const [nameInput, setNameInput] = useState("");
+  // Form State: strictly decoupled
+  const [personalNameInput, setPersonalNameInput] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [whatsappInput, setWhatsappInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+
   const [companyNameInput, setCompanyNameInput] = useState("");
+  const [businessRepNameInput, setBusinessRepNameInput] = useState("");
+  const [businessHandleInput, setBusinessHandleInput] = useState("");
   const [businessPhoneInput, setBusinessPhoneInput] = useState("");
   const [businessEmailInput, setBusinessEmailInput] = useState("");
   const [logoInput, setLogoInput] = useState<string | null>(null);
@@ -55,10 +60,18 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Sync profile details when profile data is loaded or refetched
+  // Sync profile details without cross-contaminating tabs
   useEffect(() => {
-    if (fullName) setNameInput(fullName);
+    if (fullName) {
+      if (hasPersonalProfile) setPersonalNameInput(fullName);
+      if (hasMerchantProfile) setBusinessRepNameInput(fullName);
+      if (!hasPersonalProfile && !hasMerchantProfile) {
+        setPersonalNameInput(fullName);
+        setBusinessRepNameInput(fullName);
+      }
+    }
     if (companyName) setCompanyNameInput(companyName);
+    if (businessHandle) setBusinessHandleInput(businessHandle);
     if (businessLogo !== undefined) setLogoInput(businessLogo);
     if (username) setUsernameInput(username);
     if (phone) setPhoneInput(phone);
@@ -66,7 +79,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     if (email) setEmailInput(email);
     if (businessPhone) setBusinessPhoneInput(businessPhone);
     if (businessEmail) setBusinessEmailInput(businessEmail);
-  }, [fullName, companyName, businessLogo, username, phone, whatsapp, email, businessPhone, businessEmail]);
+  }, [fullName, companyName, businessHandle, businessLogo, username, phone, whatsapp, email, businessPhone, businessEmail, hasPersonalProfile, hasMerchantProfile]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,34 +221,29 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     setProfileSuccess(false);
     setProfileError(null);
 
-    const cleanedName = nameInput.trim();
-
-    if (cleanedName.length === 0 || cleanedName.length > 50) {
-      setProfileError("Full Name must be between 1 and 50 characters.");
-      toast.error("Full Name must be between 1 and 50 characters.");
-      setIsSaving(false);
-      return;
-    }
-
     if (activeTab === "personal") {
+      const cleanedPersonalName = personalNameInput.trim();
       const cleanedUsername = usernameInput.trim().toLowerCase();
       const cleanedPhone = phoneInput.trim();
       const cleanedWhatsapp = whatsappInput.trim();
       const cleanedEmail = emailInput.trim();
 
+      if (cleanedPersonalName.length === 0 || cleanedPersonalName.length > 50) {
+        setProfileError("Full Name must be between 1 and 50 characters.");
+        toast.error("Full Name must be between 1 and 50 characters.");
+        setIsSaving(false);
+        return;
+      }
+
       if (!/^[a-z0-9_-]{3,30}$/.test(cleanedUsername)) {
-        setProfileError(
-          "Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens."
-        );
-        toast.error("Username must be between 3 and 30 characters.");
+        setProfileError("Personal Username must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens.");
+        toast.error("Personal Username must be between 3 and 30 characters.");
         setIsSaving(false);
         return;
       }
 
       if (!cleanedPhone && !cleanedWhatsapp && !cleanedEmail) {
-        setProfileError(
-          "At least one personal contact method (Phone, WhatsApp, or Email) is required on your profile."
-        );
+        setProfileError("At least one personal contact method (Phone, WhatsApp, or Email) is required on your profile.");
         toast.error("At least one personal contact method (Phone, WhatsApp, or Email) is required.");
         setIsSaving(false);
         return;
@@ -247,11 +255,12 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             walletAddress,
-            fullName: cleanedName,
+            fullName: cleanedPersonalName,
             username: cleanedUsername,
             phone: cleanedPhone || undefined,
             whatsapp: cleanedWhatsapp || undefined,
             email: cleanedEmail || undefined,
+            hasPersonalProfile: true,
           }),
         });
 
@@ -262,11 +271,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
         refetchProfile();
         setProfileSuccess(true);
-        toast.success(
-          hasPersonalProfile
-            ? "Personal profile updated successfully!"
-            : "Personal profile activated successfully!"
-        );
+        toast.success(hasPersonalProfile ? "Personal profile updated successfully!" : "Personal profile activated successfully!");
         setTimeout(() => setProfileSuccess(false), 3000);
       } catch (err: unknown) {
         console.error(err);
@@ -278,13 +283,27 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
       }
     } else {
       // Business Mode Save
+      const cleanedBusinessRepName = businessRepNameInput.trim();
       const cleanedCompanyName = companyNameInput.trim();
+      const cleanedBusinessHandle = (businessHandleInput || companyNameInput)
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "_")
+        .slice(0, 30);
       const cleanedBusinessPhone = businessPhoneInput.trim();
       const cleanedBusinessEmail = businessEmailInput.trim();
 
       if (cleanedCompanyName.length === 0 || cleanedCompanyName.length > 80) {
         setProfileError("Store or Business Name must be between 1 and 80 characters.");
         toast.error("Store or Business Name must be between 1 and 80 characters.");
+        setIsSaving(false);
+        return;
+      }
+
+      if (!/^[a-z0-9_-]{3,30}$/.test(cleanedBusinessHandle)) {
+        setProfileError("Business Handle must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens.");
+        toast.error("Business Handle must be between 3 and 30 characters.");
         setIsSaving(false);
         return;
       }
@@ -302,11 +321,13 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             walletAddress,
-            fullName: cleanedName,
+            fullName: cleanedBusinessRepName || cleanedCompanyName,
             companyName: cleanedCompanyName,
+            businessHandle: cleanedBusinessHandle,
             businessLogo: logoInput || undefined,
             businessPhone: cleanedBusinessPhone || undefined,
             businessEmail: cleanedBusinessEmail || undefined,
+            hasMerchantProfile: true,
           }),
         });
 
@@ -317,11 +338,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
         refetchProfile();
         setProfileSuccess(true);
-        toast.success(
-          hasMerchantProfile
-            ? "Business profile updated successfully!"
-            : "Business profile activated successfully!"
-        );
+        toast.success(hasMerchantProfile ? "Business profile updated successfully!" : "Business profile activated successfully!");
         setTimeout(() => setProfileSuccess(false), 3000);
       } catch (err: unknown) {
         console.error(err);
@@ -335,22 +352,8 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   };
 
   // Determine dirty state based strictly on activeTab
-  const isPersonalDirty = activeTab === "personal" && (
-    nameInput.trim() !== (fullName || "").trim() ||
-    usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
-    phoneInput.trim() !== (phone || "").trim() ||
-    whatsappInput.trim() !== (whatsapp || "").trim() ||
-    emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase()
-  );
-
-  const isBusinessDirty = activeTab === "merchant" && (
-    nameInput.trim() !== (fullName || "").trim() ||
-    companyNameInput.trim() !== (companyName || "").trim() ||
-    businessPhoneInput.trim() !== (businessPhone || "").trim() ||
-    businessEmailInput.trim().toLowerCase() !== (businessEmail || "").trim().toLowerCase() ||
-    logoInput !== (businessLogo || null)
-  );
-
+  const isPersonalDirty = activeTab === "personal" && (personalNameInput.trim() !== (hasPersonalProfile ? (fullName || "").trim() : "") || usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() || phoneInput.trim() !== (phone || "").trim() || whatsappInput.trim() !== (whatsapp || "").trim() || emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase());
+  const isBusinessDirty = activeTab === "merchant" && (businessRepNameInput.trim() !== (hasMerchantProfile ? (fullName || "").trim() : "") || companyNameInput.trim() !== (companyName || "").trim() || businessHandleInput.trim().toLowerCase() !== (businessHandle || "").trim().toLowerCase() || businessPhoneInput.trim() !== (businessPhone || "").trim() || businessEmailInput.trim().toLowerCase() !== (businessEmail || "").trim().toLowerCase() || logoInput !== (businessLogo || null));
   const isDirty = isPersonalDirty || isBusinessDirty;
 
   return (
@@ -468,32 +471,32 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                 <input
                   type="text"
                   id="fullName"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
+                  value={personalNameInput}
+                  onChange={(e) => setPersonalNameInput(e.target.value)}
                   placeholder="Enter your name"
                   className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
                   required
                 />
                 <span className="block text-[10px] text-neutral-slate mt-1">
-                  Account owner name (shared identically with Business mode).
+                  Personal identity displayed on sticker recovery verification.
                 </span>
               </div>
 
               <div>
                 <label htmlFor="username" className="block text-xs font-semibold text-primary mb-1.5">
-                  Username *
+                  Personal Username *
                 </label>
                 <input
                   type="text"
                   id="username"
                   value={usernameInput}
-                  onChange={(e) => setUsernameInput(e.target.value)}
+                  onChange={(e) => setUsernameInput(e.target.value.toLowerCase())}
                   placeholder="e.g. johndoe"
                   className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
                   required
                 />
                 <span className="block text-[10px] text-neutral-slate mt-1">
-                  Lowercase letters, numbers, underscores, and hyphens.
+                  Unique personal handle (e.g. @johndoe) displayed to finders on sticker reports.
                 </span>
               </div>
             </div>
@@ -508,45 +511,16 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label htmlFor="settings_phone" className="block text-[11px] font-semibold text-primary mb-1">
-                    📞 Phone Number (Calls)
-                  </label>
-                  <input
-                    id="settings_phone"
-                    type="tel"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    placeholder="e.g. +2348012345678"
-                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
-                  />
+                  <label htmlFor="settings_phone" className="block text-[11px] font-semibold text-primary mb-1">📞 Phone Number (Calls)</label>
+                  <input id="settings_phone" type="tel" value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} placeholder="e.g. +2348012345678" className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent" />
                 </div>
-
                 <div>
-                  <label htmlFor="settings_whatsapp" className="block text-[11px] font-semibold text-primary mb-1">
-                    💬 WhatsApp Number
-                  </label>
-                  <input
-                    id="settings_whatsapp"
-                    type="tel"
-                    value={whatsappInput}
-                    onChange={(e) => setWhatsappInput(e.target.value)}
-                    placeholder="e.g. +2348012345678"
-                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
-                  />
+                  <label htmlFor="settings_whatsapp" className="block text-[11px] font-semibold text-primary mb-1">💬 WhatsApp Number</label>
+                  <input id="settings_whatsapp" type="tel" value={whatsappInput} onChange={(e) => setWhatsappInput(e.target.value)} placeholder="e.g. +2348012345678" className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary font-mono focus:outline-none focus:border-accent" />
                 </div>
-
                 <div>
-                  <label htmlFor="settings_email" className="block text-[11px] font-semibold text-primary mb-1">
-                    ✉️ Email Address
-                  </label>
-                  <input
-                    id="settings_email"
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="e.g. owner@example.com"
-                    className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary focus:outline-none focus:border-accent"
-                  />
+                  <label htmlFor="settings_email" className="block text-[11px] font-semibold text-primary mb-1">✉️ Email Address</label>
+                  <input id="settings_email" type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="e.g. owner@example.com" className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-3.5 py-2 text-xs text-primary focus:outline-none focus:border-accent" />
                 </div>
               </div>
             </div>
@@ -556,23 +530,22 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         {/* TAB B: BUSINESS & STORE PROFILE */}
         {activeTab === "merchant" && (
           <div className="space-y-5 animate-fadeIn">
-            {/* Account Owner Name (Shared) */}
+            {/* Account Owner / Representative Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="ownerFullName" className="block text-xs font-semibold text-primary mb-1.5">
-                  Account Owner / Representative Name *
+                  Account Owner / Representative Name (Optional)
                 </label>
                 <input
                   type="text"
                   id="ownerFullName"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
+                  value={businessRepNameInput}
+                  onChange={(e) => setBusinessRepNameInput(e.target.value)}
                   placeholder="e.g. Jane Doe"
                   className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary focus:outline-none focus:border-accent"
-                  required
                 />
                 <span className="block text-[10px] text-neutral-slate mt-1">
-                  Account owner name (shared identically with Personal mode).
+                  Primary business representative name for invoicing and merchant operations.
                 </span>
               </div>
 
@@ -584,7 +557,13 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                   type="text"
                   id="companyName"
                   value={companyNameInput}
-                  onChange={(e) => setCompanyNameInput(e.target.value)}
+                  onChange={(e) => {
+                    setCompanyNameInput(e.target.value);
+                    if (!businessHandleInput) {
+                      const slug = e.target.value.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "_").slice(0, 30);
+                      setBusinessHandleInput(slug);
+                    }
+                  }}
                   placeholder="e.g. Acme Supermarket or Big Eazi Logistics"
                   className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-semibold focus:outline-none focus:border-accent"
                   required
@@ -594,6 +573,25 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                   Appears on customer digital receipts, invoices, and dispatch tracking.
                 </span>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="businessHandle" className="block text-xs font-semibold text-primary mb-1.5">
+                Business Handle *
+              </label>
+              <input
+                type="text"
+                id="businessHandle"
+                value={businessHandleInput}
+                onChange={(e) => setBusinessHandleInput(e.target.value.toLowerCase())}
+                placeholder="e.g. acme_logistics"
+                className="w-full bg-neutral-mist border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                required
+                maxLength={30}
+              />
+              <span className="block text-[10px] text-neutral-slate mt-1">
+                Unique handle (e.g. @acme_logistics) printed on customer digital receipts, invoices, and shipment tracking.
+              </span>
             </div>
 
             {/* Official Business Logo Upload */}
@@ -773,7 +771,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         isOpen={showPlanModal}
         onClose={() => setShowPlanModal(false)}
         walletAddress={walletAddress}
-        businessDetails={{ fullName: nameInput, companyName: companyNameInput, businessLogo: logoInput, businessPhone: businessPhoneInput, businessEmail: businessEmailInput }}
+        businessDetails={{ fullName: businessRepNameInput || companyNameInput, companyName: companyNameInput, businessHandle: businessHandleInput, businessLogo: logoInput, businessPhone: businessPhoneInput, businessEmail: businessEmailInput }}
         userEmail={email}
         onSuccess={() => refetchProfile()}
       />
