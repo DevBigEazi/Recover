@@ -76,26 +76,28 @@ sequenceDiagram
 
 ## 🚀 Application Pages & Feature Matrix
 
-| Page Route | Purpose & Key Features |
-| :--- | :--- |
-| **`/`** | **Landing Page**: Product overview, three-pillar value proposition, live feature showcases, and getting started CTAs. |
-| **`/register`** | **Item Registration**: Register personal items with category validation (Phone, Electronics, Keys, Wallets, Bags, Vehicles, Pets, Other). Enforces trusted alternate contacts for Phones and leverages Google Gemini 2.0 to draft recovery instructions. |
-| **`/dashboard`** | **Owner Dashboard**: Central hub displaying registered items, loss status toggles, active QR limits, subscription status, and Sticker Studio quick links. |
-| **`/items/[id]`** | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other). |
-| **`/verify/[id]`** | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/finder report submission form. |
-| **`/workspace`** | **Merchant POS Terminal & Sales Analytics**: Central merchant workspace combining the POS receipt terminal, real-time analytics cards (daily/weekly/monthly/yearly), and receipt ledger in a single unified dashboard. |
-| **`/workspace/login`** | **Staff & Cashier Login Portal**: Fast passwordless email + 6-digit numeric PIN authentication for store managers and sales staff. |
-| **`/receipts`** | **Receipt Ledger**: Full searchable and filterable receipt management table with voiding, audit trail, and status filtering. |
-| **`/receipts/new`** | **POS Receipt Entry**: Rapid multi-item cart entry with product autocomplete quick-pick, quantity steppers, discount/tax fields, payment method selector, and dual fulfillment (in-person handover or Shipment dispatch). |
-| **`/r/[receiptNumber]`** | **Public Customer Receipt Page**: No-auth, zero-barrier receipt verification page showing merchant branding, itemized purchase, on-chain cryptographic proof, PDF download, and the "🛡️ Protect on Recover" 1-tap consumer bridge CTA. |
-| **`/shipments`** | **Logistics Merchant Dashboard**: Commercial dispatch portal for creating tamper-proof package shipments (`RCV-` + 12 hex chars), scratch-off inner secret generation (`RCVR-` + 8 hex chars), chain-of-custody tracking, and dispatch logs. |
-| **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Private tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), dispatch rider PINs, Google Maps location tracking, and custody handover tools. |
-| **`/scan/[id]`** | **Dual Public & Rider Scan View**: No-auth interface serving two roles — (1) **Rider Link (`?pin=XXXX`)**: Unlocks Rider Delivery Manifest; (2) **Recipient Link**: Public tracking + account-free scratch-off PIN verification. |
-| **`/developers`** | **Logistics Developer Portal**: REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization, and webhook payload formats. |
-| **`/settings`** | **Account, Merchant, Teams & Branches**: Profile management, business logo upload, API key generation & rolling, private key export (client-side only), Subscription Upgrade Modal, and full Merchant Team Management (invite/remove staff, manage store branches, and assign branch managers). |
-| **`/pricing`** | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Merchant Pro Tiers (Free Bootstrap, Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees. |
-| **`/about`** | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless architecture, privacy standards, and common user questions. |
-| **`/notifications`** | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions. |
+> **Unified Single Account & Mode Switcher:** All registered users possess a single unified account with access to both **Personal Mode** and **Business Mode** via a 1-tap top navigation toggle. No separate accounts or crypto wallets are required to protect personal items and run commercial merchant operations.
+
+| Page Route | Purpose & Key Features | Mode |
+| :--- | :--- | :--- |
+| **`/`** | **Landing Page**: Product overview, three-pillar value proposition, live feature showcases, and getting started CTAs. | Public |
+| **`/register`** | **Item Registration**: Register personal items with category validation (Phone, Electronics, Keys, Wallets, Bags, Vehicles, Pets, Other). Enforces trusted alternate contacts for Phones and leverages Google Gemini 2.0 to draft recovery instructions. | Personal |
+| **`/dashboard`** | **Personal Item Vault & Dashboard**: Central hub displaying registered personal items, loss status toggles, active QR limits, and Sticker Studio quick links. | Personal |
+| **`/items/[id]`** | **Item Details & Finder Inbox**: Manage individual item details, update status (`Active` ↔ `Lost` ↔ `Recovered`), verify handover PINs, and access Finder Reports with Stripe report detail unlocks ($3.50 USD for Phone, $1.50 USD for Other). | Personal |
+| **`/verify/[id]`** | **Finder Verification Page**: No-auth mobile interface opened when a lost item sticker is scanned. Displays owner display name, item category, physical reward disclaimer, and location/finder report submission form. | Public |
+| **`/workspace`** | **Merchant POS Terminal & Sales Analytics**: Central merchant workspace combining the POS receipt terminal, real-time analytics cards (daily/weekly/monthly/yearly), and receipt ledger in a single unified dashboard. | Business |
+| **`/workspace/login`** | **Staff & Cashier Login Portal**: Fast passwordless email + 6-digit numeric PIN authentication for store managers and sales staff. | Business (Staff) |
+| **`/receipts`** | **Receipt Ledger**: Full searchable and filterable receipt management table with voiding, audit trail, and status filtering. | Business |
+| **`/receipts/new`** | **POS Receipt Entry**: Rapid multi-item cart entry with product autocomplete quick-pick, quantity steppers, discount/tax fields, payment method selector, and dual fulfillment (in-person handover or Shipment dispatch). | Business |
+| **`/r/[receiptNumber]`** | **Public Customer Receipt Page**: No-auth, zero-barrier receipt verification page showing merchant branding, itemized purchase, on-chain cryptographic proof, PDF download, and the "🛡️ Protect on Recover" 1-tap consumer bridge CTA. | Public |
+| **`/shipments`** | **Logistics Merchant Dashboard**: Commercial dispatch portal for creating tamper-proof package shipments (`RCV-` + 12 hex chars), scratch-off inner secret generation (`RCVR-` + 8 hex chars), chain-of-custody tracking, and dispatch logs. | Business |
+| **`/shipments/[id]`** | **Chain-of-Custody Tracker**: Private tracking page displaying real-time shipment events (`Created`, `InTransit`, `Delivered`, `Verified`, `Disputed`), dispatch rider PINs, Google Maps location tracking, and custody handover tools. | Business |
+| **`/scan/[id]`** | **Dual Public & Rider Scan View**: No-auth interface serving two roles — (1) **Rider Link (`?pin=XXXX`)**: Unlocks Rider Delivery Manifest; (2) **Recipient Link**: Public tracking + account-free scratch-off PIN verification. | Public |
+| **`/developers`** | **Logistics Developer Portal**: REST API documentation (`/api/v1/shipments/*`), request/response schemas, API key authorization, and webhook payload formats. | Business |
+| **`/settings`** | **Unified Account, Business, Teams & Branches**: Personal profile details, business branding & logo upload, API key management, private key export (client-side only), Subscription Upgrade Modal, and Merchant Team Management. | Unified |
+| **`/pricing`** | **SaaS Pricing & Plan Comparison**: Interactive pricing page showcasing Merchant Pro Tiers (Free Bootstrap, Pro Starter, Pro Growth, Pro Scale) and personal item report unlock fees. | Public |
+| **`/about`** | **About & Protocol FAQ**: Explains protocol mission, Electroneum gasless architecture, privacy standards, and common user questions. | Public |
+| **`/notifications`** | **Notifications Inbox**: Real-time log of Web Push notifications, scan alerts, and finder report submissions. | Unified |
 
 ---
 
