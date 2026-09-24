@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import bcryptjs from "bcryptjs";
-import { connectDB, db } from "@/lib/db";
+import { connectDB, db, isNigerianUser } from "@/lib/db";
 import { getMerchantFromAuth } from "@/lib/auth-api";
 import { canInviteMember } from "@/lib/permissions";
 import { sendTeamInviteEmail } from "@/lib/zeptomail";
@@ -77,6 +77,61 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const branch = await db.branch.findOne({ _id: branchId, merchantAddress });
   if (!branch) return NextResponse.json({ error: "Branch not found." }, { status: 404 });
+
+  const user = await db.user.findById(merchantAddress);
+  const plan = user?.plan || "free";
+
+  if (plan === "free" && !user?.subscriptionActive) {
+    return NextResponse.json(
+      { error: "The Free plan is CEO-only. Upgrade your plan to invite team members." },
+      { status: 403 }
+    );
+  }
+
+  // Strict Rule: 1 Manager per Branch
+  if (role === "manager") {
+    const existingBranchManager = await db.teamMember.findOne({
+      merchantAddress,
+      branchId,
+      role: "manager",
+      status: { $ne: "suspended" },
+    });
+    if (existingBranchManager) {
+      return NextResponse.json(
+        { error: `This branch (${branch.name}) already has an assigned manager. Recover strictly allows 1 manager per branch.` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Sales Rep tier limit & ₦1 overage
+  if (role === "sales_rep") {
+    const SALES_REP_LIMITS: Record<string, number> = {
+      free: 0,
+      starter_500: 1,
+      growth_1000: 4,
+      business_2500: 6,
+      scale_5000: 10,
+      pro_lite: 1,
+      pro_starter: 4,
+      pro_growth: 6,
+      pro_scale: 10,
+      pro: 6,
+    };
+    const repLimit = SALES_REP_LIMITS[plan] ?? 1;
+    const currentRepsCount = await db.teamMember.countDocuments({
+      merchantAddress,
+      role: "sales_rep",
+      status: { $ne: "suspended" },
+    });
+    const isNigeria = isNigerianUser(user);
+    const universalOverageRate = isNigeria ? 1 : 0.003;
+    if (currentRepsCount >= repLimit) {
+      await db.user.findByIdAndUpdate(merchantAddress, {
+        $inc: { overageCharges: universalOverageRate },
+      });
+    }
+  }
 
   if (auth.shipper.email && auth.shipper.email.trim().toLowerCase() === memberEmail) {
     return NextResponse.json({ error: "The account owner cannot be added as a team member." }, { status: 400 });

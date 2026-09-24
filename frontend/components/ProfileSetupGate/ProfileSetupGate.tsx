@@ -34,8 +34,8 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<"user" | "merchant">("user");
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<string>("growth_1000");
+  const [billingCycle, setBillingCycle] = useState<"monthly">("monthly");
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [isUsernameManuallyEdited, setIsUsernameManuallyEdited] = useState(false);
@@ -148,6 +148,7 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       setIsUpgrading(true);
 
       try {
+        const isNigeria = userCurrency?.currency === "NGN" || userCurrency?.countryCode === "NG";
         const initRes = await fetch("/api/subscription/initialize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -155,7 +156,10 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             walletAddress: account.address,
             email: email.trim(),
             planTier: selectedPlan,
-            billingCycle: billingCycle,
+            billingCycle: "monthly",
+            gateway: isNigeria ? "flutterwave" : "stripe",
+            countryCode: userCurrency?.countryCode,
+            currency: userCurrency?.currency,
           }),
         });
 
@@ -165,14 +169,35 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         }
 
         const initData = await initRes.json();
+
+        if (initData.gateway === "flutterwave") {
+          toast.loading("Activating plan via Flutterwave...", { id: "setup_flw" });
+          const vRes = await fetch("/api/subscription/flutterwave/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              reference: initData.reference,
+              walletAddress: account.address,
+              planTier: selectedPlan,
+            }),
+          });
+          if (!vRes.ok) {
+            const vErr = await vRes.json();
+            throw new Error(vErr.error || "Verification failed");
+          }
+          toast.success("Merchant plan activated!", { id: "setup_flw" });
+          window.location.reload();
+          return;
+        }
+
         if (initData.url) {
           window.location.href = initData.url;
         } else {
-          throw new Error("Stripe checkout URL was not returned.");
+          throw new Error("Checkout URL was not returned.");
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Billing failed";
-        toast.error(msg);
+        toast.error(msg, { id: "setup_flw" });
         setIsUpgrading(false);
       }
     };

@@ -65,20 +65,32 @@ export interface IUser {
   role: "user" | "merchant";
   /**
    * Plan tiers:
-   * - "free": Bootstrap free plan (100 shipments/mo)
-   * - "pro_lite": Pro Lite (2,500 shipments/mo)
-   * - "pro_starter": Pro Starter (10,000 shipments/mo)
-   * - "pro_growth": Pro Growth (100,000 shipments/mo)
-   * - "pro_scale": Pro Scale (500,000 shipments/mo)
-   * - "pro": Legacy Pro alias
-   * - "enterprise": Reserved future enterprise tier
+   * - "free": Free plan (100 ops/mo, CEO only)
+   * - "starter_500": Starter (500 ops/mo, 1 branch, 1 sales rep, 1 manager)
+   * - "growth_1000": Growth (1,000 ops/mo, 2 branches, 4 sales reps, 2 managers)
+   * - "business_2500": Business (2,500 ops/mo, 3 branches, 6 sales reps, 3 managers)
+   * - "scale_5000": Scale (5,000 ops/mo, 5 branches, 10 sales reps, 5 managers)
+   * - legacy aliases: "pro_lite", "pro_starter", "pro_growth", "pro_scale", "pro", "enterprise"
    */
-  plan: "free" | "pro_lite" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
+  plan:
+    | "free"
+    | "starter_500"
+    | "growth_1000"
+    | "business_2500"
+    | "scale_5000"
+    | "pro_lite"
+    | "pro_starter"
+    | "pro_growth"
+    | "pro_scale"
+    | "pro"
+    | "enterprise";
   billingCycle: "monthly" | "yearly";
   billingCycleStart: Date;
   shipmentsThisMonth: number;
   rolloverQuota: number;
   overageCharges: number;
+  country?: string | null;
+  currency?: string | null;
   apiKey?: string | null;
   testApiKey?: string | null;
   apiKeyHash?: string | null;
@@ -345,9 +357,23 @@ const UserSchema = new Schema<IUser>(
     subscriptionActive: { type: Boolean, default: false },
     // Index on role enables efficient merchant-only queries (e.g., shipment create guard)
     role: { type: String, enum: ["user", "merchant"], default: "user", index: true },
+    country: { type: String, default: null },
+    currency: { type: String, default: null },
     plan: {
       type: String,
-      enum: ["free", "pro_starter", "pro_growth", "pro_scale", "pro", "enterprise"],
+      enum: [
+        "free",
+        "starter_500",
+        "growth_1000",
+        "business_2500",
+        "scale_5000",
+        "pro_lite",
+        "pro_starter",
+        "pro_growth",
+        "pro_scale",
+        "pro",
+        "enterprise",
+      ],
       default: "free",
     },
     billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
@@ -807,4 +833,25 @@ export const db = {
   branch: BranchModel as Model<IBranch>,
   teamMember: TeamMemberModel as Model<ITeamMember>,
 };
+
+/**
+ * Checks if a user is from Nigeria based on stored country, currency, or phone prefix.
+ */
+export function isNigerianUser(user?: {
+  country?: string | null;
+  currency?: string | null;
+  phone?: string | null;
+} | null): boolean {
+  if (!user) return false;
+  if (user.country?.toUpperCase() === "NG" || user.currency?.toUpperCase() === "NGN") {
+    return true;
+  }
+  if (user.phone) {
+    const cleanPhone = user.phone.replace(/[\s\-()]/g, "");
+    if (cleanPhone.startsWith("+234") || cleanPhone.startsWith("234")) {
+      return true;
+    }
+  }
+  return false;
+}
 

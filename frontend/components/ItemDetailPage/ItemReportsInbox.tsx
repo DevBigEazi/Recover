@@ -176,10 +176,10 @@ export default function ItemReportsInbox({
                         <span>📍 Open Location on Google Maps ({report.location}) ↗</span>
                       </a>
                       {report.locationContext && (
-                        <div className="bg-amber-50/50 border border-amber-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-amber-800 leading-normal flex items-start gap-1.5 text-left">
+                        <div className="bg-blue-50/50 border border-blue-200/60 rounded-lg p-2.5 mt-1.5 text-[10px] text-blue-900 leading-normal flex items-start gap-1.5 text-left">
                           <span className="shrink-0 text-xs mt-0.5">💡</span>
                           <div>
-                            <strong className="font-semibold text-amber-900 block mb-0.5">AI Location Insight</strong>
+                            <strong className="font-semibold text-blue-950 block mb-0.5">Location Insight</strong>
                             {report.locationContext}
                           </div>
                         </div>
@@ -190,7 +190,7 @@ export default function ItemReportsInbox({
 
                 {!report.unlocked && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-white/80 backdrop-blur-xs p-4 text-center space-y-3">
-                    <div className="p-2 bg-amber-500/10 rounded-full text-warning text-base leading-none">
+                    <div className="p-2 bg-blue-500/10 rounded-full text-primary text-base leading-none">
                       🔒
                     </div>
                     <div className="space-y-1">

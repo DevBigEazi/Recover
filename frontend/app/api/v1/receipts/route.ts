@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB, db, IReceiptItem } from "@/lib/db";
+import { connectDB, db, IReceiptItem, isNigerianUser } from "@/lib/db";
 import { getMerchantFromAuth } from "@/lib/auth-api";
 import { hasPermission } from "@/lib/permissions";
 import { computeReceiptHash } from "@/lib/receipt-hash";
@@ -17,6 +17,32 @@ export async function POST(req: NextRequest) {
     const { shipper: merchant, error, status, actor } = await getMerchantFromAuth(req);
     if (!merchant) {
       return NextResponse.json({ error: error || "Unauthorized merchant access." }, { status: status || 401 });
+    }
+
+    const TIER_LIMITS: Record<string, number> = {
+      free: 100,
+      starter_500: 500,
+      growth_1000: 1000,
+      business_2500: 2500,
+      scale_5000: 5000,
+      pro_lite: 2500,
+      pro_starter: 1000,
+      pro_growth: 2500,
+      pro_scale: 5000,
+      pro: 2500,
+    };
+
+    const baseLimit = TIER_LIMITS[merchant.plan] || 100;
+    const currentOps = merchant.shipmentsThisMonth || 0;
+
+    if (merchant.plan === "free" && currentOps >= baseLimit) {
+      return NextResponse.json(
+        {
+          error: `Monthly operations limit reached (${baseLimit} combined operations). Upgrade your plan to continue issuing receipts.`,
+          upgradeUrl: "/pricing",
+        },
+        { status: 402 }
+      );
     }
 
     const body = await req.json();
@@ -351,10 +377,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Increment merchant operations quota count
+    // Increment merchant operations quota count & charge universal overage if exceeded
+    const isNigeria = isNigerianUser(merchant);
+    const universalOverageRate = isNigeria ? 1 : 0.003;
+    const isOverage = currentOps >= baseLimit && merchant.plan !== "free";
+
     await db.user.updateOne(
       { _id: merchant._id.toLowerCase() },
-      { $inc: { shipmentsThisMonth: 1 } }
+      {
+        $inc: {
+          shipmentsThisMonth: 1,
+          ...(isOverage ? { overageCharges: universalOverageRate } : {}),
+        },
+      }
     );
 
     return NextResponse.json(

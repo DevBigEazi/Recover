@@ -4,96 +4,64 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
-import { Check, HelpCircle, ArrowRight, ShieldCheck, Zap, Truck } from "lucide-react";
-import { detectUserCurrency, convertUsdPrice, UserCurrencyInfo } from "@/lib/currency";
+import { HelpCircle, ArrowRight, ShieldCheck, Zap, Check } from "lucide-react";
+import { detectUserCurrency, convertNgnPrice, convertUsdPrice, UserCurrencyInfo, PLAN_TIERS, OVERAGE_FEE_NGN } from "@/lib/currency";
 
 export default function PricingPage() {
-  const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
-  const [proQuota, setProQuota] = useState<"pro_lite" | "pro_starter" | "pro_growth" | "pro_scale">("pro_starter");
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+  const [growthTierKey, setGrowthTierKey] = useState<"starter_500" | "growth_1000">("growth_1000");
+  const [scaleTierKey, setScaleTierKey] = useState<"business_2500" | "scale_5000">("scale_5000");
 
   useEffect(() => {
     detectUserCurrency().then(setUserCurrency);
   }, []);
 
-  const proOptions = {
-    pro_lite: {
-      name: "Pro Lite",
-      quota: "2,500 dispatches / mo",
-      usdMonthly: 6,
-      usdYearly: 64.8,
-      usdEffective: 5.4,
-      overage: "$0.025 per excess shipment",
-    },
-    pro_starter: {
-      name: "Pro Starter",
-      quota: "10,000 dispatches / mo",
-      usdMonthly: 15,
-      usdYearly: 162,
-      usdEffective: 13.5,
-      overage: "$0.02 per excess shipment",
-    },
-    pro_growth: {
-      name: "Pro Growth",
-      quota: "100,000 dispatches / mo",
-      usdMonthly: 45,
-      usdYearly: 486,
-      usdEffective: 40.5,
-      overage: "$0.015 per excess shipment",
-    },
-    pro_scale: {
-      name: "Pro Scale",
-      quota: "500,000 dispatches / mo",
-      usdMonthly: 100,
-      usdYearly: 1080,
-      usdEffective: 90,
-      overage: "$0.01 per excess shipment",
-    },
-  };
+  const isNigeria = userCurrency?.currency === "NGN" || userCurrency?.countryCode === "NG";
+  const overageFeeFormatted = convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal;
 
-  const selectedPro = proOptions[proQuota];
+  const freeTier = PLAN_TIERS.free;
+  const growthTier = PLAN_TIERS[growthTierKey];
+  const scaleTier = PLAN_TIERS[scaleTierKey];
 
   return (
     <main className="min-h-screen bg-neutral-mist flex flex-col justify-between">
       <div>
         <Header />
 
-        <div className="max-w-7xl mx-auto px-4 py-8 sm:py-16 sm:px-6 lg:px-8 space-y-12">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:py-16 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
           
           {/* Page Banner Header */}
-          <div className="text-center space-y-4 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[11px] sm:text-xs text-primary shadow-2xs hover:border-accent/40 transition-all select-none backdrop-blur-xs">
+          <div className="text-center space-y-3 sm:space-y-4 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-primary/5 border border-primary/15 text-[10px] sm:text-xs text-primary shadow-2xs hover:border-accent/40 transition-all select-none backdrop-blur-xs">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
               <span className="font-bold tracking-tight text-primary">Transparent Pricing</span>
-              <span className="text-neutral-slate/40 font-light">·</span>
-              <span className="font-medium text-neutral-slate">Pay-As-You-Go &amp; Logistics SaaS</span>
             </div>
 
-            <h1 className="text-3xl font-extrabold tracking-tight text-primary font-display sm:text-5xl">
-              Simple Pricing for Individuals &amp; Businesses
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-primary font-display">
+              Simple, Predictable Plans for Growing Merchants
             </h1>
 
-            <p className="text-sm sm:text-base text-neutral-slate leading-relaxed">
-              No hidden fees. Protect personal belongings for free with Pay-As-You-Go recovery unlocks, or power your logistics package dispatches with flexible Pro subscription tiers.
+            <p className="text-xs sm:text-base text-neutral-slate leading-relaxed">
+              Unified dispatches &amp; receipts, branch management, and multi-user team roles with universal {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} overage.
             </p>
           </div>
 
           {/* Section 1: Individual Valuables Pay-As-You-Go */}
-          <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-10 shadow-xs space-y-6">
+          <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-5 sm:p-10 shadow-xs space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-mist pb-6">
               <div>
                 <span className="text-xs font-bold text-accent uppercase tracking-wider">For Individuals</span>
-                <h2 className="text-2xl font-bold text-primary font-display mt-0.5">Personal Item Protection (Pay-As-You-Go)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-primary font-display mt-0.5">Personal Item Protection (Pay-As-You-Go)</h2>
                 <p className="text-xs text-neutral-slate mt-1">
-                  Register an unlimited catalog of personal valuables with scannable QR stickers. Zero upfront subscription required.
+                  Register personal belongings with scannable QR stickers. Zero upfront subscription required.
                 </p>
               </div>
               <Link
                 href="/register"
-                className="bg-primary hover:bg-primary-light text-neutral-white text-xs font-bold py-3 px-6 rounded-xl transition-all shadow-sm text-center inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                className="bg-primary hover:bg-primary-light text-neutral-white text-xs font-bold py-3 px-6 rounded-xl transition-all shadow-xs text-center inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer w-full sm:w-auto"
               >
                 Register Personal Items <ArrowRight className="w-4 h-4" />
               </Link>
@@ -106,7 +74,7 @@ export default function PricingPage() {
                 </div>
                 <h3 className="text-sm font-bold text-primary">Item Registration &amp; Sticker Export</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">
-                  <strong>Free ($0)</strong>. Register unlimited items (phones, keys, laptops, pets) and export printable QR stickers in Mini (~10mm), Standard (~25mm), or Large (~50mm) sizes.
+                  <strong>Free</strong>. Register personal valuables (phones, keys, laptops, bags) and export printable QR stickers in Mini (~10mm), Standard (~25mm), or Large (~50mm) sizes.
                 </p>
               </div>
 
@@ -116,7 +84,7 @@ export default function PricingPage() {
                 </div>
                 <h3 className="text-sm font-bold text-primary">Finder Report &amp; Location Alert</h3>
                 <p className="text-xs text-neutral-slate leading-relaxed">
-                  <strong>Free ($0)</strong>. When a lost item is scanned, finders submit location coordinates and notes. You receive instant Web Push alerts.
+                  <strong>Free</strong>. When a lost item is scanned, finders submit location coordinates and return options. You receive instant Web Push alerts.
                 </p>
               </div>
 
@@ -131,8 +99,6 @@ export default function PricingPage() {
                   • <strong>Phone Category:</strong> {convertUsdPrice(3.5, userCurrency).formattedLocal}
                   <br />
                   • <strong>Other Categories:</strong> {convertUsdPrice(1.5, userCurrency).formattedLocal}
-                  <br />
-                  <span className="text-[10px] text-neutral-slate font-medium">Stripe Adaptive Pricing presents converted rates in your local currency automatically.</span>
                 </p>
               </div>
             </div>
@@ -141,278 +107,462 @@ export default function PricingPage() {
           {/* Section 2: Merchant & Logistics SaaS Tiers */}
           <div className="space-y-6">
             <div className="text-center space-y-3 max-w-2xl mx-auto">
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">For Merchants &amp; Logistics Operators</span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-primary font-display">
-                Logistics &amp; Package Verification Tiers
+              <span className="text-xs font-bold text-accent uppercase tracking-wider">For Merchants &amp; Logistics Operators</span>
+              <h2 className="text-xl sm:text-3xl font-bold text-primary font-display">
+                Dispatches, Receipts &amp; Multi-Branch Tiers
               </h2>
               <p className="text-xs sm:text-sm text-neutral-slate">
-                Scale your delivery package tracking with dual-layer QR sticker printing, real-time web push dispatch alerts, and automatic unused quota rollover.
+                Unified operations counter for package dispatches and POS receipts. Includes branch management and team roles with {overageFeeFormatted} universal overage.
               </p>
+            </div>
 
-              {/* Billing Cycle Toggle */}
-              <div className="pt-2 flex items-center justify-center">
-                <div className="bg-neutral-white border border-neutral-mist p-1.5 rounded-2xl inline-flex items-center gap-2 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => setCycle("monthly")}
-                    className={`py-2 px-5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      cycle === "monthly"
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-neutral-slate hover:text-primary"
-                    }`}
-                  >
-                    Monthly Billing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCycle("yearly")}
-                    className={`py-2 px-5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      cycle === "yearly"
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-neutral-slate hover:text-primary"
-                    }`}
-                  >
-                    <span>Annual Billing</span>
-                    <span className="bg-emerald-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">
-                      Save 10%
+            {/* Merchant Pricing Grid - 3 High-End Fintech Cards with Embedded Switchers */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch">
+              {/* Card 1: Free Tier */}
+              <div className="bg-neutral-white border border-neutral-slate/15 hover:border-neutral-slate/30 rounded-2xl p-6 sm:p-7 flex flex-col justify-between space-y-6 transition-all shadow-xs">
+                <div className="space-y-5">
+                  {/* Header & Sub-tier context pill */}
+                  <div className="flex items-center justify-between min-h-6">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-slate">
+                      {freeTier.name}
                     </span>
-                  </button>
+                    <span className="bg-neutral-mist text-neutral-slate border border-neutral-mist text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                      Solo CEO
+                    </span>
+                  </div>
+
+                  {/* Switcher Alignment Spacer / Baseline Tag */}
+                  <div className="bg-neutral-mist/60 border border-neutral-slate/10 rounded-xl p-1.5 flex items-center justify-center text-center">
+                    <span className="text-[11px] font-bold text-neutral-slate">
+                      100 Ops (Single-User Pilot)
+                    </span>
+                  </div>
+
+                  {/* Pricing */}
+                  <div className="space-y-0.5">
+                    <div className="text-3xl sm:text-4xl font-bold font-display text-primary tracking-tight">
+                      {convertNgnPrice(0, userCurrency).formattedLocal}
+                    </div>
+                    <p className="text-xs text-neutral-slate font-medium">
+                      forever free
+                    </p>
+                  </div>
+
+                  {/* Tagline */}
+                  <p className="text-xs text-neutral-slate leading-relaxed min-h-10">
+                    {freeTier.description}
+                  </p>
+
+                  {/* Operations Quota Highlight Pill */}
+                  <div className="bg-neutral-mist/70 border border-neutral-slate/10 rounded-xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-primary font-display truncate">
+                        {freeTier.quota.toLocaleString()} Operations
+                      </div>
+                      <div className="text-[11px] text-neutral-slate truncate">
+                        Dispatches &amp; POS receipts
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feature Checklist */}
+                  <div className="pt-3 border-t border-neutral-mist space-y-3 text-xs">
+                    {/* Branches */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">0 Branches</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Headquarters only
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Branch Managers */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">No Branch Manager</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          CEO direct oversight
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sales Reps */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">0 Sales Reps</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          CEO handles all POS sales
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Hard Cap */}
+                    <div className="flex items-start gap-2.5 pt-1.5 border-t border-neutral-mist/60">
+                      <ShieldCheck className="w-4 h-4 text-neutral-slate/60 shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">Hard Monthly Limit</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Strict 100 ops cap · CEO only
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="pt-3">
+                  <Link
+                    href="/shipments"
+                    className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors cursor-pointer block bg-neutral-mist hover:bg-neutral-slate/10 text-primary border border-neutral-slate/15 shadow-xs"
+                  >
+                    Get Started Free
+                  </Link>
+                </div>
+              </div>
+
+              {/* Card 2: Growth Tier (Most Popular) with Switcher */}
+              <div className="bg-neutral-white border-2 border-accent ring-1 ring-accent/30 rounded-2xl p-6 sm:p-7 flex flex-col justify-between space-y-6 transition-all shadow-sm relative">
+                <div className="space-y-5">
+                  {/* Header & Most Popular Badge */}
+                  <div className="flex items-center justify-between min-h-6">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-slate">
+                      {growthTier.name}
+                    </span>
+                    <span className="bg-accent/10 text-accent border border-accent/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-wide">
+                      Most Popular
+                    </span>
+                  </div>
+
+                  {/* Segmented Button Switcher */}
+                  <div className="bg-neutral-mist p-1 rounded-xl flex items-center gap-1 border border-neutral-slate/10">
+                    <button
+                      type="button"
+                      onClick={() => setGrowthTierKey("starter_500")}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                        growthTierKey === "starter_500"
+                          ? "bg-primary text-neutral-white shadow-2xs"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-white/60"
+                      }`}
+                    >
+                      500 Ops (Starter)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGrowthTierKey("growth_1000")}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                        growthTierKey === "growth_1000"
+                          ? "bg-primary text-neutral-white shadow-2xs"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-white/60"
+                      }`}
+                    >
+                      1,000 Ops (Growth)
+                    </button>
+                  </div>
+
+                  {/* Pricing */}
+                  <div className="space-y-0.5">
+                    <div className="text-3xl sm:text-4xl font-bold font-display text-primary tracking-tight">
+                      {convertNgnPrice(growthTier.ngnMonthly, userCurrency).formattedLocal}
+                    </div>
+                    <p className="text-xs text-neutral-slate font-medium">
+                      / month
+                    </p>
+                  </div>
+
+                  {/* Tagline */}
+                  <p className="text-xs text-neutral-slate leading-relaxed min-h-10">
+                    {growthTier.description}
+                  </p>
+
+                  {/* Operations Quota Highlight Pill */}
+                  <div className="bg-neutral-mist/70 border border-neutral-slate/10 rounded-xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-primary font-display truncate">
+                        {growthTier.quota.toLocaleString()} Operations
+                      </div>
+                      <div className="text-[11px] text-neutral-slate truncate">
+                        Dispatches &amp; POS receipts
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feature Checklist */}
+                  <div className="pt-3 border-t border-neutral-mist space-y-3 text-xs">
+                    {/* Branches */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {growthTier.branches} {growthTier.branches === 1 ? "Branch location" : "Branch locations"}
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          + {overageFeeFormatted} per extra branch
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Branch Managers */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {growthTier.managers} {growthTier.managers === 1 ? "Branch Manager" : "Branch Managers"}
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Strictly 1 manager / branch
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sales Reps */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {growthTier.salesReps} Sales {growthTier.salesReps === 1 ? "rep" : "reps"}
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          + {overageFeeFormatted} per extra rep
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Universal Overage Line */}
+                    <div className="flex items-start gap-2.5 pt-1.5 border-t border-neutral-mist/60">
+                      <ShieldCheck className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">Universal Overage</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Flat {overageFeeFormatted} / excess unit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="pt-3">
+                  <Link
+                    href="/settings"
+                    className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors cursor-pointer block bg-primary hover:bg-primary-light text-neutral-white shadow-xs"
+                  >
+                    Select {growthTier.name}
+                  </Link>
+                </div>
+              </div>
+
+              {/* Card 3: Scale Tier (High Volume) with Switcher */}
+              <div className="bg-neutral-white border border-neutral-slate/15 hover:border-neutral-slate/30 rounded-2xl p-6 sm:p-7 flex flex-col justify-between space-y-6 transition-all shadow-xs">
+                <div className="space-y-5">
+                  {/* Header & High Volume Badge */}
+                  <div className="flex items-center justify-between min-h-6">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-slate">
+                      {scaleTier.name}
+                    </span>
+                    <span className="bg-neutral-mist text-neutral-slate border border-neutral-mist text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                      High Volume
+                    </span>
+                  </div>
+
+                  {/* Segmented Button Switcher */}
+                  <div className="bg-neutral-mist p-1 rounded-xl flex items-center gap-1 border border-neutral-slate/10">
+                    <button
+                      type="button"
+                      onClick={() => setScaleTierKey("business_2500")}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                        scaleTierKey === "business_2500"
+                          ? "bg-primary text-neutral-white shadow-2xs"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-white/60"
+                      }`}
+                    >
+                      2,500 Ops (Business)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScaleTierKey("scale_5000")}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                        scaleTierKey === "scale_5000"
+                          ? "bg-primary text-neutral-white shadow-2xs"
+                          : "text-neutral-slate hover:text-primary hover:bg-neutral-white/60"
+                      }`}
+                    >
+                      5,000 Ops (Scale)
+                    </button>
+                  </div>
+
+                  {/* Pricing */}
+                  <div className="space-y-0.5">
+                    <div className="text-3xl sm:text-4xl font-bold font-display text-primary tracking-tight">
+                      {convertNgnPrice(scaleTier.ngnMonthly, userCurrency).formattedLocal}
+                    </div>
+                    <p className="text-xs text-neutral-slate font-medium">
+                      / month
+                    </p>
+                  </div>
+
+                  {/* Tagline */}
+                  <p className="text-xs text-neutral-slate leading-relaxed min-h-10">
+                    {scaleTier.description}
+                  </p>
+
+                  {/* Operations Quota Highlight Pill */}
+                  <div className="bg-neutral-mist/70 border border-neutral-slate/10 rounded-xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-primary font-display truncate">
+                        {scaleTier.quota.toLocaleString()} Operations
+                      </div>
+                      <div className="text-[11px] text-neutral-slate truncate">
+                        Dispatches &amp; POS receipts
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feature Checklist */}
+                  <div className="pt-3 border-t border-neutral-mist space-y-3 text-xs">
+                    {/* Branches */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {scaleTier.branches} Branch locations
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          + {overageFeeFormatted} per extra branch
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Branch Managers */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {scaleTier.managers} Branch Managers
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Strictly 1 manager / branch
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sales Reps */}
+                    <div className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">
+                          {scaleTier.salesReps} Sales reps
+                        </span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          + {overageFeeFormatted} per extra rep
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Universal Overage Line */}
+                    <div className="flex items-start gap-2.5 pt-1.5 border-t border-neutral-mist/60">
+                      <ShieldCheck className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-primary">Universal Overage</span>
+                        <span className="block text-[11px] text-neutral-slate mt-0.5">
+                          Flat {overageFeeFormatted} / excess unit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="pt-3">
+                  <Link
+                    href="/settings"
+                    className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors cursor-pointer block bg-neutral-mist hover:bg-neutral-slate/10 text-primary border border-neutral-slate/15 shadow-xs"
+                  >
+                    Select {scaleTier.name}
+                  </Link>
                 </div>
               </div>
             </div>
 
-            {/* Merchant Pricing Grid - 2 Clean Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-5xl mx-auto">
-              
-              {/* Card 1: Free Bootstrap Tier */}
-              <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-xs hover:shadow-md transition-shadow">
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-neutral-slate uppercase tracking-wider">Free Tier</span>
-                    <h3 className="text-xl font-extrabold text-primary">Free Bootstrap Tier</h3>
-                    <p className="text-xs text-neutral-slate mt-1 leading-relaxed">
-                      For new e-commerce sellers and small merchant dispatch operations.
-                    </p>
-                  </div>
-
-                  <div className="border-t border-b border-neutral-mist/60 py-4 space-y-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold font-display text-primary">$0</span>
-                      <span className="text-xs text-neutral-slate font-medium">/ forever</span>
-                    </div>
-                    <div className="pt-2 text-xs font-bold text-primary flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-emerald-500" /> 100 dispatches / month
-                    </div>
-                    <p className="text-[11px] text-neutral-slate">
-                      Overage: Package creation pauses at 100
-                    </p>
-                  </div>
-
-                  <ul className="space-y-2.5 text-xs text-neutral-slate">
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>100 Free Monthly Package Registrations</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Dual-Layer Package QR Sticker Generation</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Real-Time Scan Web Push Alerts</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Handover Verification PIN Match</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Public Package Tracking (`/scan/[id]`)</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <Link
-                  href="/shipments"
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-all cursor-pointer bg-neutral-mist hover:bg-neutral-mist/80 text-primary border border-neutral-mist"
-                >
-                  Start Free (100 PKGs)
-                </Link>
+            {/* Merchant Bottom Trust Bar - Responsive Mobile / Tablet / Desktop */}
+            <div className="bg-neutral-white border border-neutral-slate/15 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5 text-xs text-neutral-slate">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                <span className="font-bold text-primary">Supported Payments:</span>
+                <span className="text-primary font-medium">
+                  {isNigeria
+                    ? "Flutterwave (Cards, Bank Transfer, USSD)"
+                    : "Stripe (Credit / Debit Card, Apple Pay)"}
+                </span>
               </div>
-
-              {/* Card 2: Pro Logistics Tier (Interactive Quota Selector) */}
-              <div className="bg-neutral-white border-2 border-primary rounded-2xl p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-md relative ring-4 ring-primary/10">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-linear-to-r from-primary via-[#24335a] to-primary text-neutral-white text-[10px] font-bold tracking-wider uppercase px-3.5 py-1 rounded-full shadow-sm border border-white/20 flex items-center gap-1.5 select-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent"></span>
-                  <span>Recommended for Logistics</span>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">Pro Merchant Tier</span>
-                    <h3 className="text-xl font-extrabold text-primary">Pro Logistics Tier</h3>
-                    <p className="text-xs text-neutral-slate mt-1 leading-relaxed">
-                      Scalable monthly package dispatches with automated quota rollover.
-                    </p>
-                  </div>
-
-                  {/* Quota Volume Selector Tabs */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold text-neutral-slate uppercase tracking-wider">
-                      Select Monthly Dispatch Volume:
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-neutral-mist/50 border border-neutral-mist rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setProQuota("pro_lite")}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          proQuota === "pro_lite"
-                            ? "bg-primary text-white shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        2,500 / mo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProQuota("pro_starter")}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          proQuota === "pro_starter"
-                            ? "bg-primary text-white shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        10,000 / mo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProQuota("pro_growth")}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          proQuota === "pro_growth"
-                            ? "bg-primary text-white shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        100,000 / mo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProQuota("pro_scale")}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          proQuota === "pro_scale"
-                            ? "bg-primary text-white shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        500,000 / mo
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-b border-neutral-mist/60 py-4 space-y-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl sm:text-2xl font-extrabold font-display text-primary">
-                        {cycle === "yearly"
-                          ? `${convertUsdPrice(selectedPro.usdYearly, userCurrency).formattedLocal} / yr (Annual Billing)`
-                          : `${convertUsdPrice(selectedPro.usdMonthly, userCurrency).formattedLocal} / mo (Monthly Billing)`}
-                      </span>
-                    </div>
-                    {cycle === "yearly" && (
-                      <p className="text-[11px] font-bold text-emerald-600">
-                        Equivalent to {convertUsdPrice(selectedPro.usdEffective, userCurrency).formattedLocal} / month (10% Saved)
-                      </p>
-                    )}
-                    <div className="pt-2 text-xs font-extrabold text-primary flex items-center gap-1.5">
-                      <Truck className="w-4 h-4 text-indigo-600" /> {selectedPro.quota}
-                    </div>
-                    <p className="text-[11px] text-neutral-slate">
-                      Overage: {selectedPro.overage}
-                    </p>
-                  </div>
-
-                  <ul className="space-y-2.5 text-xs text-neutral-slate">
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span><strong>{selectedPro.quota}</strong> Package Capacity</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span><strong>Automatic Unused Quota Rollover</strong> on Renewal</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Metered Auto-Billing Overage ({selectedPro.overage})</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>REST API &amp; Webhooks (`/api/v1/shipments`) Integration</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span>Chain-of-Custody Dispute Logging Audit Trail</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <Link
-                  href="/shipments"
-                  className="w-full py-3.5 px-4 rounded-xl text-xs font-bold text-center transition-all cursor-pointer bg-primary hover:bg-primary-light text-white shadow-md"
-                >
-                  Subscribe to {selectedPro.name}
-                </Link>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px]">
+                <span className="bg-primary/5 text-primary font-semibold px-2 py-0.5 rounded-md border border-primary/10">
+                  Universal Overage: {overageFeeFormatted} / unit
+                </span>
+                <span className="text-neutral-slate/50 hidden sm:inline">·</span>
+                <span>Automatic monthly billing</span>
+                <span className="text-neutral-slate/50 hidden sm:inline">·</span>
+                <span>Cancel or switch anytime</span>
               </div>
-
             </div>
           </div>
 
-          {/* Section 3: Quota Rollover Explainer */}
-          <div className="bg-linear-to-r from-primary to-indigo-900 text-white rounded-2xl p-6 sm:p-10 shadow-lg space-y-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              <h2 className="text-xl sm:text-2xl font-bold font-display">Unused Quota Rollover Guarantee</h2>
+          {/* Section 3: Universal Overage & Fair Pricing Guarantee */}
+          <div className="bg-neutral-white border border-neutral-mist text-primary rounded-2xl p-5 sm:p-8 shadow-xs space-y-4">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-accent shrink-0 mt-0.5 sm:mt-0" />
+              <h2 className="text-base sm:text-xl font-bold font-display">Universal {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} Overage &amp; Predictable Monthly Billing</h2>
             </div>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-3xl">
-              Never waste paid dispatch capacity! When you renew or upgrade your Pro logistics subscription, any unused shipments from your previous billing cycle automatically roll over into your new cycle capacity.
+            <p className="text-xs sm:text-sm text-neutral-slate leading-relaxed max-w-3xl">
+              Grow without unexpected barriers. Any operation or expansion beyond your tier quota—extra dispatches, extra digital receipts, extra branches, or additional sales reps—is billed at a flat <strong>{convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} per unit</strong>. Your full plan quota refreshes automatically at the start of each billing month.
             </p>
-            <div className="bg-white/10 border border-white/15 rounded-xl p-4 text-xs font-mono text-emerald-200">
-              Total Monthly Available Capacity = New Tier Quota + Unused Rollover Quota
-            </div>
           </div>
 
           {/* Section 4: Frequently Asked Questions */}
-          <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-10 shadow-xs space-y-6">
+          <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-5 sm:p-10 shadow-xs space-y-6">
             <div className="border-b border-neutral-mist pb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-primary font-display flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-accent" /> Frequently Asked Questions
+              <h2 className="text-lg sm:text-2xl font-bold text-primary font-display flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-accent shrink-0" /> Frequently Asked Questions
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm">
               <div className="space-y-2">
-                <h4 className="font-bold text-primary">Do finders or recipients need to pay or download an app?</h4>
+                <h4 className="font-bold text-primary">How do dispatches and receipts count toward my monthly quota?</h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  No! Finders and package recipients do not need to download an app, create an account, or pay any fees. Anyone scanning a physical sticker can report a found item or verify a package instantly from their phone camera.
+                  Both logistics shipments and POS receipts share a unified monthly operations counter. For example, on the Starter tier (500 Ops), you can create 300 receipts and 200 dispatches. Any excess is billed at {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} per unit.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-bold text-primary">How does the 10% Annual Discount work?</h4>
+                <h4 className="font-bold text-primary">How are extra branches and sales reps handled?</h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  When you select Annual Billing for Pro Starter, Pro Growth, or Pro Scale, you pay upfront for 12 months and receive a 10% discount off the total price compared to 12 monthly payments.
+                  You can expand beyond your plan&apos;s base limits at any time. Extra branches and extra sales reps are billed at {convertNgnPrice(OVERAGE_FEE_NGN, userCurrency).formattedLocal} each, while strictly maintaining the rule of 1 manager per branch.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-bold text-primary">What happens if a merchant exceeds their monthly shipment quota?</h4>
+                <h4 className="font-bold text-primary">Which payment methods are supported?</h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  On paid Pro tiers (Pro Starter, Pro Growth, Pro Scale), your dispatch features remain 100% uninterrupted! Excess shipments accrue a metered auto-billing overage of $0.02–$0.01 per package. On the Free Bootstrap Tier, package creation pauses until upgraded.
+                  You can pay seamlessly using standard local debit cards, credit cards, bank transfers, or mobile payment channels based on your region.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-bold text-primary">Can I change my subscription tier at any time?</h4>
+                <h4 className="font-bold text-primary">Can I change my plan or cancel at any time?</h4>
                 <p className="text-neutral-slate leading-relaxed">
-                  Yes, you can upgrade your plan tier or switch billing cycles anytime from your Settings page (`/settings`). Your remaining quota will automatically roll over into your new subscription tier.
+                  Yes. You can upgrade, switch tiers, or cancel your subscription at any time directly from your merchant settings. Changes apply seamlessly to your account.
                 </p>
               </div>
             </div>

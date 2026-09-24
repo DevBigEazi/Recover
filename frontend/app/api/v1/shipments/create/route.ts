@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, isNigerianUser } from "@/lib/db";
 import { recoverShipmentContract } from "@/lib/contract";
 import { client } from "@/lib/client";
 import { readContract, prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
@@ -71,26 +71,25 @@ export async function POST(request: Request) {
 
       const TIER_LIMITS: Record<string, number> = {
         free: 100,
+        starter_500: 500,
+        growth_1000: 1000,
+        business_2500: 2500,
+        scale_5000: 5000,
         pro_lite: 2500,
-        pro_starter: 10000,
-        pro_growth: 100000,
-        pro_scale: 500000,
-        pro: 100000,
+        pro_starter: 1000,
+        pro_growth: 2500,
+        pro_scale: 5000,
+        pro: 2500,
       };
 
       const baseLimit = TIER_LIMITS[shipper.plan] || 100;
       const totalAllowed = baseLimit + (shipper.rolloverQuota || 0);
 
-      const OVERAGE_RATES_USD: Record<string, number> = {
-        pro_lite: 0.025,
-        pro_starter: 0.02,
-        pro_growth: 0.015,
-        pro_scale: 0.01,
-        pro: 0.015,
-      };
+      const isNigeria = isNigerianUser(shipper);
+      const universalOverageRate = isNigeria ? 1 : 0.003;
 
       const isOverage = shipmentCount >= totalAllowed;
-      const overageRate = isOverage ? (OVERAGE_RATES_USD[shipper.plan] || 0.02) : 0;
+      const overageRate = isOverage && shipper.plan !== "free" ? universalOverageRate : 0;
       reservedUserAddress = shipper._id;
       reservedOverageAmount = overageRate;
 
@@ -115,8 +114,8 @@ export async function POST(request: Request) {
         isQuotaReserved = false;
         return NextResponse.json(
           {
-            error: `Monthly limit reached (${totalAllowed} packages). Upgrade your plan to increase shipment capacity.`,
-            upgradeUrl: "/shipments",
+            error: `Monthly operations limit reached (${totalAllowed} combined operations). Upgrade your plan to increase capacity.`,
+            upgradeUrl: "/pricing",
           },
           { status: 402 } // Payment Required
         );

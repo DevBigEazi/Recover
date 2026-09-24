@@ -21,6 +21,7 @@ export async function POST(request: Request) {
           plan: "free",
           billingCycleStart: new Date(),
           shipmentsThisMonth: 0,
+          rolloverQuota: 0,
           overageCharges: 0,
         },
         $setOnInsert: {

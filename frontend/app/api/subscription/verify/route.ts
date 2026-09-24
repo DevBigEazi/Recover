@@ -27,30 +27,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not resolve target user wallet address from checkout session." }, { status: 400 });
     }
 
-    const planTier = metadata.plan || "pro_growth";
+    const planTier = metadata.plan || "growth_1000";
     const billingCycle = metadata.billingCycle || "monthly";
     const stripeSubscriptionId = typeof session.subscription === "string" ? session.subscription : null;
     const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
 
-    const TIER_QUOTAS: Record<string, number> = {
-      free: 100,
-      pro_lite: 2500,
-      pro_starter: 10000,
-      pro_growth: 100000,
-      pro_scale: 500000,
-      pro: 100000,
-    };
-
     const existingUser = await db.user.findById(targetWalletAddress);
-    let carriedRollover = 0;
-    if (existingUser) {
-      const prevPlanQuota = TIER_QUOTAS[existingUser.plan] || 100;
-      const prevUsed = existingUser.shipmentsThisMonth || 0;
-      const prevRollover = existingUser.rolloverQuota || 0;
-      const totalPrevCapacity = prevPlanQuota + prevRollover;
-      const unusedRemaining = Math.max(0, totalPrevCapacity - prevUsed);
-      carriedRollover = unusedRemaining;
-    }
 
     const updatedUser = await db.user.findByIdAndUpdate(
       targetWalletAddress,
@@ -62,7 +44,7 @@ export async function POST(request: Request) {
           billingCycle: billingCycle,
           billingCycleStart: new Date(),
           shipmentsThisMonth: 0,
-          rolloverQuota: carriedRollover,
+          rolloverQuota: 0, // Strict rule: No rollover in any tier
           overageCharges: 0,
           stripeCustomerId: stripeCustomerId || existingUser?.stripeCustomerId,
           stripeSubscriptionId: stripeSubscriptionId || existingUser?.stripeSubscriptionId,
