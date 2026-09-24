@@ -25,9 +25,17 @@ export default function Header() {
   const { account, isAuthLoading } = useAuthReady();
   const activeWallet = useActiveWallet();
   const { disconnect } = useDisconnect();
-  // Keep useActiveAccount for wallet-specific hooks that need the raw account
   const { openLogin } = useAuth();
-  const { fullName, companyName, businessLogo, username, role, plan, billingCycle } = useProfile();
+  const {
+    fullName,
+    companyName,
+    businessLogo,
+    username,
+    plan,
+    billingCycle,
+    activeMode,
+    switchMode,
+  } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 
   // Reactive tab state synchronization across Header, MobileBottomNav, and WorkspaceContent
@@ -117,7 +125,7 @@ export default function Header() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Role-tailored navigation links
+  // Role & Mode tailored navigation links
   const navLinks = isStaffMode && workspaceSession
     ? workspaceSession.role === "manager"
       ? [
@@ -131,7 +139,7 @@ export default function Header() {
           { name: "Sales & Receipts", href: "/workspace?tab=receipts" },
           { name: "Shipments", href: "/workspace?tab=shipments" },
         ]
-    : role === "merchant"
+    : activeMode === "merchant"
     ? [
         { name: "POS Terminal", href: "/workspace?tab=pos" },
         { name: "Sales & Receipts", href: "/workspace?tab=receipts" },
@@ -200,11 +208,15 @@ export default function Header() {
     ? null
     : isStaffMode
     ? workspaceSession?.businessLogo || businessLogo
-    : businessLogo;
+    : activeMode === "merchant"
+    ? businessLogo
+    : null;
 
   const brandTitle = isStaffMode
     ? (workspaceSession?.merchantName || companyName || "Workspace")
-    : (companyName || fullName || username || "Recover");
+    : activeMode === "merchant"
+    ? (companyName || fullName || username || "Recover")
+    : "Recover";
 
   return (
     <header className="bg-neutral-white border-b border-neutral-mist sticky top-0 z-50 shadow-xs">
@@ -227,7 +239,7 @@ export default function Header() {
           {/* Logo / Wordmark lockup */}
           <div className="flex items-center">
             <Link
-              href={isExplorePage ? "/" : role === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
+              href={isExplorePage ? "/" : activeMode === "merchant" ? "/workspace" : account ? "/dashboard" : "/"}
               className="flex items-center space-x-2.5 group"
             >
               {activeLogo ? (
@@ -284,7 +296,7 @@ export default function Header() {
               ))}
 
               {/* Explore ▾ Menu for Merchant & Staff to access all platform pages */}
-              {(isStaffMode || role === "merchant") && (
+              {(isStaffMode || activeMode === "merchant") && (
                 <div className="relative" data-dropdown-container>
                   <button
                     type="button"
@@ -539,6 +551,48 @@ export default function Header() {
                     )}
                   </div>
 
+                  {/* Mode Switcher Segmented Control */}
+                  {!isStaffMode && (
+                    <div className="hidden sm:flex items-center bg-neutral-mist/80 border border-neutral-mist p-0.5 rounded-lg text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          switchMode("personal");
+                          if (pathname.startsWith("/workspace")) {
+                            router.push("/dashboard");
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          activeMode === "personal"
+                            ? "bg-neutral-white text-primary shadow-xs font-bold"
+                            : "text-neutral-slate hover:text-primary"
+                        }`}
+                        title="Switch to Personal Vault"
+                      >
+                        <span>👤</span>
+                        <span>Personal</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          switchMode("merchant");
+                          if (pathname.startsWith("/dashboard") || pathname.startsWith("/register")) {
+                            router.push("/workspace");
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          activeMode === "merchant"
+                            ? "bg-neutral-white text-primary shadow-xs font-bold"
+                            : "text-neutral-slate hover:text-primary"
+                        }`}
+                        title="Switch to Business Workspace"
+                      >
+                        <span>🏪</span>
+                        <span>Business</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* User Profile Menu */}
                   <div className="relative" data-dropdown-container>
                     <button
@@ -549,15 +603,15 @@ export default function Header() {
                       className="flex items-center space-x-2 bg-neutral-mist hover:bg-neutral-mist/80 border border-gray-300 text-primary font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer"
                     >
                       <div className="w-5 h-5 rounded-full bg-[#1e2a4a0a] flex items-center justify-center text-xs border border-gray-200 overflow-hidden">
-                        {role === "merchant" && businessLogo ? (
+                        {activeMode === "merchant" && businessLogo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={businessLogo} alt="" className="w-full h-full object-contain" />
                         ) : (
-                          role === "merchant" ? "🏪" : "👤"
+                          activeMode === "merchant" ? "🏪" : "👤"
                         )}
                       </div>
-                      <span className={`${(role === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
-                        {role === "merchant"
+                      <span className={`${(activeMode === "merchant" ? companyName : fullName) || username ? 'font-sans' : 'font-mono'} text-xs font-semibold`}>
+                        {activeMode === "merchant"
                           ? (companyName || fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)
                           : (fullName || username || `${account.address.slice(0, 6)}...${account.address.slice(-4)}`)}
                       </span>
@@ -565,8 +619,29 @@ export default function Header() {
                     </button>
 
                     {isUserMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-52 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
-                        {role === "merchant" ? (
+                      <div className="absolute right-0 mt-2 w-56 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
+                        {/* 1-Tap Mode Switcher in Menu */}
+                        {!isStaffMode && (
+                          <div className="px-3 py-1.5 border-b border-neutral-mist mb-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextMode = activeMode === "personal" ? "merchant" : "personal";
+                                switchMode(nextMode);
+                                setIsUserMenuOpen(false);
+                                router.push(nextMode === "merchant" ? "/workspace" : "/dashboard");
+                              }}
+                              className="w-full flex items-center justify-between px-2.5 py-1.5 bg-neutral-mist/60 hover:bg-neutral-mist rounded-lg text-xs font-semibold text-primary transition-colors cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                {activeMode === "personal" ? "🏪 Switch to Business" : "👤 Switch to Personal"}
+                              </span>
+                              <span className="text-[10px] text-blue-600 font-bold">Switch →</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {activeMode === "merchant" ? (
                           <>
                             <div className="px-4 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
                               <span className="text-[9px] font-extrabold uppercase text-neutral-slate tracking-wider block">Merchant Plan</span>
