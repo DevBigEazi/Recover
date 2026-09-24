@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Briefcase, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/Header/Header";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -37,9 +38,19 @@ interface LocalItem {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { username, isProfileLoaded } = useProfile();
+  const { username, isProfileLoaded, switchMode } = useProfile();
+
+  const handleSwitchToMerchant = async () => {
+    try {
+      await switchMode("merchant");
+      router.push("/workspace");
+    } catch {
+      router.push("/workspace");
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<"All" | "Active" | "Lost" | "Recovered">("All");
 
@@ -173,34 +184,49 @@ export default function DashboardPage() {
       <Header />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Invite-Only Alpha-Testing Banner */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3 text-amber-800 animate-fade-in shadow-xs">
-          <span className="text-xl shrink-0 leading-none">⚠️</span>
-          <div className="space-y-1 text-left">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">Invite-Only Alpha-Testing</h4>
-            <p className="text-[11px] leading-relaxed text-amber-800/90 font-medium">
-              Recover is currently in its invite-only alpha-testing phase. All item registrations, status toggles, and printing actions are for pre-launch testing purposes only.
+        {/* Pre-Launch Info Notice */}
+        <div className="bg-neutral-white border border-neutral-slate/15 rounded-xl p-3.5 sm:p-4 mb-6 flex items-start gap-3 text-neutral-slate animate-fade-in shadow-xs">
+          <ShieldCheck className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+          <div className="space-y-0.5 text-left">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Pre-Launch Alpha Preview</h4>
+            <p className="text-[11px] leading-relaxed text-neutral-slate font-medium">
+              Recover is operating in pre-launch preview. Item registrations, status toggles, and sticker exports are securely indexed and ready for live verification.
             </p>
           </div>
         </div>
 
-        {/* Upper Title Row */}
+        {/* Mode Pill & Upper Title Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-primary font-display">
-              {username ? `Hey, ${username}!` : "Dashboard"}
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-[10px] font-extrabold uppercase tracking-wider text-accent">
+              <ShieldCheck className="w-3 h-3 text-accent" />
+              <span>Personal Items Vault</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary font-display">
+              {username ? `Hey, ${username}!` : "Personal Vault"}
             </h1>
-            <p className="text-sm text-neutral-slate mt-1">
-              Manage your registered items, track their status, and generate stickers.
+            <p className="text-xs sm:text-sm text-neutral-slate">
+              Manage your registered personal belongings, track status, and export QR stickers.
             </p>
           </div>
           {account && (
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-neutral-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors cursor-pointer"
-            >
-              + Register New Item
-            </Link>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleSwitchToMerchant}
+                className="inline-flex items-center justify-center gap-1.5 bg-neutral-white hover:bg-neutral-mist text-primary border border-neutral-slate/20 font-semibold rounded-lg px-3.5 py-2 text-xs transition-colors cursor-pointer shadow-xs"
+              >
+                <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Switch to Business Mode</span>
+                <ArrowRight className="w-3 h-3 text-neutral-slate" />
+              </button>
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-neutral-white font-semibold rounded-lg px-4 py-2 text-xs sm:text-sm transition-colors cursor-pointer shadow-xs"
+              >
+                + Register New Item
+              </Link>
+            </div>
           )}
         </div>
 
@@ -246,7 +272,7 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {/* Multi-Item Printing Recommendation Banner */}
             {items.length > 0 && (
-              <div className="bg-linear-to-r from-primary to-[#2F3E68] text-neutral-white rounded-2xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="bg-primary border border-neutral-slate/15 text-neutral-white rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="space-y-1.5 text-center md:text-left">
                   <div className="flex items-center justify-center md:justify-start gap-2">
                     <span className="bg-accent text-neutral-white text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-full tracking-wider">
@@ -383,7 +409,7 @@ export default function DashboardPage() {
                       </p>
                       
                       {item.reward && item.status === "Lost" && (
-                        <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs font-semibold text-warning">
+                        <div className="mt-3 inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 px-3 py-1 rounded-full text-xs font-semibold text-accent">
                           <span>🎁 Reward: {item.reward}</span>
                         </div>
                       )}
@@ -485,7 +511,7 @@ export default function DashboardPage() {
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-full shrink-0 ${
                 confirmAction.type === "Lost" 
-                  ? "bg-amber-500/10 text-warning" 
+                  ? "bg-rose-500/10 text-rose-600" 
                   : "bg-accent/10 text-accent"
               }`}>
                 {confirmAction.type === "Lost" ? (

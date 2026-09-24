@@ -8,7 +8,7 @@ import ReceiptsTable from "@/components/Receipts/ReceiptsTable";
 import POSScreen from "@/components/Receipts/POSScreen";
 import ShipmentsPanel from "@/components/Shipments/ShipmentsPanel";
 import Link from "next/link";
-import { PlusCircle, Receipt, Users, UserPlus, Store, Loader2, User, Building2 } from "lucide-react";
+import { PlusCircle, Receipt, Users, UserPlus, Store, Loader2, User, Building2, Briefcase, ShieldCheck, ArrowRight } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useTeam } from "@/context/TeamContext";
@@ -170,6 +170,33 @@ function WorkspaceContent() {
         </div>
       ) : (
         <>
+          {/* Unified Mode Context & Personal Bridge (For Wallet Owners) */}
+          {isMerchantOwner && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs shadow-xs">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+                  <Briefcase className="w-3 h-3 text-emerald-400" />
+                  <span>Business Mode</span>
+                </div>
+                <span className="text-slate-300 font-medium">
+                  Store POS receipts, logistics dispatches &amp; branch team hub
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  await switchMode("personal");
+                  router.push("/dashboard");
+                }}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-medium transition-colors cursor-pointer border border-slate-700/60 shrink-0 shadow-xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                <span>Switch to Personal Vault</span>
+                <ArrowRight className="w-3 h-3 text-slate-400" />
+              </button>
+            </div>
+          )}
+
           {/* Tab Panel 1: Digital Receipts & Sales */}
           {activeTab === "receipts" && (
             <div className="space-y-6 animate-fadeIn">
