@@ -353,7 +353,7 @@ export default function PricingPage() {
                 {/* CTA */}
                 <div className="pt-3">
                   <Link
-                    href="/settings"
+                    href={`/settings?plan=${growthTierKey}`}
                     className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors cursor-pointer block bg-primary hover:bg-primary-light text-neutral-white shadow-xs"
                   >
                     Select {growthTier.name}
@@ -487,7 +487,7 @@ export default function PricingPage() {
                 {/* CTA */}
                 <div className="pt-3">
                   <Link
-                    href="/settings"
+                    href={`/settings?plan=${scaleTierKey}`}
                     className="w-full py-3 px-4 rounded-xl text-xs font-bold text-center transition-colors cursor-pointer block bg-neutral-mist hover:bg-neutral-slate/10 text-primary border border-neutral-slate/15 shadow-xs"
                   >
                     Select {scaleTier.name}

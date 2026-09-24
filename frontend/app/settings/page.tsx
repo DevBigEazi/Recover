@@ -23,7 +23,7 @@ export default function SettingsPage() {
   const { role, isProfileLoaded, refetchProfile } = useProfile();
   const hasVerifiedSubRef = useRef(false);
 
-  // Handle Stripe checkout return verification (runs strictly once per page visit)
+  // Handle Stripe & Paystack checkout return verification (runs strictly once per page visit)
   useEffect(() => {
     if (typeof window === "undefined" || hasVerifiedSubRef.current) return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -36,7 +36,7 @@ export default function SettingsPage() {
           const res = await fetch("/api/subscription/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId }),
+            body: JSON.stringify({ sessionId, walletAddress: account?.address }),
           });
           toast.dismiss();
           if (res.ok) {
@@ -55,7 +55,7 @@ export default function SettingsPage() {
       };
       verifySub();
     }
-  }, [refetchProfile]);
+  }, [refetchProfile, account?.address]);
 
   // 1. Auth loading — don't flash the "not signed in" UI while thirdweb restores the session
   if (isAuthLoading || !isProfileLoaded) {

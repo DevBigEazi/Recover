@@ -60,15 +60,23 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
 
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const checkoutWindowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     detectUserCurrency().then(setUserCurrency);
 
-    const handleResetUpgrade = () => {
-      if (!checkoutWindowRef.current || checkoutWindowRef.current.closed) {
-        setIsUpgrading(false);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const planParam = params.get("plan");
+      if (planParam && PLAN_TIERS[planParam]) {
+        setSelectedUpgradeTier(planParam);
+        setShowUpgradeModal(true);
+      } else if (params.get("upgrade") === "true") {
+        setShowUpgradeModal(true);
       }
+    }
+
+    const handleResetUpgrade = () => {
+      setIsUpgrading(false);
     };
     window.addEventListener("pageshow", handleResetUpgrade);
     window.addEventListener("focus", handleResetUpgrade);
@@ -122,26 +130,8 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
       const initData = await initRes.json();
 
       if (initData.url) {
-        const checkoutWindow = window.open(initData.url, "_blank");
-        if (!checkoutWindow || checkoutWindow.closed || typeof checkoutWindow.closed === "undefined") {
-          window.location.href = initData.url;
-        } else {
-          checkoutWindowRef.current = checkoutWindow;
-          setIsUpgrading(true);
-          toast("Checkout opened in a new tab. Complete payment to activate.", {
-            icon: "💳",
-            duration: 5000,
-          });
-
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          pollTimerRef.current = setInterval(() => {
-            if (checkoutWindow.closed) {
-              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-              checkoutWindowRef.current = null;
-              setIsUpgrading(false);
-            }
-          }, 800);
-        }
+        toast.loading("Redirecting to secure payment checkout...");
+        window.location.href = initData.url;
       } else {
         throw new Error("Checkout URL was not returned.");
       }
