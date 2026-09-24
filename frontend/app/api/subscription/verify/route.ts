@@ -33,6 +33,11 @@ export async function POST(request: Request) {
     const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
 
     const existingUser = await db.user.findById(targetWalletAddress);
+    const companyName = metadata.companyName || existingUser?.companyName;
+    const username = metadata.username || existingUser?.username || `merchant_${targetWalletAddress.substring(2, 8)}`;
+    const fullName = metadata.fullName || metadata.companyName || existingUser?.fullName || `Merchant (${targetWalletAddress.substring(0, 6)})`;
+    const phone = metadata.phone || existingUser?.phone;
+    const email = metadata.email || existingUser?.email;
 
     const updatedUser = await db.user.findByIdAndUpdate(
       targetWalletAddress,
@@ -48,11 +53,12 @@ export async function POST(request: Request) {
           overageCharges: 0,
           stripeCustomerId: stripeCustomerId || existingUser?.stripeCustomerId,
           stripeSubscriptionId: stripeSubscriptionId || existingUser?.stripeSubscriptionId,
+          ...(companyName ? { companyName } : {}),
+          ...(username ? { username } : {}),
+          ...(fullName ? { fullName } : {}),
+          ...(phone ? { phone } : {}),
+          ...(email ? { email } : {}),
         },
-        $setOnInsert: {
-          fullName: `Logistics Partner (${targetWalletAddress.substring(0, 6)})`,
-          username: `merchant_${targetWalletAddress.substring(2, 8)}`,
-        }
       },
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );

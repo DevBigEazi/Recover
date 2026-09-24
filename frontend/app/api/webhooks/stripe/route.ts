@@ -55,6 +55,11 @@ export async function POST(request: Request) {
                 shipmentsThisMonth: 0,
                 stripeCustomerId: customerId,
                 stripeSubscriptionId: subscriptionId,
+                ...(metadata.companyName ? { companyName: metadata.companyName } : {}),
+                ...(metadata.username ? { username: metadata.username } : {}),
+                ...(metadata.fullName || metadata.companyName ? { fullName: metadata.fullName || metadata.companyName } : {}),
+                ...(metadata.phone ? { phone: metadata.phone } : {}),
+                ...(metadata.email ? { email: metadata.email } : {}),
               },
             },
             { upsert: true }

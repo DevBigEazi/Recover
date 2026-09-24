@@ -16,6 +16,7 @@ import { useProfile } from "@/context/ProfileContext";
 import TeamMembersTable from "@/components/Team/TeamMembersTable";
 import BranchesPanel from "@/components/Team/BranchesPanel";
 import InviteMemberModal from "@/components/Team/InviteMemberModal";
+import toast from "react-hot-toast";
 
 export type WorkspaceTab = "receipts" | "pos" | "shipments" | "team";
 
@@ -25,9 +26,44 @@ function WorkspaceContent() {
   const { account } = useAuthReady();
   const { openLogin } = useAuth();
   const { isStaffMode, can, actorBranchId, actorBranchName, workspaceSession } = useTeam();
-  const { role, isProfileLoaded, companyName } = useProfile();
+  const { role, isProfileLoaded, companyName, refetchProfile } = useProfile();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [teamSubTab, setTeamSubTab] = useState<"members" | "branches">("members");
+  const hasVerifiedSubRef = React.useRef(false);
+
+  // Handle Stripe checkout return verification when onboarding redirects to /workspace
+  useEffect(() => {
+    if (typeof window === "undefined" || hasVerifiedSubRef.current) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get("session_id") || urlParams.get("reference");
+    if (sessionId) {
+      hasVerifiedSubRef.current = true;
+      const verifySub = async () => {
+        try {
+          toast.loading("Activating merchant workspace...");
+          const res = await fetch("/api/subscription/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, walletAddress: account?.address }),
+          });
+          toast.dismiss();
+          if (res.ok) {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("recover_onboarding_draft");
+            }
+            toast.success("Merchant workspace activated!");
+            refetchProfile();
+          }
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        } catch (e) {
+          toast.dismiss();
+          console.error("Subscription verification error:", e);
+        }
+      };
+      verifySub();
+    }
+  }, [refetchProfile, account?.address]);
 
   const isMerchantOwner = Boolean(account && role === "merchant");
   const hasWorkspaceAccess = isStaffMode || isMerchantOwner;

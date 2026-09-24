@@ -54,6 +54,34 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
     if (typeof window !== "undefined") {
       const unlocked = localStorage.getItem("recover_access_unlocked") === "true";
       setHasAccess(unlocked);
+
+      try {
+        const raw = localStorage.getItem("recover_onboarding_draft");
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.accountType) setAccountType(draft.accountType);
+          if (draft.companyName) setCompanyName(draft.companyName);
+          if (draft.fullName) setFullName(draft.fullName);
+          if (draft.username) setUsername(draft.username);
+          if (draft.phone) setPhone(draft.phone);
+          if (draft.whatsapp) setWhatsapp(draft.whatsapp);
+          if (draft.email) setEmail(draft.email);
+          if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
+          if (draft.step) setStep(draft.step);
+        }
+      } catch (err) {
+        console.error("Failed to restore onboarding draft:", err);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("onboarding_cancelled") === "true") {
+        toast("Payment was cancelled. You can choose a different plan or proceed with the Free plan to complete onboarding.", {
+          icon: "❗️",
+          duration: 6000,
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
     }
   }, []);
 
@@ -148,6 +176,23 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       setIsUpgrading(true);
 
       try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "recover_onboarding_draft",
+            JSON.stringify({
+              accountType,
+              fullName,
+              companyName,
+              username: username.trim().toLowerCase(),
+              phone,
+              whatsapp,
+              email,
+              selectedPlan,
+              step: 2,
+            })
+          );
+        }
+
         const isNigeria = userCurrency?.currency === "NGN" || userCurrency?.countryCode === "NG";
         const initRes = await fetch("/api/subscription/initialize", {
           method: "POST",
@@ -160,6 +205,11 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
             gateway: isNigeria ? "flutterwave" : "stripe",
             countryCode: userCurrency?.countryCode,
             currency: userCurrency?.currency,
+            isOnboarding: true,
+            companyName: companyName.trim(),
+            username: username.trim().toLowerCase(),
+            phone: phone.trim(),
+            fullName: fullName.trim() || companyName.trim(),
           }),
         });
 
@@ -184,6 +234,9 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
           if (!vRes.ok) {
             const vErr = await vRes.json();
             throw new Error(vErr.error || "Verification failed");
+          }
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("recover_onboarding_draft");
           }
           toast.success("Merchant plan activated!", { id: "setup_flw" });
           window.location.reload();
@@ -243,6 +296,22 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
       }
 
       if (step === 1 && accountType === "merchant") {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "recover_onboarding_draft",
+            JSON.stringify({
+              accountType,
+              fullName,
+              companyName,
+              username: cleanedUsername,
+              phone,
+              whatsapp,
+              email,
+              selectedPlan,
+              step: 2,
+            })
+          );
+        }
         // Transition to plan selection screen
         setStep(2);
         return;
@@ -277,6 +346,10 @@ export function ProfileSetupGate({ children }: ProfileSetupGateProps) {
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.error || "Failed to save profile.");
+        }
+
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("recover_onboarding_draft");
         }
 
         toast.success("Profile setup complete!");

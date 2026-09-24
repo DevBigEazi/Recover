@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       ],
     });
 
-    if (!user) {
+    if (!user || !user.username) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 

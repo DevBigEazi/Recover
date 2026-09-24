@@ -47,12 +47,21 @@ export async function POST(request: Request) {
       countryCode?.toUpperCase() === "NG" ||
       currency?.toUpperCase() === "NGN";
 
+    const isFromOnboarding = Boolean(body.isOnboarding);
+    const usableName = (
+      body.companyName ||
+      body.fullName ||
+      user?.companyName ||
+      user?.fullName ||
+      undefined
+    );
+
     // 1. FLUTTERWAVE GATEWAY (Nigeria Market)
     if (isNigerian) {
       const flwOrder = await initializeFlutterwavePayment({
         walletAddress: cleanAddress,
         email: usableEmail,
-        name: user?.companyName || user?.fullName || undefined,
+        name: usableName,
         planTier: selectedPlan.id,
         amountNgn: selectedPlan.ngnMonthly,
         billingCycle: "monthly",
@@ -73,20 +82,28 @@ export async function POST(request: Request) {
     const customer = await getOrCreateStripeCustomer({
       walletAddress: cleanAddress,
       email: usableEmail,
-      name: user?.companyName || user?.fullName || undefined,
+      name: usableName,
       existingStripeCustomerId: user?.stripeCustomerId || undefined,
     });
 
-    await db.user.findOneAndUpdate(
+    // Update customer ID only if the user document already exists (do NOT upsert an incomplete user during onboarding)
+    await db.user.updateOne(
       { _id: cleanAddress },
-      { $set: { stripeCustomerId: customer.id } },
-      { upsert: true }
+      { $set: { stripeCustomerId: customer.id } }
     );
 
     // Triple price for international market (outside Nigeria), minimum 50 cents for Stripe
     const internationalNgn = selectedPlan.ngnMonthly * 3;
     const unitAmountCents = Math.max(50, Math.round((internationalNgn / 1480) * 100));
     const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://userecover.xyz";
+
+    const success_url = isFromOnboarding
+      ? `${origin}/workspace?session_id={CHECKOUT_SESSION_ID}&subscribed=true&onboarding=true`
+      : `${origin}/settings?session_id={CHECKOUT_SESSION_ID}&subscribed=true`;
+
+    const cancel_url = isFromOnboarding
+      ? `${origin}/workspace?onboarding_cancelled=true`
+      : `${origin}/settings?cancelled=true`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -108,13 +125,20 @@ export async function POST(request: Request) {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/settings?session_id={CHECKOUT_SESSION_ID}&subscribed=true`,
-      cancel_url: `${origin}/settings`,
+      success_url,
+      cancel_url,
       metadata: {
         type: "subscription",
         walletAddress: cleanAddress,
         plan: selectedPlan.id,
         billingCycle: "monthly",
+        isOnboarding: isFromOnboarding ? "true" : "false",
+        companyName: (body.companyName || user?.companyName || "").trim(),
+        username: (body.username || user?.username || "").trim(),
+        phone: (body.phone || user?.phone || "").trim(),
+        email: usableEmail,
+        fullName: (body.fullName || body.companyName || user?.fullName || "").trim(),
+        role: "merchant",
       },
     });
 
