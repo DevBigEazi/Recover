@@ -22,9 +22,6 @@ export default function Footer() {
             <p className="text-xs text-neutral-slate max-w-xs leading-relaxed">
               Smart physical item protection, digital receipts &amp; logistics tracking.
             </p>
-            <p className="text-[11px] text-neutral-slate/70">
-              © {new Date().getFullYear()} Recover. All rights reserved.
-            </p>
           </div>
 
           {/* Col 2: Solutions */}
@@ -100,6 +97,22 @@ export default function Footer() {
             <p className="text-[11px] text-neutral-slate/70 leading-relaxed">
               Tamperproof proof-of-purchase, custody handovers, and ownership verification.
             </p>
+          </div>
+        </div>
+
+        {/* Bottom Bar: Copyright & Legal */}
+        <div className="mt-8 pt-6 border-t border-neutral-mist flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-slate">
+          <p className="text-[11px] text-neutral-slate/70">
+            © {new Date().getFullYear()} Recover. All rights reserved.
+          </p>
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-neutral-mist">•</span>
+            <Link href="/terms" className="hover:text-primary transition-colors">
+              Terms of Service
+            </Link>
           </div>
         </div>
       </div>
