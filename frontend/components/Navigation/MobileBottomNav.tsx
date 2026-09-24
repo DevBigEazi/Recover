@@ -84,6 +84,7 @@ export default function MobileBottomNav() {
 
   return (
     <>
+      <div className="h-20 md:hidden pointer-events-none" aria-hidden="true" />
       <nav
         aria-label="Mobile Navigation Bar"
         className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-neutral-white/95 backdrop-blur-md border-t border-neutral-mist shadow-lg pb-safe"

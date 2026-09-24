@@ -99,6 +99,17 @@ export async function POST(req: NextRequest) {
     const numTax = Math.max(0, Number(tax) || 0);
     const total = Math.max(0, subtotal - numDiscount + numTax);
 
+    // Validate customer identification (phone number or full name required to attach to receipt)
+    const trimmedCustomerName = customerName ? String(customerName).trim() : "";
+    const trimmedCustomerPhone = customerPhone ? String(customerPhone).trim() : "";
+
+    if (!trimmedCustomerName && !trimmedCustomerPhone) {
+      return NextResponse.json(
+        { error: "Customer phone number or full name is required to attach to this receipt." },
+        { status: 400 }
+      );
+    }
+
     // Validate Credit payment channel requirements
     if (paymentMethod === "Credit") {
       if (actor && !hasPermission(actor.role, "sell_credit")) {
@@ -107,7 +118,6 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         );
       }
-      const trimmedCustomerName = customerName ? String(customerName).trim() : "";
       if (!trimmedCustomerName) {
         return NextResponse.json(
           { error: "Customer name is required when issuing items on Store Credit so you can track who owes you." },

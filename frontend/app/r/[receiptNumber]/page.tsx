@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState, useRef } from "react";
+import React, { use, useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
@@ -68,6 +68,15 @@ export default function PublicReceiptPage({ params }: PageProps) {
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState<string>("");
+
+  // Prevent white space on scroll / rubber-band overscroll by matching body bg to dark slate
+  useEffect(() => {
+    const originalBg = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "#020617";
+    return () => {
+      document.body.style.backgroundColor = originalBg;
+    };
+  }, []);
 
   // Fetch Public Receipt
   const { data, isLoading, error } = useQuery<{ success: boolean; receipt: PublicReceipt }>({
@@ -185,7 +194,7 @@ export default function PublicReceiptPage({ params }: PageProps) {
   const activeItem = selectedItemName || receipt.items?.[0]?.name || "Purchased Item";
 
   return (
-    <div className="min-h-screen bg-slate-950 py-6 sm:py-10 px-3 sm:px-4 text-slate-100 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-950 pt-4 pb-2 sm:pt-6 sm:pb-3 px-3 sm:px-4 text-slate-100">
       <div className="max-w-md mx-auto w-full space-y-4">
         {/* Top Header & Actions Bar */}
         <div className="flex items-center justify-between px-1">
