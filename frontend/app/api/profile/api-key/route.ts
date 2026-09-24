@@ -20,9 +20,9 @@ export async function POST(request: Request) {
       ],
     });
 
-    if (!user || user.role !== "merchant") {
+    if (!user || (!user.hasMerchantProfile && user.role !== "merchant")) {
       return NextResponse.json(
-        { error: "Developer API keys are only available for merchant accounts." },
+        { error: "Developer API keys are only available for business accounts." },
         { status: 403 }
       );
     }
