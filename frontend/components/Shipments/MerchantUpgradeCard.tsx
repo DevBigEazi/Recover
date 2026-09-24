@@ -21,7 +21,6 @@ const TIER_RANKS: Record<string, number> = {
 interface MerchantUpgradeCardProps {
   walletAddress: string;
   plan: string;
-  role: string;
   billingCycle: "monthly" | "yearly";
   subscriptionActive: boolean;
   userCurrency: UserCurrencyInfo | null;
@@ -30,7 +29,6 @@ interface MerchantUpgradeCardProps {
 export default function MerchantUpgradeCard({
   walletAddress,
   plan,
-  role,
   subscriptionActive,
   userCurrency,
 }: MerchantUpgradeCardProps) {
@@ -173,14 +171,14 @@ export default function MerchantUpgradeCard({
       <button
         type="button"
         onClick={handleUpgrade}
-        disabled={isUpgrading || (subscriptionActive && role === "merchant" && isSameTier)}
+        disabled={isUpgrading || (subscriptionActive && isSameTier)}
         className="w-full text-center font-bold text-xs py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer bg-primary hover:bg-primary-light text-white shadow-xs"
       >
         {isUpgrading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" /> Awaiting Checkout in Other Tab...
           </>
-        ) : subscriptionActive && role === "merchant" && isSameTier ? (
+        ) : subscriptionActive && isSameTier ? (
           "Current Active Plan"
         ) : (
           `Pay ${convertNgnPrice(PLAN_TIERS[selectedTier]?.ngnMonthly || 1000, userCurrency).formattedLocal} / mo with ${isNigeria ? "Paystack" : "Stripe"}`

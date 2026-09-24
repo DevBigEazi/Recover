@@ -20,7 +20,7 @@ import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { role, isProfileLoaded, refetchProfile } = useProfile();
+  const { activeMode, hasMerchantProfile, isProfileLoaded, refetchProfile } = useProfile();
   const hasVerifiedSubRef = useRef(false);
 
   // Handle Stripe & Paystack checkout return verification (runs strictly once per page visit)
@@ -109,10 +109,10 @@ export default function SettingsPage() {
         {/* Navigation Breadcrumb */}
         <div className="mb-6">
           <Link
-            href={role === "merchant" ? "/shipments" : "/dashboard"}
+            href={activeMode === "merchant" ? "/workspace" : "/dashboard"}
             className="text-sm font-medium text-neutral-slate hover:text-primary flex items-center gap-1"
           >
-            ← Back to {role === "merchant" ? "Shipments" : "Dashboard"}
+            ← Back to {activeMode === "merchant" ? "Workspace Hub" : "Items Dashboard"}
           </Link>
         </div>
 
@@ -128,13 +128,13 @@ export default function SettingsPage() {
           <SubscriptionPlanCard walletAddress={account.address} />
 
           {/* Merchant Team & Multi-Branch Management */}
-          {role === "merchant" && <TeamManagementCard />}
+          {(activeMode === "merchant" || hasMerchantProfile) && <TeamManagementCard />}
 
           {/* Developer API Key Card for Merchants */}
           <ApiKeyCard walletAddress={account.address} />
 
           {/* Merchant Global Webhook Configuration Card */}
-          {role === "merchant" && <WebhookConfigCard variant="light" />}
+          {(activeMode === "merchant" || hasMerchantProfile) && <WebhookConfigCard variant="light" />}
 
           {/* 2. Account Credentials Backup Card */}
           <CredentialsBackupCard hasAccount={Boolean(account)} />

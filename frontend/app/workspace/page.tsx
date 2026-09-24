@@ -8,7 +8,7 @@ import ReceiptsTable from "@/components/Receipts/ReceiptsTable";
 import POSScreen from "@/components/Receipts/POSScreen";
 import ShipmentsPanel from "@/components/Shipments/ShipmentsPanel";
 import Link from "next/link";
-import { PlusCircle, Receipt, Lock, Users, UserPlus, Store, Loader2, User, Building2, ShieldCheck } from "lucide-react";
+import { PlusCircle, Receipt, Users, UserPlus, Store, Loader2, User, Building2 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useTeam } from "@/context/TeamContext";
@@ -26,7 +26,7 @@ function WorkspaceContent() {
   const { account } = useAuthReady();
   const { openLogin } = useAuth();
   const { isStaffMode, can, actorBranchId, actorBranchName, workspaceSession } = useTeam();
-  const { role, isProfileLoaded, companyName, refetchProfile } = useProfile();
+  const { activeMode, switchMode, isProfileLoaded, refetchProfile } = useProfile();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [teamSubTab, setTeamSubTab] = useState<"members" | "branches">("members");
   const hasVerifiedSubRef = React.useRef(false);
@@ -66,8 +66,15 @@ function WorkspaceContent() {
     }
   }, [refetchProfile, account?.address]);
 
-  const isMerchantOwner = Boolean(account && role === "merchant");
-  const hasWorkspaceAccess = isStaffMode || isMerchantOwner;
+  // If wallet owner enters workspace in personal mode, switch activeMode to merchant
+  useEffect(() => {
+    if (account && !isStaffMode && activeMode !== "merchant") {
+      switchMode("merchant");
+    }
+  }, [account, isStaffMode, activeMode, switchMode]);
+
+  const isMerchantOwner = Boolean(account && !isStaffMode);
+  const hasWorkspaceAccess = Boolean(isStaffMode || account);
 
   const branchId = workspaceSession?.branchId || actorBranchId || null;
   const branchName = workspaceSession?.branchName || actorBranchName || "Branch";
@@ -124,75 +131,43 @@ function WorkspaceContent() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-        <p className="text-xs text-slate-400">Verifying merchant credentials...</p>
+        <p className="text-xs text-slate-400">Verifying credentials...</p>
       </div>
     );
   }
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Access Gate: Personal Account vs Unauthenticated vs Authorized */}
+      {/* Access Gate: Unauthenticated vs Authorized */}
       {!hasWorkspaceAccess ? (
-        account && role !== "merchant" ? (
-          /* Personal Consumer Account Gating */
-          <div className="p-10 sm:p-14 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-2xl mx-auto my-6 animate-fadeIn">
-            <div className="w-14 h-14 rounded-2xl bg-slate-800/80 text-blue-400 border border-slate-700/80 flex items-center justify-center mx-auto">
-              <Lock className="w-6 h-6 text-slate-300" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Merchant Account Required
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-                You are currently signed in with a personal account. Workspace POS terminals, retail receipts, and team management are reserved exclusively for registered merchant owners and verified workplace staff.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
-              <Link
-                href="/dashboard"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm text-center"
-              >
-                Go to Personal Dashboard
-              </Link>
-              <Link
-                href="/workspace/login"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
-              >
-                Staff Member PIN Login
-              </Link>
-            </div>
+        <div className="p-10 sm:p-14 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-2xl mx-auto my-6 animate-fadeIn">
+          <div className="w-14 h-14 rounded-2xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center mx-auto">
+            <Receipt className="w-6 h-6" />
           </div>
-        ) : (
-          /* Completely Unauthenticated Gating */
-          <div className="p-10 sm:p-14 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-2xl mx-auto my-6 animate-fadeIn">
-            <div className="w-14 h-14 rounded-2xl bg-blue-950/80 text-blue-400 border border-blue-800/60 flex items-center justify-center mx-auto">
-              <Receipt className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Connect Merchant Account
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-                Connect your registered business account or sign in with your staff PIN to access your point-of-sale terminal, digital receipts ledger, and close-of-day analytics.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
-              <button
-                type="button"
-                onClick={openLogin}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
-              >
-                Sign In as Merchant Owner
-              </button>
-              <Link
-                href="/workspace/login"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
-              >
-                Staff Member PIN Login
-              </Link>
-            </div>
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              Connect to Access Workspace
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
+              Connect your account or sign in with your staff PIN to access your point-of-sale terminal, digital receipts ledger, shipments, and close-of-day analytics.
+            </p>
           </div>
-        )
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
+            <button
+              type="button"
+              onClick={openLogin}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
+            >
+              Sign In / Connect
+            </button>
+            <Link
+              href="/workspace/login"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
+            >
+              Staff Member PIN Login
+            </Link>
+          </div>
+        </div>
       ) : (
         <>
           {/* Tab Panel 1: Digital Receipts & Sales */}
