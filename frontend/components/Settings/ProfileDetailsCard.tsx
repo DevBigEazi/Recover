@@ -400,33 +400,33 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
       )}
 
       {/* 2. Centralized Profile Tabs */}
-      <div className="flex items-center justify-between border-b border-neutral-mist mb-6 pb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-neutral-mist mb-6 pb-1 sm:pb-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => setActiveTab("personal")}
-            className={`flex items-center gap-2 pb-2 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 sm:gap-2 pb-1.5 sm:pb-2 px-2 sm:px-3 text-[11px] sm:text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "personal" ? "border-primary text-primary" : "border-transparent text-neutral-slate hover:text-primary"
             }`}
           >
-            <UserIcon className="w-4 h-4" />
-            <span>Personal Profile</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasPersonalProfile ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
-              {hasPersonalProfile ? "Active" : "Not Activated"}
+            <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Personal<span className="hidden sm:inline"> Profile</span></span>
+            <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${hasPersonalProfile ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
+              {hasPersonalProfile ? "Active" : "Inactive"}
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("merchant")}
-            className={`flex items-center gap-2 pb-2 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 sm:gap-2 pb-1.5 sm:pb-2 px-2 sm:px-3 text-[11px] sm:text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "merchant" ? "border-blue-600 text-blue-600" : "border-transparent text-neutral-slate hover:text-primary"
             }`}
           >
-            <Store className="w-4 h-4" />
-            <span>Business Profile</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasMerchantProfile ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
-              {hasMerchantProfile ? "Active" : "Not Activated"}
+            <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Business<span className="hidden sm:inline"> Profile</span></span>
+            <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${hasMerchantProfile ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
+              {hasMerchantProfile ? "Active" : "Inactive"}
             </span>
           </button>
         </div>

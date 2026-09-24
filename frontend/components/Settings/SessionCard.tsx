@@ -8,7 +8,7 @@ export default function SessionCard({ walletAddress }: SessionCardProps) {
   return (
     <>
       {/* 3. Linked Session & Accounts Info */}
-      <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 shadow-xs space-y-4">
+      <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-2 sm:p-8 shadow-xs space-y-4">
         <h2 className="text-lg font-bold text-primary font-display">Linked Session Info</h2>
         <div className="border border-neutral-mist rounded-xl p-4 space-y-2.5 text-xs text-neutral-slate bg-neutral-mist/20">
           <div className="flex justify-between">
