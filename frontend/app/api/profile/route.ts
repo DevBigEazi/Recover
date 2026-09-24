@@ -30,7 +30,16 @@ export async function GET(request: Request) {
       ],
     });
 
-    if (!user || !user.username) {
+    const hasCompleteProfile = Boolean(
+      user &&
+      (user.username ||
+       user.hasPersonalProfile ||
+       user.hasMerchantProfile ||
+       user.companyName ||
+       user.businessHandle)
+    );
+
+    if (!user || !hasCompleteProfile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
@@ -49,11 +58,13 @@ export async function GET(request: Request) {
       userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
       userObj.rolloverQuota = userObj.rolloverQuota || 0;
       userObj.overageCharges = userObj.overageCharges || 0;
-      userObj.webhookUrl = user.webhookUrl || null;
-      userObj.activeMode = user.activeMode || "personal";
+      userObj.activeMode = user.activeMode || (user.hasMerchantProfile && !user.hasPersonalProfile ? "merchant" : "personal");
+      userObj.hasPersonalProfile = Boolean(user.hasPersonalProfile);
       userObj.hasMerchantProfile = Boolean(user.hasMerchantProfile || user.companyName);
       userObj.businessPhone = user.businessPhone || null;
       userObj.businessEmail = user.businessEmail || null;
+      userObj.businessHandle = user.businessHandle || null;
+      userObj.username = user.username || null;
 
       if (user.apiKeyMasked) {
         userObj.apiKeyMasked = user.apiKeyMasked;
@@ -127,12 +138,14 @@ export async function GET(request: Request) {
       fullName: user.fullName,
       companyName: user.companyName || null,
       businessLogo: user.businessLogo || null,
-      username: user.username,
+      businessHandle: user.businessHandle || null,
+      username: user.username || null,
       subscriptionActive: user.subscriptionActive !== undefined ? Boolean(user.subscriptionActive) : (user.plan !== "free"),
       role: user.role,
       plan: user.plan || "free",
+      hasPersonalProfile: Boolean(user.hasPersonalProfile),
       hasMerchantProfile: Boolean(user.hasMerchantProfile || user.companyName),
-      activeMode: user.activeMode || "personal",
+      activeMode: user.activeMode || (user.hasMerchantProfile && !user.hasPersonalProfile ? "merchant" : "personal"),
     };
 
     return NextResponse.json(publicProfile, { status: 200 });
@@ -153,6 +166,7 @@ export async function POST(request: Request) {
       businessLogo,
       businessPhone,
       businessEmail,
+      businessHandle,
       username,
       phone,
       whatsapp,
@@ -188,11 +202,6 @@ export async function POST(request: Request) {
         : companyName !== undefined && companyName.trim().length > 0
         ? companyName.trim()
         : existingUser?.fullName || "";
-    const targetUsername = username !== undefined ? username.trim().toLowerCase() : existingUser?.username || "";
-
-    const targetPhone = phone !== undefined ? phone.trim() : existingUser?.phone || "";
-    const targetWhatsapp = whatsapp !== undefined ? whatsapp.trim() : existingUser?.whatsapp || "";
-    const targetEmail = email !== undefined ? email.trim() : existingUser?.email || "";
 
     // Merchant profile details
     const targetCompanyName =
@@ -208,17 +217,39 @@ export async function POST(request: Request) {
         ? businessEmail.trim() || null
         : existingUser?.businessEmail || null;
 
+    const targetBusinessHandle =
+      businessHandle !== undefined
+        ? businessHandle ? businessHandle.trim().toLowerCase() : null
+        : existingUser?.businessHandle || (targetCompanyName ? targetCompanyName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "_").slice(0, 30) : null);
+
+    const targetUsername =
+      username !== undefined
+        ? username ? username.trim().toLowerCase() : null
+        : existingUser?.username || null;
+
+    const targetPhone = phone !== undefined ? phone.trim() : existingUser?.phone || "";
+    const targetWhatsapp = whatsapp !== undefined ? whatsapp.trim() : existingUser?.whatsapp || "";
+    const targetEmail = email !== undefined ? email.trim() : existingUser?.email || "";
+
     const hasMerchantProfile = Boolean(
-      (targetCompanyName && targetCompanyName.length > 0) ||
-      existingUser?.hasMerchantProfile ||
-      role === "merchant"
+      body.hasMerchantProfile !== undefined
+        ? body.hasMerchantProfile
+        : (targetCompanyName && targetCompanyName.length > 0) || existingUser?.hasMerchantProfile || role === "merchant"
+    );
+
+    const hasPersonalProfile = Boolean(
+      body.hasPersonalProfile !== undefined
+        ? body.hasPersonalProfile
+        : existingUser?.hasPersonalProfile !== undefined
+        ? existingUser.hasPersonalProfile
+        : targetUsername && (targetPhone || targetWhatsapp || targetEmail)
     );
 
     // Active UI Mode: can be explicitly switched to "personal" or "merchant"
     const targetActiveMode: "personal" | "merchant" =
       activeMode === "personal" || activeMode === "merchant"
         ? activeMode
-        : existingUser?.activeMode || (role === "merchant" ? "merchant" : "personal");
+        : existingUser?.activeMode || (hasMerchantProfile && !hasPersonalProfile ? "merchant" : "personal");
 
     // Unified role: marked as "merchant" if merchant profile exists or was requested, else "user"
     const targetRole: "user" | "merchant" = hasMerchantProfile ? "merchant" : "user";
@@ -226,28 +257,65 @@ export async function POST(request: Request) {
     const targetPlan = plan || existingUser?.plan || "free";
     const targetBillingCycle = billingCycle || existingUser?.billingCycle || "monthly";
 
-    if (fullName !== undefined || username !== undefined || !existingUser) {
+    if (targetBusinessHandle && !/^[a-z0-9_-]{3,30}$/.test(targetBusinessHandle)) {
+      return NextResponse.json(
+        {
+          error:
+            "Business Handle must be between 3 and 30 characters and only contain lowercase letters, numbers, underscores, or hyphens.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (targetUsername && !/^[a-z0-9_-]{3,30}$/.test(targetUsername)) {
+      return NextResponse.json(
+        {
+          error:
+            "Personal username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (fullName !== undefined || !existingUser) {
       if (targetFullName.length === 0 || targetFullName.length > 50) {
         return NextResponse.json(
           { error: "Full name must be between 1 and 50 characters." },
           { status: 400 }
         );
       }
+    }
 
-      if (!/^[a-z0-9_-]{3,30}$/.test(targetUsername)) {
+    // At least one contact method (Phone, WhatsApp, or Email) required for personal profile
+    if (hasPersonalProfile && !targetPhone && !targetWhatsapp && !targetEmail) {
+      return NextResponse.json(
+        { error: "At least one contact method (Phone, WhatsApp, or Email) is required on your personal profile." },
+        { status: 400 }
+      );
+    }
+
+    // Uniqueness checks
+    if (targetUsername) {
+      const userWithUsername = await db.user.findOne({
+        username: targetUsername,
+        _id: { $ne: walletAddress.toLowerCase() },
+      });
+      if (userWithUsername) {
         return NextResponse.json(
-          {
-            error:
-              "Username must be between 3 and 30 characters and only contain letters, numbers, underscores, or hyphens.",
-          },
+          { error: "Personal username is already taken. Please choose another." },
           { status: 400 }
         );
       }
+    }
 
-      // At least one contact method (Phone, WhatsApp, or Email) required for the account owner
-      if (!targetPhone && !targetWhatsapp && !targetEmail && !targetBusinessPhone && !targetBusinessEmail) {
+    if (targetBusinessHandle) {
+      const userWithHandle = await db.user.findOne({
+        businessHandle: targetBusinessHandle,
+        _id: { $ne: walletAddress.toLowerCase() },
+      });
+      if (userWithHandle) {
         return NextResponse.json(
-          { error: "At least one contact method (Phone, WhatsApp, or Email) is required on your profile." },
+          { error: "Business Handle is already taken. Please choose another." },
           { status: 400 }
         );
       }
@@ -302,35 +370,54 @@ export async function POST(request: Request) {
 
     try {
       const targetId = existingUser ? existingUser._id : walletAddress.toLowerCase();
+
+      const updateDoc: Record<string, unknown> = {
+        fullName: targetFullName,
+        activeMode: targetActiveMode,
+        role: targetRole,
+        plan: targetPlan,
+        billingCycle: targetBillingCycle,
+      };
+
+      if (body.hasMerchantProfile !== undefined || !existingUser) {
+        updateDoc.hasMerchantProfile = hasMerchantProfile;
+      }
+      if (body.hasPersonalProfile !== undefined || !existingUser) {
+        updateDoc.hasPersonalProfile = hasPersonalProfile;
+      }
+
+      // Business Profile Fields
+      if (companyName !== undefined || !existingUser) updateDoc.companyName = targetCompanyName;
+      if (businessHandle !== undefined || !existingUser) updateDoc.businessHandle = targetBusinessHandle;
+      if (businessPhone !== undefined || !existingUser) updateDoc.businessPhone = targetBusinessPhone;
+      if (businessEmail !== undefined || !existingUser) updateDoc.businessEmail = targetBusinessEmail;
+      if (businessLogo !== undefined || !existingUser) updateDoc.businessLogo = targetBusinessLogo;
+      if (webhookUrl !== undefined || !existingUser) updateDoc.webhookUrl = targetWebhookUrl;
+
+      // Personal Profile Fields
+      if (username !== undefined || !existingUser) updateDoc.username = targetUsername;
+      if (phone !== undefined || !existingUser) updateDoc.phone = targetPhone || null;
+      if (whatsapp !== undefined || !existingUser) updateDoc.whatsapp = targetWhatsapp || null;
+      if (email !== undefined || !existingUser) updateDoc.email = targetEmail || null;
+
       const user = await db.user.findOneAndUpdate(
         { _id: targetId },
-        {
-          $set: {
-            fullName: targetFullName,
-            companyName: targetCompanyName,
-            businessLogo: targetBusinessLogo,
-            businessPhone: targetBusinessPhone,
-            businessEmail: targetBusinessEmail,
-            username: targetUsername,
-            phone: targetPhone || null,
-            whatsapp: targetWhatsapp || null,
-            email: targetEmail || null,
-            activeMode: targetActiveMode,
-            hasMerchantProfile: hasMerchantProfile,
-            role: targetRole,
-            plan: targetPlan,
-            billingCycle: targetBillingCycle,
-            webhookUrl: targetWebhookUrl,
-          },
-        },
+        { $set: updateDoc },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
       );
 
       return NextResponse.json(user, { status: 201 });
     } catch (err: unknown) {
       if (err && typeof err === "object" && "code" in err && (err.code === 11000 || err.code === "P2002")) {
+        const keyPattern = (err as Record<string, unknown>).keyPattern as Record<string, unknown> | undefined;
+        if (keyPattern && keyPattern.businessHandle) {
+          return NextResponse.json(
+            { error: "Business Handle is already taken. Please choose another." },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          { error: "Username is already taken." },
+          { error: "Personal username is already taken. Please choose another." },
           { status: 400 }
         );
       }

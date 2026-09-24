@@ -15,6 +15,8 @@ interface ProfileContextType {
   businessPhone: string | null;
   /** Dedicated business/invoice email for merchants */
   businessEmail: string | null;
+  /** Unique store / company handle (e.g. acme_logistics) — distinct from personal username */
+  businessHandle: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
@@ -23,6 +25,8 @@ interface ProfileContextType {
   role: "user" | "merchant";
   /** Currently active UI navigation mode */
   activeMode: "personal" | "merchant";
+  /** Whether the user has configured personal details */
+  hasPersonalProfile: boolean;
   /** Whether the user has configured business/merchant details */
   hasMerchantProfile: boolean;
   switchMode: (targetMode: "personal" | "merchant") => Promise<void>;
@@ -126,6 +130,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const businessLogo = profileData && !("isNotFound" in profileData) ? profileData.businessLogo || null : null;
   const businessPhone = profileData && !("isNotFound" in profileData) ? profileData.businessPhone || null : null;
   const businessEmail = profileData && !("isNotFound" in profileData) ? profileData.businessEmail || null : null;
+  const businessHandle = profileData && !("isNotFound" in profileData) ? profileData.businessHandle || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
@@ -145,13 +150,30 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       (profileData.hasMerchantProfile || Boolean(profileData.companyName))
   );
 
+  const hasPersonalProfile = Boolean(
+    profileData &&
+      !("isNotFound" in profileData) &&
+      (profileData.hasPersonalProfile !== undefined
+        ? profileData.hasPersonalProfile
+        : Boolean(profileData.username) && Boolean(profileData.phone || profileData.whatsapp || profileData.email))
+  );
+
+  // If user only has merchant profile, activeMode defaults to merchant.
+  // If user only has personal profile, activeMode defaults to personal.
+  // If user has both, respect localMode or server activeMode.
   const activeMode: "personal" | "merchant" =
-    localMode ||
-    (profileData && !("isNotFound" in profileData) && (profileData.activeMode === "personal" || profileData.activeMode === "merchant")
-      ? profileData.activeMode
-      : hasMerchantProfile
+    !hasPersonalProfile && hasMerchantProfile
       ? "merchant"
-      : "personal");
+      : !hasMerchantProfile && hasPersonalProfile
+      ? "personal"
+      : localMode ||
+        (profileData &&
+        !("isNotFound" in profileData) &&
+        (profileData.activeMode === "personal" || profileData.activeMode === "merchant")
+          ? profileData.activeMode
+          : hasMerchantProfile
+          ? "merchant"
+          : "personal");
 
   const switchMode = useCallback(
     async (targetMode: "personal" | "merchant") => {
@@ -194,6 +216,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       businessLogo,
       businessPhone,
       businessEmail,
+      businessHandle,
       username,
       phone,
       whatsapp,
@@ -201,6 +224,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       subscriptionActive,
       role,
       activeMode,
+      hasPersonalProfile,
       hasMerchantProfile,
       switchMode,
       plan,
@@ -228,6 +252,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       businessLogo,
       businessPhone,
       businessEmail,
+      businessHandle,
       username,
       phone,
       whatsapp,
@@ -235,6 +260,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       subscriptionActive,
       role,
       activeMode,
+      hasPersonalProfile,
       hasMerchantProfile,
       switchMode,
       plan,

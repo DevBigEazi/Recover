@@ -48,7 +48,6 @@ export default function MobileExploreDrawer({
     username,
     plan,
     activeMode,
-    switchMode,
   } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 
@@ -238,46 +237,6 @@ export default function MobileExploreDrawer({
                   </span>
                 )}
               </div>
-
-              {/* Mode Switcher Segmented Control */}
-              {!isStaffMode && (
-                <div className="p-1 bg-neutral-mist/80 rounded-xl flex border border-neutral-mist">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchMode("personal");
-                      if (pathname.startsWith("/workspace")) {
-                        router.push("/dashboard");
-                      }
-                    }}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      activeMode === "personal"
-                        ? "bg-neutral-white text-primary shadow-xs"
-                        : "text-neutral-slate hover:text-primary"
-                    }`}
-                  >
-                    <span>👤</span>
-                    <span>Personal</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchMode("merchant");
-                      if (pathname === "/dashboard" || pathname === "/register") {
-                        router.push("/workspace");
-                      }
-                    }}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      activeMode === "merchant"
-                        ? "bg-neutral-white text-primary shadow-xs"
-                        : "text-neutral-slate hover:text-primary"
-                    }`}
-                  >
-                    <span>🏪</span>
-                    <span>Business</span>
-                  </button>
-                </div>
-              )}
             </div>
           ) : null}
 

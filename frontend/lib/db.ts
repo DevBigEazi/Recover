@@ -61,12 +61,17 @@ export interface IUser {
   businessPhone?: string | null;
   /** Dedicated business/invoice email for merchants (distinct from personal email) */
   businessEmail?: string | null;
-  username: string;
+  /** Unique store/company handle (e.g. @acme_logistics) — distinct from personal username */
+  businessHandle?: string | null;
+  /** Unique personal handle (e.g. @johndoe) — optional for merchant-only accounts */
+  username?: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
   /** Active UI mode chosen by user — toggles between personal and business navigation */
   activeMode: "personal" | "merchant";
+  /** Flag indicating whether the user has set up their personal profile details */
+  hasPersonalProfile: boolean;
   /** Flag indicating whether the user has set up their business details */
   hasMerchantProfile: boolean;
   subscriptionActive: boolean;
@@ -362,11 +367,15 @@ const UserSchema = new Schema<IUser>(
     businessPhone: { type: String, default: null },
     /** Dedicated business/invoice email for merchants */
     businessEmail: { type: String, default: null },
-    username: { type: String, required: true, unique: true, index: true },
+    /** Dedicated unique store / merchant handle (e.g. acme_logistics) */
+    businessHandle: { type: String, unique: true, sparse: true, index: true, default: null },
+    /** Dedicated unique personal username (e.g. johndoe) */
+    username: { type: String, unique: true, sparse: true, index: true, default: null },
     phone: { type: String, default: null },
     whatsapp: { type: String, default: null },
     email: { type: String, default: null },
     activeMode: { type: String, enum: ["personal", "merchant"], default: "personal" },
+    hasPersonalProfile: { type: Boolean, default: false },
     hasMerchantProfile: { type: Boolean, default: false },
     subscriptionActive: { type: Boolean, default: false },
     // Index on role enables efficient merchant-only queries (e.g., shipment create guard)

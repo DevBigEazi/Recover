@@ -49,7 +49,6 @@ export default function Header() {
     plan,
     billingCycle,
     activeMode,
-    switchMode,
   } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 
@@ -353,34 +352,10 @@ export default function Header() {
                           Recover Platform
                         </span>
                       </div>
-                      <Link
-                        href="/"
-                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsExploreMenuOpen(false)}
-                      >
-                        Home
-                      </Link>
-                      <Link
-                        href="/pricing"
-                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsExploreMenuOpen(false)}
-                      >
-                        Pricing &amp; Quotas
-                      </Link>
-                      <Link
-                        href="/developers"
-                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsExploreMenuOpen(false)}
-                      >
-                        Developer REST API
-                      </Link>
-                      <Link
-                        href="/about"
-                        className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors"
-                        onClick={() => setIsExploreMenuOpen(false)}
-                      >
-                        About Recover
-                      </Link>
+                      <Link href="/" className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors" onClick={() => setIsExploreMenuOpen(false)}>Home</Link>
+                      <Link href="/pricing" className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors" onClick={() => setIsExploreMenuOpen(false)}>Pricing &amp; Quotas</Link>
+                      <Link href="/developers" className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors" onClick={() => setIsExploreMenuOpen(false)}>Developer REST API</Link>
+                      <Link href="/about" className="block px-3.5 py-2 text-xs text-neutral-slate hover:text-primary hover:bg-neutral-mist transition-colors" onClick={() => setIsExploreMenuOpen(false)}>About Recover</Link>
                     </div>
                   )}
                 </div>
@@ -585,27 +560,6 @@ export default function Header() {
 
                     {isUserMenuOpen && (
                       <div className="absolute right-0 mt-2 w-56 bg-neutral-white border border-neutral-mist rounded-xl shadow-lg py-2 animate-fade-in z-50">
-                        {/* 1-Tap Mode Switcher in Menu */}
-                        {!isStaffMode && (
-                          <div className="px-3 py-1.5 border-b border-neutral-mist mb-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nextMode = activeMode === "personal" ? "merchant" : "personal";
-                                switchMode(nextMode);
-                                setIsUserMenuOpen(false);
-                                router.push(nextMode === "merchant" ? "/workspace" : "/dashboard");
-                              }}
-                              className="w-full flex items-center justify-between px-2.5 py-1.5 bg-neutral-mist/60 hover:bg-neutral-mist rounded-lg text-xs font-semibold text-primary transition-colors cursor-pointer"
-                            >
-                              <span className="flex items-center gap-1.5">
-                                {activeMode === "personal" ? "🏪 Switch to Business" : "👤 Switch to Personal"}
-                              </span>
-                              <span className="text-[10px] text-blue-600 font-bold">Switch →</span>
-                            </button>
-                          </div>
-                        )}
-
                         {activeMode === "merchant" ? (
                           <>
                             <div className="px-4 py-2 border-b border-neutral-mist mb-1 bg-neutral-mist/20">
@@ -619,44 +573,14 @@ export default function Header() {
                                 </span>
                               </div>
                             </div>
-                            <Link
-                              href="/workspace"
-                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Merchant Workspace
-                            </Link>
-                            <Link
-                              href="/settings"
-                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Merchant Settings
-                            </Link>
+                            <Link href="/workspace" className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors" onClick={() => setIsUserMenuOpen(false)}>Merchant Workspace</Link>
+                            <Link href="/settings" className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors" onClick={() => setIsUserMenuOpen(false)}>Merchant Settings</Link>
                           </>
                         ) : (
                           <>
-                            <Link
-                              href="/dashboard"
-                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Dashboard
-                            </Link>
-                            <Link
-                              href="/register"
-                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Register Item
-                            </Link>
-                            <Link
-                              href="/settings"
-                              className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Settings
-                            </Link>
+                            <Link href="/dashboard" className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors" onClick={() => setIsUserMenuOpen(false)}>Dashboard</Link>
+                            <Link href="/register" className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors" onClick={() => setIsUserMenuOpen(false)}>Register Item</Link>
+                            <Link href="/settings" className="block px-4 py-2 text-xs text-neutral-slate hover:bg-neutral-mist transition-colors" onClick={() => setIsUserMenuOpen(false)}>Settings</Link>
                           </>
                         )}
                         <div className="border-t border-neutral-mist my-1.5" />
