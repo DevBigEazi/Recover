@@ -48,9 +48,6 @@ export default function MobileExploreDrawer({
     username,
     plan,
     activeMode,
-    hasPersonalProfile,
-    hasMerchantProfile,
-    switchMode,
   } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 
@@ -240,76 +237,6 @@ export default function MobileExploreDrawer({
                   </span>
                 )}
               </div>
-
-              {/* Mode Switcher Segmented Control or Activation Action */}
-              {!isStaffMode && (
-                <div>
-                  {hasPersonalProfile && hasMerchantProfile ? (
-                    <div className="p-1 bg-neutral-mist/80 rounded-xl flex border border-neutral-mist">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          switchMode("personal");
-                          onClose();
-                          if (pathname.startsWith("/workspace")) {
-                            router.push("/dashboard");
-                          }
-                        }}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          activeMode === "personal"
-                            ? "bg-neutral-white text-primary shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        <span>👤</span>
-                        <span>Personal</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          switchMode("merchant");
-                          onClose();
-                          if (pathname === "/dashboard" || pathname === "/register") {
-                            router.push("/workspace");
-                          }
-                        }}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          activeMode === "merchant"
-                            ? "bg-neutral-white text-primary shadow-xs"
-                            : "text-neutral-slate hover:text-primary"
-                        }`}
-                      >
-                        <span>🏪</span>
-                        <span>Business</span>
-                      </button>
-                    </div>
-                  ) : hasPersonalProfile && !hasMerchantProfile ? (
-                    <Link
-                      href="/settings"
-                      onClick={onClose}
-                      className="w-full flex items-center justify-between p-2.5 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-800 transition-colors"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>🏪</span>
-                        <span>Activate Business Account</span>
-                      </span>
-                      <span className="text-[10px] text-emerald-700 font-extrabold">Set up →</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/settings"
-                      onClick={onClose}
-                      className="w-full flex items-center justify-between p-2.5 bg-accent/10 hover:bg-accent/15 border border-accent/20 rounded-xl text-xs font-bold text-primary transition-colors"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>👤</span>
-                        <span>Activate Personal Vault</span>
-                      </span>
-                      <span className="text-[10px] text-accent font-extrabold">Set up →</span>
-                    </Link>
-                  )}
-                </div>
-              )}
             </div>
           ) : null}
 

@@ -15,7 +15,7 @@ import ApiKeyCard from "../../components/Settings/ApiKeyCard";
 import WebhookConfigCard from "@/components/WebhookConfigCard/WebhookConfigCard";
 import TeamManagementCard from "@/components/Settings/TeamManagementCard";
 import CredentialsBackupCard from "../../components/Settings/CredentialsBackupCard";
-import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard";
+import SessionCard from "../../components/Settings/SessionCard";
 
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
@@ -137,8 +137,8 @@ export default function SettingsPage() {
           {/* 2. Account Credentials Backup Card */}
           <CredentialsBackupCard hasAccount={Boolean(account)} />
 
-          {/* 3 & 4. Linked Session & Danger Zone Cards */}
-          <SessionAndDangerCard walletAddress={account.address} />
+          {/* 3 & 4. Linked Session Cards */}
+          <SessionCard walletAddress={account.address} />
         </div>
       </div>
     </main>

@@ -49,9 +49,6 @@ export default function Header() {
     plan,
     billingCycle,
     activeMode,
-    hasPersonalProfile,
-    hasMerchantProfile,
-    switchMode,
   } = useProfile();
   const { isStaffMode, workspaceSession } = useTeam();
 

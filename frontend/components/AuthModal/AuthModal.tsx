@@ -12,9 +12,9 @@ import {
   ArrowLeft,
   Loader2,
   Building2,
+  Phone,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
-import { FaApple, FaFacebookF } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 
 interface AuthModalProps {
@@ -53,7 +53,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   const handleSocialConnect = async (
-    strategy: "google" | "apple" | "facebook"
+    strategy: "google"
   ) => {
     setIsLoading(true);
     setError(null);
@@ -239,24 +239,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <span>Continue with Google</span>
                 </button>
 
-                {/* Apple */}
+                {/* Phone (Coming Soon) */}
                 <button
-                  onClick={() => handleSocialConnect("apple")}
-                  disabled={isLoading}
-                  className="w-full bg-neutral-white hover:bg-neutral-mist border border-neutral-mist text-primary font-semibold rounded-xl py-3 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2.5 shadow-xs"
+                  type="button"
+                  disabled
+                  className="w-full bg-neutral-white border border-neutral-mist text-neutral-slate/70 font-semibold rounded-xl py-3 text-sm transition-colors cursor-not-allowed flex items-center justify-center gap-2 shadow-xs opacity-75 select-none"
                 >
-                  <FaApple className="w-4.5 h-4.5 text-[18px]" />
-                  <span>Continue with Apple</span>
-                </button>
-
-                {/* Facebook */}
-                <button
-                  onClick={() => handleSocialConnect("facebook")}
-                  disabled={isLoading}
-                  className="w-full bg-neutral-white hover:bg-neutral-mist border border-neutral-mist text-primary font-semibold rounded-xl py-3 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2.5 shadow-xs"
-                >
-                  <FaFacebookF className="w-4 h-4 text-[#1877F2] text-[18px]" />
-                  <span>Continue with Facebook</span>
+                  <Phone className="w-4.5 h-4.5 text-neutral-slate/60" />
+                  <span>Continue with Phone</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral-mist text-neutral-slate px-2 py-0.5 rounded-full border border-neutral-slate/20">
+                    Coming Soon
+                  </span>
                 </button>
               </div>
 

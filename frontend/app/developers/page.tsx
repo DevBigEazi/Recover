@@ -15,13 +15,13 @@ export default function DevelopersPage() {
       icon: <UserPlus className="w-5 h-5 text-indigo-600" />,
       title: "Create a Merchant Account",
       description:
-        'Sign up on Recover using Google, Email, Apple or Facebook. During profile setup, select "Logistics & Delivery Merchant" as your account type. This unlocks the shipment tracking workspace and API access.',
+        'Sign up on Recover using Google or Email. During profile setup, select "Logistics & Delivery Merchant" as your account type. This unlocks the shipment tracking workspace and API access.',
       action: "Sign Up as Merchant →",
       actionHref: "/",
     },
     {
       step: 2,
-      icon: <KeyRound className="w-5 h-5 text-amber-600" />,
+      icon: <KeyRound className="w-5 h-5 text-blue-600" />,
       title: "Generate Your Secret API Key",
       description:
         'Open your Settings page and scroll to the Developer REST API section. Click "Generate API Key" to create a secret key in the format rec_live_.... Copy this key securely — it authenticates all your server-to-server API calls.',
