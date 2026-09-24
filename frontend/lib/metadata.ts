@@ -5,7 +5,7 @@ export const sharedOpenGraph = {
       url: "/og-image.png",
       width: 1200,
       height: 630,
-      alt: "Recover Protocol — Physical Item Protection & Package Tracking",
+      alt: "Recover Protocol — Physical Item Protection, Digital Receipts & Package Tracking",
     },
   ],
   locale: "en_US",

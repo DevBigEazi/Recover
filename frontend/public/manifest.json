@@ -1,7 +1,7 @@
 {
   "name": "Recover Protocol",
   "short_name": "Recover",
-  "description": "Privacy-First Lost & Found Registry on Electroneum",
+  "description": "Smart Physical Item Protection, Digital Receipts & Logistics Tracking",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#1E2A4A",
