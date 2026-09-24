@@ -23,6 +23,8 @@ interface ProfileContextType {
   role: "user" | "merchant";
   /** Currently active UI navigation mode */
   activeMode: "personal" | "merchant";
+  /** Whether the user has configured personal details */
+  hasPersonalProfile: boolean;
   /** Whether the user has configured business/merchant details */
   hasMerchantProfile: boolean;
   switchMode: (targetMode: "personal" | "merchant") => Promise<void>;
@@ -145,13 +147,30 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       (profileData.hasMerchantProfile || Boolean(profileData.companyName))
   );
 
+  const hasPersonalProfile = Boolean(
+    profileData &&
+      !("isNotFound" in profileData) &&
+      (profileData.hasPersonalProfile ||
+        (Boolean(profileData.username) &&
+          Boolean(profileData.phone || profileData.whatsapp || profileData.email)))
+  );
+
+  // If user only has merchant profile, activeMode defaults to merchant.
+  // If user only has personal profile, activeMode defaults to personal.
+  // If user has both, respect localMode or server activeMode.
   const activeMode: "personal" | "merchant" =
-    localMode ||
-    (profileData && !("isNotFound" in profileData) && (profileData.activeMode === "personal" || profileData.activeMode === "merchant")
-      ? profileData.activeMode
-      : hasMerchantProfile
+    !hasPersonalProfile && hasMerchantProfile
       ? "merchant"
-      : "personal");
+      : !hasMerchantProfile && hasPersonalProfile
+      ? "personal"
+      : localMode ||
+        (profileData &&
+        !("isNotFound" in profileData) &&
+        (profileData.activeMode === "personal" || profileData.activeMode === "merchant")
+          ? profileData.activeMode
+          : hasMerchantProfile
+          ? "merchant"
+          : "personal");
 
   const switchMode = useCallback(
     async (targetMode: "personal" | "merchant") => {
@@ -201,6 +220,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       subscriptionActive,
       role,
       activeMode,
+      hasPersonalProfile,
       hasMerchantProfile,
       switchMode,
       plan,
@@ -235,6 +255,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       subscriptionActive,
       role,
       activeMode,
+      hasPersonalProfile,
       hasMerchantProfile,
       switchMode,
       plan,

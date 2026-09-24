@@ -8,7 +8,7 @@ import ReceiptsTable from "@/components/Receipts/ReceiptsTable";
 import POSScreen from "@/components/Receipts/POSScreen";
 import ShipmentsPanel from "@/components/Shipments/ShipmentsPanel";
 import Link from "next/link";
-import { PlusCircle, Receipt, Users, UserPlus, Store, Loader2, User, Building2, Briefcase, ShieldCheck, ArrowRight } from "lucide-react";
+import { PlusCircle, Receipt, Users, UserPlus, Store, Loader2, User, Building2 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useAuth } from "@/context/AuthContext";
 import { useTeam } from "@/context/TeamContext";
@@ -26,7 +26,7 @@ function WorkspaceContent() {
   const { account } = useAuthReady();
   const { openLogin } = useAuth();
   const { isStaffMode, can, actorBranchId, actorBranchName, workspaceSession } = useTeam();
-  const { activeMode, switchMode, isProfileLoaded, refetchProfile } = useProfile();
+  const { activeMode, switchMode, hasPersonalProfile, hasMerchantProfile, isProfileLoaded, refetchProfile } = useProfile();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [teamSubTab, setTeamSubTab] = useState<"members" | "branches">("members");
   const hasVerifiedSubRef = React.useRef(false);
@@ -66,12 +66,12 @@ function WorkspaceContent() {
     }
   }, [refetchProfile, account?.address]);
 
-  // If wallet owner enters workspace in personal mode, switch activeMode to merchant
+  // If wallet owner enters workspace with a configured merchant profile, ensure activeMode is merchant
   useEffect(() => {
-    if (account && !isStaffMode && activeMode !== "merchant") {
+    if (account && !isStaffMode && hasMerchantProfile && activeMode !== "merchant") {
       switchMode("merchant");
     }
-  }, [account, isStaffMode, activeMode, switchMode]);
+  }, [account, isStaffMode, hasMerchantProfile, activeMode, switchMode]);
 
   const isMerchantOwner = Boolean(account && !isStaffMode);
   const hasWorkspaceAccess = Boolean(isStaffMode || account);
@@ -168,35 +168,37 @@ function WorkspaceContent() {
             </Link>
           </div>
         </div>
+      ) : !isStaffMode && account && hasPersonalProfile && !hasMerchantProfile ? (
+        /* Personal-Only User Activation Gate */
+        <div className="p-8 sm:p-12 text-center bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-sm space-y-5 max-w-lg mx-auto my-6 animate-fadeIn">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 flex items-center justify-center mx-auto">
+            <Store className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              Activate Your Business Workspace
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+              Your account is currently active in Personal Mode. Set up your store name and select a merchant tier to unlock POS digital receipts, dispatches, and multi-branch team management.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href="/settings"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-sm text-center"
+            >
+              Set Up Business Profile
+            </Link>
+            <Link
+              href="/dashboard"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 text-center"
+            >
+              Return to Personal Vault
+            </Link>
+          </div>
+        </div>
       ) : (
         <>
-          {/* Unified Mode Context & Personal Bridge (For Wallet Owners) */}
-          {isMerchantOwner && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs shadow-xs">
-              <div className="flex items-center gap-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                  <Briefcase className="w-3 h-3 text-emerald-400" />
-                  <span>Business Mode</span>
-                </div>
-                <span className="text-slate-300 font-medium">
-                  Store POS receipts, logistics dispatches &amp; branch team hub
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  await switchMode("personal");
-                  router.push("/dashboard");
-                }}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-medium transition-colors cursor-pointer border border-slate-700/60 shrink-0 shadow-xs"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-                <span>Switch to Personal Vault</span>
-                <ArrowRight className="w-3 h-3 text-slate-400" />
-              </button>
-            </div>
-          )}
-
           {/* Tab Panel 1: Digital Receipts & Sales */}
           {activeTab === "receipts" && (
             <div className="space-y-6 animate-fadeIn">

@@ -20,7 +20,7 @@ import SessionAndDangerCard from "../../components/Settings/SessionAndDangerCard
 export default function SettingsPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { activeMode, isProfileLoaded, refetchProfile } = useProfile();
+  const { activeMode, hasMerchantProfile, isProfileLoaded, refetchProfile } = useProfile();
   const hasVerifiedSubRef = useRef(false);
 
   // Handle Stripe & Paystack checkout return verification (runs strictly once per page visit)
@@ -109,10 +109,10 @@ export default function SettingsPage() {
         {/* Navigation Breadcrumb */}
         <div className="mb-6">
           <Link
-            href={activeMode === "merchant" ? "/workspace" : "/dashboard"}
+            href={activeMode === "merchant" && hasMerchantProfile ? "/workspace" : "/dashboard"}
             className="text-sm font-medium text-neutral-slate hover:text-primary flex items-center gap-1"
           >
-            ← Back to {activeMode === "merchant" ? "Workspace Hub" : "Items Dashboard"}
+            ← Back to {activeMode === "merchant" && hasMerchantProfile ? "Workspace Hub" : "Items Dashboard"}
           </Link>
         </div>
 
@@ -125,7 +125,7 @@ export default function SettingsPage() {
           <ProfileDetailsCard walletAddress={account.address} />
 
           {/* Business Workspace Operations & Subscription (Plans, Staff, Branches, API Keys & Webhooks) */}
-          {activeMode === "merchant" && (
+          {(hasMerchantProfile || activeMode === "merchant") && (
             <>
               <SubscriptionPlanCard walletAddress={account.address} />
               <TeamManagementCard />

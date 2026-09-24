@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useProfile } from "@/context/ProfileContext";
 import { toast } from "react-hot-toast";
 import { Upload, X, Image as ImageIcon, Store, User as UserIcon } from "lucide-react";
+import ActivateMerchantModal from "./ActivateMerchantModal";
 
 interface ProfileDetailsCardProps {
   walletAddress: string;
@@ -21,26 +22,32 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     businessPhone,
     businessEmail,
     activeMode,
+    hasPersonalProfile,
+    hasMerchantProfile,
+    switchMode,
     refetchProfile,
   } = useProfile();
 
-  // Shared Account Owner Name (identical across both Personal and Business modes)
-  const [nameInput, setNameInput] = useState("");
+  // Tab State: allows viewing & activating either profile regardless of current activeMode
+  const [activeTab, setActiveTab] = useState<"personal" | "merchant">(activeMode);
+  const [showPlanModal, setShowPlanModal] = useState(false);
 
-  // Personal Mode Fields
+  // Sync activeTab if activeMode changes from external trigger
+  useEffect(() => {
+    setActiveTab(activeMode);
+  }, [activeMode]);
+
+  // Form State
+  const [nameInput, setNameInput] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [whatsappInput, setWhatsappInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
-
-  // Business Mode Fields
   const [companyNameInput, setCompanyNameInput] = useState("");
   const [businessPhoneInput, setBusinessPhoneInput] = useState("");
   const [businessEmailInput, setBusinessEmailInput] = useState("");
   const [logoInput, setLogoInput] = useState<string | null>(null);
   const [isReadingLogo, setIsReadingLogo] = useState(false);
-
-  // Notification and Form States
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
   const [isRegisteringPush, setIsRegisteringPush] = useState(false);
@@ -64,17 +71,14 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
       toast.error("Please upload an image file (PNG, JPG, or WebP).");
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Image file must be under 5MB.");
       return;
     }
-
     setIsReadingLogo(true);
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -84,28 +88,18 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const MAX_DIM = 400;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height = Math.round(height * (MAX_DIM / width));
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width = Math.round(width * (MAX_DIM / height));
-            height = MAX_DIM;
-          }
+        let { width, height } = img;
+        if (width > height && width > MAX_DIM) {
+          height = Math.round(height * (MAX_DIM / width));
+          width = MAX_DIM;
+        } else if (height > MAX_DIM) {
+          width = Math.round(width * (MAX_DIM / height));
+          height = MAX_DIM;
         }
-
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
-        setLogoInput(dataUrl);
+        canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
+        setLogoInput(canvas.toDataURL("image/jpeg", 0.75));
         setIsReadingLogo(false);
       };
       img.onerror = () => {
@@ -129,9 +123,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
       if (Notification.permission === "granted") {
         navigator.serviceWorker.ready.then((reg) => {
           reg.pushManager.getSubscription().then((sub) => {
-            if (sub) {
-              setPushEnabled(true);
-            }
+            if (sub) setPushEnabled(true);
           });
         });
       }
@@ -155,18 +147,14 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         if (permission !== "granted") {
           setPushStatusMsg("Notification permission was denied in your browser settings.");
           toast.error("Notification permission was denied in your browser settings.");
-          setIsRegisteringPush(false);
           return;
         }
 
-        const registration =
-          (await navigator.serviceWorker.getRegistration()) ||
-          (await navigator.serviceWorker.register("/sw.js"));
+        const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register("/sw.js"));
         const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!publicVapidKey) {
           setPushStatusMsg("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
           toast.error("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined.");
-          setIsRegisteringPush(false);
           return;
         }
 
@@ -174,24 +162,16 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         const base64 = (publicVapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
         const rawData = window.atob(base64);
         const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
+        for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
 
-        let subscription = await registration.pushManager.getSubscription();
+        let subscription = await reg.pushManager.getSubscription();
         if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: outputArray,
-          });
+          subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: outputArray });
         }
 
         const response = await fetch("/api/notifications/subscribe", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-owner-address": walletAddress,
-          },
+          headers: { "Content-Type": "application/json", "x-owner-address": walletAddress },
           body: JSON.stringify({ subscription }),
         });
 
@@ -204,19 +184,14 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         setPushStatusMsg("Real-time Push Notifications enabled successfully on this device!");
         toast.success("Real-time Push Notifications enabled!");
       } else {
-        const registration =
-          (await navigator.serviceWorker.getRegistration()) ||
-          (await navigator.serviceWorker.ready);
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await subscription.unsubscribe();
-        }
+        const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+        const subscription = await reg?.pushManager.getSubscription();
+        if (subscription) await subscription.unsubscribe();
         setPushEnabled(false);
         setPushStatusMsg("Push Notifications disabled for this device.");
         toast.success("Push Notifications disabled.");
       }
     } catch (err: unknown) {
-      console.error("Error toggling push notifications:", err);
       const errMsg = err instanceof Error ? err.message : "Unknown error";
       setPushStatusMsg(`Failed to update push notification preferences: ${errMsg}`);
       toast.error(`Failed to update push notification preferences: ${errMsg}`);
@@ -242,7 +217,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
       return;
     }
 
-    if (activeMode === "personal") {
+    if (activeTab === "personal") {
       const cleanedUsername = usernameInput.trim().toLowerCase();
       const cleanedPhone = phoneInput.trim();
       const cleanedWhatsapp = whatsappInput.trim();
@@ -287,7 +262,11 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
         refetchProfile();
         setProfileSuccess(true);
-        toast.success("Personal profile updated successfully!");
+        toast.success(
+          hasPersonalProfile
+            ? "Personal profile updated successfully!"
+            : "Personal profile activated successfully!"
+        );
         setTimeout(() => setProfileSuccess(false), 3000);
       } catch (err: unknown) {
         console.error(err);
@@ -307,6 +286,13 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
         setProfileError("Store or Business Name must be between 1 and 80 characters.");
         toast.error("Store or Business Name must be between 1 and 80 characters.");
         setIsSaving(false);
+        return;
+      }
+
+      // If business profile is not yet active, prompt user to select a Merchant Operations Plan!
+      if (!hasMerchantProfile) {
+        setIsSaving(false);
+        setShowPlanModal(true);
         return;
       }
 
@@ -331,7 +317,11 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
 
         refetchProfile();
         setProfileSuccess(true);
-        toast.success("Business profile updated successfully!");
+        toast.success(
+          hasMerchantProfile
+            ? "Business profile updated successfully!"
+            : "Business profile activated successfully!"
+        );
         setTimeout(() => setProfileSuccess(false), 3000);
       } catch (err: unknown) {
         console.error(err);
@@ -344,84 +334,131 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
     }
   };
 
-  // Determine dirty state based strictly on activeMode
-  const isPersonalDirty =
-    activeMode === "personal" &&
-    (nameInput.trim() !== (fullName || "").trim() ||
-      usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
-      phoneInput.trim() !== (phone || "").trim() ||
-      whatsappInput.trim() !== (whatsapp || "").trim() ||
-      emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase());
+  // Determine dirty state based strictly on activeTab
+  const isPersonalDirty = activeTab === "personal" && (
+    nameInput.trim() !== (fullName || "").trim() ||
+    usernameInput.trim().toLowerCase() !== (username || "").trim().toLowerCase() ||
+    phoneInput.trim() !== (phone || "").trim() ||
+    whatsappInput.trim() !== (whatsapp || "").trim() ||
+    emailInput.trim().toLowerCase() !== (email || "").trim().toLowerCase()
+  );
 
-  const isBusinessDirty =
-    activeMode === "merchant" &&
-    (nameInput.trim() !== (fullName || "").trim() ||
-      companyNameInput.trim() !== (companyName || "").trim() ||
-      businessPhoneInput.trim() !== (businessPhone || "").trim() ||
-      businessEmailInput.trim().toLowerCase() !== (businessEmail || "").trim().toLowerCase() ||
-      logoInput !== (businessLogo || null));
+  const isBusinessDirty = activeTab === "merchant" && (
+    nameInput.trim() !== (fullName || "").trim() ||
+    companyNameInput.trim() !== (companyName || "").trim() ||
+    businessPhoneInput.trim() !== (businessPhone || "").trim() ||
+    businessEmailInput.trim().toLowerCase() !== (businessEmail || "").trim().toLowerCase() ||
+    logoInput !== (businessLogo || null)
+  );
 
   const isDirty = isPersonalDirty || isBusinessDirty;
 
   return (
     <div className="bg-neutral-white border border-neutral-mist rounded-2xl p-6 sm:p-8 shadow-xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-        <h2 className="text-lg font-bold text-primary font-display flex items-center gap-2">
-          {activeMode === "merchant" ? (
-            <>
-              <Store className="w-5 h-5 text-blue-600" />
-              <span>Business &amp; Store Profile</span>
-            </>
-          ) : (
-            <>
-              <UserIcon className="w-5 h-5 text-primary" />
-              <span>Personal Profile Details</span>
-            </>
-          )}
-        </h2>
+      {/* 1. Active Mode Switcher (Visible only when BOTH profiles are activated) */}
+      {hasPersonalProfile && hasMerchantProfile && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-neutral-cream/40 border border-neutral-slate/15 rounded-xl mb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-primary">Active Navigation Mode:</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${activeMode === "merchant" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                {activeMode === "merchant" ? "🏪 Business Mode" : "👤 Personal Mode"}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-slate mt-0.5">
+              Switch your primary workspace mode for top navigation and dashboards.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-neutral-white p-1 rounded-lg border border-neutral-slate/15 shrink-0">
+            <button
+              type="button"
+              onClick={() => switchMode("personal")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                activeMode === "personal"
+                  ? "bg-primary text-neutral-white shadow-xs"
+                  : "text-neutral-slate hover:text-primary"
+              }`}
+            >
+              👤 Personal
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("merchant")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                activeMode === "merchant"
+                  ? "bg-blue-600 text-neutral-white shadow-xs"
+                  : "text-neutral-slate hover:text-primary"
+              }`}
+            >
+              🏪 Business
+            </button>
+          </div>
+        </div>
+      )}
 
+      {/* 2. Centralized Profile Tabs */}
+      <div className="flex items-center justify-between border-b border-neutral-mist mb-6 pb-2">
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-              activeMode === "merchant"
-                ? "bg-blue-50 text-blue-700 border-blue-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+          <button
+            type="button"
+            onClick={() => setActiveTab("personal")}
+            className={`flex items-center gap-2 pb-2 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "personal" ? "border-primary text-primary" : "border-transparent text-neutral-slate hover:text-primary"
             }`}
           >
-            {activeMode === "merchant" ? "🏪 Business Mode" : "👤 Personal Mode"}
-          </span>
+            <UserIcon className="w-4 h-4" />
+            <span>Personal Profile</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasPersonalProfile ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
+              {hasPersonalProfile ? "Active" : "Not Activated"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("merchant")}
+            className={`flex items-center gap-2 pb-2 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "merchant" ? "border-blue-600 text-blue-600" : "border-transparent text-neutral-slate hover:text-primary"
+            }`}
+          >
+            <Store className="w-4 h-4" />
+            <span>Business Profile</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasMerchantProfile ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-neutral-slate/10 text-neutral-slate border border-neutral-slate/20"}`}>
+              {hasMerchantProfile ? "Active" : "Not Activated"}
+            </span>
+          </button>
         </div>
       </div>
 
-      <p className="text-xs text-neutral-slate mb-6">
-        {activeMode === "merchant"
-          ? "Manage your commercial store identity, official brand logo, and customer support channels for POS & dispatches."
-          : "Manage your display name, username, and contact buttons used by finders on physical sticker reports."}
-      </p>
+      {/* Inactive Profile Guidance Banner */}
+      {activeTab === "personal" && !hasPersonalProfile && (
+        <div className="mb-6 p-4 rounded-xl bg-neutral-cream/40 border border-neutral-slate/15 text-xs text-neutral-slate">
+          <p className="font-semibold text-primary mb-1">Personal Recovery Profile Not Activated</p>
+          Fill in your display name, username, and at least one contact method below to activate your personal profile and protect your personal items.
+        </div>
+      )}
+
+      {activeTab === "merchant" && !hasMerchantProfile && (
+        <div className="mb-6 p-4 rounded-xl bg-blue-50/50 border border-blue-200/60 text-xs text-blue-900">
+          <p className="font-semibold text-blue-950 mb-1">Business Store Profile Not Activated</p>
+          Configure your business name, logo, and customer support channels below to activate merchant operations (POS receipts, logistics dispatches, API keys, and staff).
+        </div>
+      )}
 
       <form onSubmit={handleProfileSave} className="space-y-6">
         {profileError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs flex gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-center gap-2">
             <span>{profileError}</span>
           </div>
         )}
 
         {profileSuccess && (
-          <div className="bg-green-50 border border-green-200 text-accent p-4 rounded-xl text-xs flex gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="bg-green-50 border border-green-200 text-accent p-3 rounded-xl text-xs flex items-center gap-2">
             <span>Profile updated successfully!</span>
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* MODE A: PERSONAL PROFILE ONLY */}
-        {/* ========================================================================= */}
-        {activeMode === "personal" && (
+        {/* TAB A: PERSONAL PROFILE */}
+        {activeTab === "personal" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -516,10 +553,8 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* MODE B: BUSINESS & STORE PROFILE ONLY */}
-        {/* ========================================================================= */}
-        {activeMode === "merchant" && (
+        {/* TAB B: BUSINESS & STORE PROFILE */}
+        {activeTab === "merchant" && (
           <div className="space-y-5 animate-fadeIn">
             {/* Account Owner Name (Shared) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -697,11 +732,7 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                 role="switch"
                 aria-checked={pushEnabled}
               >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                    pushEnabled ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${pushEnabled ? "translate-x-5" : "translate-x-0"}`} />
               </div>
             </div>
 
@@ -724,10 +755,28 @@ export default function ProfileDetailsCard({ walletAddress }: ProfileDetailsCard
                 : "bg-neutral-slate/15 text-neutral-slate border border-neutral-mist cursor-not-allowed opacity-60"
             }`}
           >
-            {isSaving ? "Saving..." : activeMode === "merchant" ? "Save Business Settings" : "Save Personal Settings"}
+            {isSaving
+              ? "Saving..."
+              : activeTab === "merchant"
+              ? hasMerchantProfile
+                ? "Save Business Settings"
+                : "Activate Business Profile"
+              : hasPersonalProfile
+              ? "Save Personal Settings"
+              : "Activate Personal Profile"}
           </button>
         </div>
       </form>
+
+      {/* Merchant Operations Plan Selection Modal */}
+      <ActivateMerchantModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        walletAddress={walletAddress}
+        businessDetails={{ fullName: nameInput, companyName: companyNameInput, businessLogo: logoInput, businessPhone: businessPhoneInput, businessEmail: businessEmailInput }}
+        userEmail={email}
+        onSuccess={() => refetchProfile()}
+      />
     </div>
   );
 }
