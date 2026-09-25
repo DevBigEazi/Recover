@@ -33,7 +33,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const usableEmail = (email || user?.email || "").trim();
+    const usableEmail = (
+      email ||
+      body.businessEmail ||
+      user?.businessEmail ||
+      user?.email ||
+      ""
+    ).trim();
     if (!usableEmail) {
       return NextResponse.json(
         { error: "Email is required to initialize subscription." },
@@ -89,6 +95,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         gateway: "paystack",
         url: paystackOrder.authorizationUrl,
+        checkoutUrl: paystackOrder.authorizationUrl,
         reference: paystackOrder.reference,
         accessCode: paystackOrder.accessCode,
         amount: selectedPlan.ngnMonthly,
@@ -163,6 +170,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       gateway: "stripe",
       url: session.url,
+      checkoutUrl: session.url,
       sessionId: session.id,
     });
   } catch (err: unknown) {
