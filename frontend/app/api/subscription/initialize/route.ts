@@ -33,14 +33,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const usableEmail = (
-      email ||
-      body.billingEmail ||
-      body.businessEmail ||
-      user?.businessEmail ||
-      user?.email ||
-      ""
-    ).trim();
+    const usableEmail =
+      [
+        email,
+        body.billingEmail,
+        body.businessEmail,
+        user?.businessEmail,
+        user?.email,
+      ]
+        .map((val) => (typeof val === "string" ? val.trim() : ""))
+        .find((val) => val.length > 0) || "";
     if (!usableEmail) {
       return NextResponse.json(
         { error: "Email is required to initialize subscription." },
