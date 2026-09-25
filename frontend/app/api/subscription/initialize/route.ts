@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
     const usableEmail = (
       email ||
+      body.billingEmail ||
       body.businessEmail ||
       user?.businessEmail ||
       user?.email ||
@@ -112,6 +113,18 @@ export async function POST(request: Request) {
       existingStripeCustomerId: user?.stripeCustomerId || undefined,
     });
 
+    // Ensure existing Stripe customer record reflects the selected billing email and name before checkout
+    if (usableEmail && customer.email !== usableEmail) {
+      await stripe.customers.update(customer.id, {
+        email: usableEmail,
+        ...(usableName && customer.name !== usableName ? { name: usableName } : {}),
+      });
+    } else if (usableName && customer.name !== usableName) {
+      await stripe.customers.update(customer.id, {
+        name: usableName,
+      });
+    }
+
     // Update customer ID only if the user document already exists (do NOT upsert an incomplete user during onboarding)
     await db.user.updateOne(
       { _id: cleanAddress },
@@ -133,6 +146,10 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       customer: customer.id,
+      customer_update: {
+        address: "auto",
+        name: "auto",
+      },
       line_items: [
         {
           price_data: {
