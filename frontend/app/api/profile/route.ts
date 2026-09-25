@@ -388,14 +388,18 @@ export async function POST(request: Request) {
 
       // Business Profile Fields
       if (companyName !== undefined || !existingUser) updateDoc.companyName = targetCompanyName;
-      if (businessHandle !== undefined || !existingUser) updateDoc.businessHandle = targetBusinessHandle;
+      if (businessHandle !== undefined || (!existingUser && targetBusinessHandle)) {
+        updateDoc.businessHandle = targetBusinessHandle;
+      }
       if (businessPhone !== undefined || !existingUser) updateDoc.businessPhone = targetBusinessPhone;
       if (businessEmail !== undefined || !existingUser) updateDoc.businessEmail = targetBusinessEmail;
       if (businessLogo !== undefined || !existingUser) updateDoc.businessLogo = targetBusinessLogo;
       if (webhookUrl !== undefined || !existingUser) updateDoc.webhookUrl = targetWebhookUrl;
 
       // Personal Profile Fields
-      if (username !== undefined || !existingUser) updateDoc.username = targetUsername;
+      if (username !== undefined || (!existingUser && targetUsername)) {
+        updateDoc.username = targetUsername;
+      }
       if (phone !== undefined || !existingUser) updateDoc.phone = targetPhone || null;
       if (whatsapp !== undefined || !existingUser) updateDoc.whatsapp = targetWhatsapp || null;
       if (email !== undefined || !existingUser) updateDoc.email = targetEmail || null;

@@ -368,9 +368,9 @@ const UserSchema = new Schema<IUser>(
     /** Dedicated business/invoice email for merchants */
     businessEmail: { type: String, default: null },
     /** Dedicated unique store / merchant handle (e.g. acme_logistics) */
-    businessHandle: { type: String, unique: true, sparse: true, index: true, default: null },
+    businessHandle: { type: String, default: null },
     /** Dedicated unique personal username (e.g. johndoe) */
-    username: { type: String, unique: true, sparse: true, index: true, default: null },
+    username: { type: String, default: null },
     phone: { type: String, default: null },
     whatsapp: { type: String, default: null },
     email: { type: String, default: null },
@@ -420,6 +420,16 @@ const UserSchema = new Schema<IUser>(
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
+);
+
+// Partial unique indexes: only non-null strings are indexed so multiple nulls/omitted handles do not collide
+UserSchema.index(
+  { businessHandle: 1 },
+  { unique: true, partialFilterExpression: { businessHandle: { $type: "string" } } }
+);
+UserSchema.index(
+  { username: 1 },
+  { unique: true, partialFilterExpression: { username: { $type: "string" } } }
 );
 
 UserSchema.virtual("walletAddress")
