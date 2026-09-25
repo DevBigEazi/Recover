@@ -30,6 +30,9 @@ export default function ActivateMerchantModal({
   userEmail,
   onSuccess,
 }: ActivateMerchantModalProps) {
+  const [billingEmail, setBillingEmail] = useState(
+    businessDetails.businessEmail?.trim() || userEmail?.trim() || ""
+  );
   const [selectedPlan, setSelectedPlan] = useState<string>("growth_1000");
   const [billingCycle, setBillingCycle] = useState<"monthly">("monthly");
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
@@ -40,9 +43,16 @@ export default function ActivateMerchantModal({
     detectUserCurrency().then(setUserCurrency);
   }, []);
 
+  useEffect(() => {
+    const defaultEmail = businessDetails.businessEmail?.trim() || userEmail?.trim() || "";
+    if (defaultEmail && !billingEmail) {
+      setBillingEmail(defaultEmail);
+    }
+  }, [businessDetails.businessEmail, userEmail, billingEmail]);
+
   if (!isOpen) return null;
 
-  const effectiveEmail = businessDetails.businessEmail?.trim() || userEmail?.trim() || "";
+  const effectiveEmail = (billingEmail || businessDetails.businessEmail || userEmail || "").trim();
 
   const handleProPayment = async () => {
     if (!effectiveEmail) {
@@ -60,6 +70,7 @@ export default function ActivateMerchantModal({
         body: JSON.stringify({
           walletAddress,
           email: effectiveEmail,
+          businessEmail: effectiveEmail,
           planTier: selectedPlan,
           billingCycle: "monthly",
           gateway: isNigeria ? "paystack" : "stripe",
@@ -79,8 +90,9 @@ export default function ActivateMerchantModal({
       }
 
       const initData = await initRes.json();
-      if (initData.checkoutUrl) {
-        window.location.href = initData.checkoutUrl;
+      const redirectUrl = initData.checkoutUrl || initData.url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       } else {
         throw new Error("No checkout URL returned.");
       }
@@ -106,7 +118,7 @@ export default function ActivateMerchantModal({
           businessHandle: businessDetails.businessHandle?.trim().toLowerCase() || undefined,
           businessLogo: businessDetails.businessLogo || undefined,
           businessPhone: businessDetails.businessPhone?.trim() || undefined,
-          businessEmail: businessDetails.businessEmail?.trim() || undefined,
+          businessEmail: effectiveEmail || businessDetails.businessEmail?.trim() || undefined,
           role: "merchant",
           activeMode: "merchant",
           hasMerchantProfile: true,
@@ -158,7 +170,26 @@ export default function ActivateMerchantModal({
               handleProPayment();
             }
           }}
+          className="space-y-4"
         >
+          <div>
+            <label htmlFor="modal-business-email" className="block text-xs font-semibold text-primary mb-1">
+              Business / Billing Email <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="modal-business-email"
+              type="email"
+              value={billingEmail}
+              onChange={(e) => setBillingEmail(e.target.value)}
+              placeholder="e.g. accounts@acme.com"
+              required
+              className="w-full text-xs px-3.5 py-2.5 border border-neutral-mist rounded-xl focus:outline-none focus:ring-1 focus:ring-accent bg-neutral-white text-primary"
+            />
+            <p className="text-[10px] text-neutral-slate mt-1">
+              Your subscription invoices, receipts, and operations notifications will be sent here.
+            </p>
+          </div>
+
           <MerchantPlanStep
             selectedPlan={selectedPlan}
             setSelectedPlan={setSelectedPlan}

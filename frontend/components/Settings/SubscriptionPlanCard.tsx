@@ -46,6 +46,7 @@ const TIER_NAMES: Record<string, string> = {
 export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlanCardProps) {
   const {
     email,
+    businessEmail,
     role,
     plan,
     billingCycleStart,
@@ -58,6 +59,14 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
   const [selectedUpgradeTier, setSelectedUpgradeTier] = useState<string>("growth_1000");
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [userCurrency, setUserCurrency] = useState<UserCurrencyInfo | null>(null);
+  const [billingEmailInput, setBillingEmailInput] = useState("");
+
+  useEffect(() => {
+    const existing = businessEmail || email || "";
+    if (existing && !billingEmailInput) {
+      setBillingEmailInput(existing);
+    }
+  }, [businessEmail, email, billingEmailInput]);
 
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -104,8 +113,19 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
   const activePlanConfig = PLAN_TIERS[plan] || PLAN_TIERS.free;
   const currentPlanQuota = activePlanConfig.quota;
 
+  const effectiveEmail = (billingEmailInput || businessEmail || email || "").trim();
+
   const handleUpgradePlan = async () => {
     if (!walletAddress) return;
+    if (!effectiveEmail) {
+      toast.error("Please enter a billing email for your invoice.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(effectiveEmail)) {
+      toast.error("Please enter a valid billing email address.");
+      return;
+    }
     setIsUpgrading(true);
     try {
       const initRes = await fetch("/api/subscription/initialize", {
@@ -113,7 +133,8 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletAddress,
-          email: email || "",
+          email: effectiveEmail,
+          businessEmail: effectiveEmail,
           planTier: selectedUpgradeTier,
           billingCycle: "monthly",
           gateway: isNigeria ? "paystack" : "stripe",
@@ -128,10 +149,11 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
       }
 
       const initData = await initRes.json();
+      const redirectUrl = initData.checkoutUrl || initData.url;
 
-      if (initData.url) {
+      if (redirectUrl) {
         toast.loading("Redirecting to secure payment checkout...");
-        window.location.href = initData.url;
+        window.location.href = redirectUrl;
       } else {
         throw new Error("Checkout URL was not returned.");
       }
@@ -325,6 +347,25 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Billing Email Input */}
+              <div className="bg-neutral-mist/20 border border-neutral-mist rounded-xl p-3.5 space-y-1.5">
+                <label htmlFor="subscription-billing-email" className="block text-xs font-bold text-primary">
+                  Billing &amp; Invoice Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="subscription-billing-email"
+                  type="email"
+                  value={billingEmailInput}
+                  onChange={(e) => setBillingEmailInput(e.target.value)}
+                  placeholder="e.g. accounts@acme.com"
+                  required
+                  className="w-full text-xs px-3 py-2 border border-neutral-mist rounded-lg focus:outline-none focus:ring-1 focus:ring-accent bg-neutral-white text-primary"
+                />
+                <p className="text-[10px] text-neutral-slate">
+                  Your monthly subscription receipt and invoice will be delivered to this address.
+                </p>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3">

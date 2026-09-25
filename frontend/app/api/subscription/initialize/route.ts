@@ -33,7 +33,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const usableEmail = (email || user?.email || "").trim();
+    const usableEmail =
+      [
+        email,
+        body.billingEmail,
+        body.businessEmail,
+        user?.businessEmail,
+        user?.email,
+      ]
+        .map((val) => (typeof val === "string" ? val.trim() : ""))
+        .find((val) => val.length > 0) || "";
     if (!usableEmail) {
       return NextResponse.json(
         { error: "Email is required to initialize subscription." },
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         gateway: "paystack",
         url: paystackOrder.authorizationUrl,
+        checkoutUrl: paystackOrder.authorizationUrl,
         reference: paystackOrder.reference,
         accessCode: paystackOrder.accessCode,
         amount: selectedPlan.ngnMonthly,
@@ -104,6 +114,18 @@ export async function POST(request: Request) {
       name: usableName,
       existingStripeCustomerId: user?.stripeCustomerId || undefined,
     });
+
+    // Ensure existing Stripe customer record reflects the selected billing email and name before checkout
+    if (usableEmail && customer.email !== usableEmail) {
+      await stripe.customers.update(customer.id, {
+        email: usableEmail,
+        ...(usableName && customer.name !== usableName ? { name: usableName } : {}),
+      });
+    } else if (usableName && customer.name !== usableName) {
+      await stripe.customers.update(customer.id, {
+        name: usableName,
+      });
+    }
 
     // Update customer ID only if the user document already exists (do NOT upsert an incomplete user during onboarding)
     await db.user.updateOne(
@@ -126,6 +148,10 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       customer: customer.id,
+      customer_update: {
+        address: "auto",
+        name: "auto",
+      },
       line_items: [
         {
           price_data: {
@@ -163,6 +189,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       gateway: "stripe",
       url: session.url,
+      checkoutUrl: session.url,
       sessionId: session.id,
     });
   } catch (err: unknown) {

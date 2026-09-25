@@ -222,6 +222,10 @@ export async function POST(request: Request) {
         ? businessHandle ? businessHandle.trim().toLowerCase() : null
         : existingUser?.businessHandle || (targetCompanyName ? targetCompanyName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "_").slice(0, 30) : null);
 
+    const willWriteBusinessHandle = Boolean(
+      businessHandle !== undefined || (!existingUser && targetBusinessHandle)
+    );
+
     const targetUsername =
       username !== undefined
         ? username ? username.trim().toLowerCase() : null
@@ -257,7 +261,7 @@ export async function POST(request: Request) {
     const targetPlan = plan || existingUser?.plan || "free";
     const targetBillingCycle = billingCycle || existingUser?.billingCycle || "monthly";
 
-    if (targetBusinessHandle && !/^[a-z0-9_-]{3,30}$/.test(targetBusinessHandle)) {
+    if (willWriteBusinessHandle && targetBusinessHandle && !/^[a-z0-9_-]{3,30}$/.test(targetBusinessHandle)) {
       return NextResponse.json(
         {
           error:
@@ -308,7 +312,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (targetBusinessHandle) {
+    if (willWriteBusinessHandle && targetBusinessHandle) {
       const userWithHandle = await db.user.findOne({
         businessHandle: targetBusinessHandle,
         _id: { $ne: walletAddress.toLowerCase() },
@@ -388,14 +392,18 @@ export async function POST(request: Request) {
 
       // Business Profile Fields
       if (companyName !== undefined || !existingUser) updateDoc.companyName = targetCompanyName;
-      if (businessHandle !== undefined || !existingUser) updateDoc.businessHandle = targetBusinessHandle;
+      if (willWriteBusinessHandle) {
+        updateDoc.businessHandle = targetBusinessHandle;
+      }
       if (businessPhone !== undefined || !existingUser) updateDoc.businessPhone = targetBusinessPhone;
       if (businessEmail !== undefined || !existingUser) updateDoc.businessEmail = targetBusinessEmail;
       if (businessLogo !== undefined || !existingUser) updateDoc.businessLogo = targetBusinessLogo;
       if (webhookUrl !== undefined || !existingUser) updateDoc.webhookUrl = targetWebhookUrl;
 
       // Personal Profile Fields
-      if (username !== undefined || !existingUser) updateDoc.username = targetUsername;
+      if (username !== undefined || (!existingUser && targetUsername)) {
+        updateDoc.username = targetUsername;
+      }
       if (phone !== undefined || !existingUser) updateDoc.phone = targetPhone || null;
       if (whatsapp !== undefined || !existingUser) updateDoc.whatsapp = targetWhatsapp || null;
       if (email !== undefined || !existingUser) updateDoc.email = targetEmail || null;
