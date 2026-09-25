@@ -121,6 +121,11 @@ export default function SubscriptionPlanCard({ walletAddress }: SubscriptionPlan
       toast.error("Please enter a billing email for your invoice.");
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(effectiveEmail)) {
+      toast.error("Please enter a valid billing email address.");
+      return;
+    }
     setIsUpgrading(true);
     try {
       const initRes = await fetch("/api/subscription/initialize", {
