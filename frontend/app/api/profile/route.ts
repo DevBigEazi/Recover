@@ -222,6 +222,10 @@ export async function POST(request: Request) {
         ? businessHandle ? businessHandle.trim().toLowerCase() : null
         : existingUser?.businessHandle || (targetCompanyName ? targetCompanyName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "_").slice(0, 30) : null);
 
+    const willWriteBusinessHandle = Boolean(
+      businessHandle !== undefined || (!existingUser && targetBusinessHandle)
+    );
+
     const targetUsername =
       username !== undefined
         ? username ? username.trim().toLowerCase() : null
@@ -257,7 +261,7 @@ export async function POST(request: Request) {
     const targetPlan = plan || existingUser?.plan || "free";
     const targetBillingCycle = billingCycle || existingUser?.billingCycle || "monthly";
 
-    if (targetBusinessHandle && !/^[a-z0-9_-]{3,30}$/.test(targetBusinessHandle)) {
+    if (willWriteBusinessHandle && targetBusinessHandle && !/^[a-z0-9_-]{3,30}$/.test(targetBusinessHandle)) {
       return NextResponse.json(
         {
           error:
@@ -308,7 +312,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (targetBusinessHandle) {
+    if (willWriteBusinessHandle && targetBusinessHandle) {
       const userWithHandle = await db.user.findOne({
         businessHandle: targetBusinessHandle,
         _id: { $ne: walletAddress.toLowerCase() },
@@ -388,7 +392,7 @@ export async function POST(request: Request) {
 
       // Business Profile Fields
       if (companyName !== undefined || !existingUser) updateDoc.companyName = targetCompanyName;
-      if (businessHandle !== undefined || (!existingUser && targetBusinessHandle)) {
+      if (willWriteBusinessHandle) {
         updateDoc.businessHandle = targetBusinessHandle;
       }
       if (businessPhone !== undefined || !existingUser) updateDoc.businessPhone = targetBusinessPhone;
