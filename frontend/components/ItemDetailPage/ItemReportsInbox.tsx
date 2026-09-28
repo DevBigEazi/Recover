@@ -39,19 +39,19 @@ export default function ItemReportsInbox({
       const initRes = await fetch("/api/reports/initialize-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId })
+        body: JSON.stringify({ reportId, userCurrency })
       });
 
       if (!initRes.ok) {
         const errData = await initRes.json();
-        throw new Error(errData.error || "Failed to initialize Stripe payment.");
+        throw new Error(errData.error || "Failed to initialize payment gateway.");
       }
 
       const { url } = await initRes.json();
       if (url) {
         window.location.href = url;
       } else {
-        throw new Error("Stripe checkout URL was not returned.");
+        throw new Error("Checkout URL was not returned.");
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to initialize checkout.";
@@ -207,6 +207,12 @@ export default function ItemReportsInbox({
                       >
                         {isActionLoading ? "Processing..." : `Unlock for ${priceInfo.formattedLocal}`}
                       </button>
+                      <span className="text-[10px] text-neutral-slate flex items-center justify-center gap-1">
+                        <span>Secured via</span>
+                        <strong className="text-primary font-semibold">
+                          {priceInfo.paymentGateway === "paystack" ? "Paystack (NGN)" : "Stripe (USD)"}
+                        </strong>
+                      </span>
                     </div>
                   </div>
                 )}

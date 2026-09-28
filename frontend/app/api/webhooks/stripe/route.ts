@@ -36,63 +36,6 @@ export async function POST(request: Request) {
             { _id: metadata.reportId },
             { $set: { unlocked: true } }
           );
-        } else if (metadata.type === "subscription" && metadata.walletAddress) {
-          const cleanAddress = metadata.walletAddress.toLowerCase();
-          const subscriptionId = typeof session.subscription === "string" ? session.subscription : null;
-          const customerId = typeof session.customer === "string" ? session.customer : null;
-
-          await db.user.findOneAndUpdate(
-            { _id: cleanAddress },
-            {
-              $set: {
-                subscriptionActive: true,
-                role: "merchant",
-                plan: metadata.plan || "pro_growth",
-                billingCycle: metadata.billingCycle || "monthly",
-                billingCycleStart: new Date(),
-                shipmentsThisMonth: 0,
-                stripeCustomerId: customerId,
-                stripeSubscriptionId: subscriptionId,
-              },
-            },
-            { upsert: true }
-          );
-        }
-        break;
-      }
-
-      case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
-
-        if (customerId) {
-          await db.user.findOneAndUpdate(
-            { stripeCustomerId: customerId },
-            {
-              $set: {
-                subscriptionActive: true,
-                shipmentsThisMonth: 0,
-                billingCycleStart: new Date(),
-              },
-            }
-          );
-        }
-        break;
-      }
-
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
-
-        if (customerId) {
-          await db.user.findOneAndUpdate(
-            { stripeCustomerId: customerId },
-            {
-              $set: {
-                subscriptionActive: false,
-              },
-            }
-          );
         }
         break;
       }

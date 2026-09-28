@@ -46,18 +46,19 @@ export default function ItemDetailPage({ params }: PageProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get("session_id") || urlParams.get("reference");
+    const sessionId = urlParams.get("session_id");
+    const reference = urlParams.get("reference") || urlParams.get("trxref");
     const unlocked = urlParams.get("unlocked");
 
-    if (sessionId || unlocked) {
+    if (sessionId || reference || unlocked) {
       const verifyUnlock = async () => {
         try {
-          if (sessionId) {
+          if (sessionId || reference) {
             toast.loading("Verifying report payment...");
             const res = await fetch("/api/reports/unlock", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId }),
+              body: JSON.stringify({ sessionId, reference }),
             });
             toast.dismiss();
             if (res.ok) {

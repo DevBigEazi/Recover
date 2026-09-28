@@ -1,5 +1,5 @@
 export interface UserCurrencyInfo {
-  currency: string;
+  currency: "NGN" | "USD";
   symbol: string;
   rateAgainstUSD: number; // 1 USD = rate units of local currency
   countryCode: string;
@@ -8,42 +8,31 @@ export interface UserCurrencyInfo {
 export interface ConvertedPrice {
   usdAmount: number;
   localAmount: number;
-  formattedLocal: string; // e.g. "₦5,000 NGN ($3.50 USD)" or "$3.50 USD"
+  formattedLocal: string; // e.g. "₦5,200 ($3.50 USD)" for Nigeria, "$3.50 USD" for others
   symbol: string;
-  currency: string;
+  currency: "NGN" | "USD";
+  isNigeria: boolean;
+  paymentGateway: "paystack" | "stripe";
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  NGN: "₦",
-  EUR: "€",
-  GBP: "£",
-  CAD: "CA$",
-  AUD: "AU$",
-  GHS: "GH₵",
-  KES: "KSh",
-  ZAR: "R",
-  INR: "₹",
-  JPY: "¥",
-  AED: "AED ",
-  BRL: "R$",
-  CNY: "¥",
-};
-
-const DEFAULT_CURRENCY: UserCurrencyInfo = {
+const DEFAULT_USD_CURRENCY: UserCurrencyInfo = {
   currency: "USD",
   symbol: "$",
   rateAgainstUSD: 1.0,
   countryCode: "US",
 };
 
+const DEFAULT_NGN_FALLBACK_RATE = 1480;
+
 let cachedCurrencyInfo: UserCurrencyInfo | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
 /**
- * Detects the user's local currency based on IP / GeoLocation / Timezone
- * and fetches the real-time USD exchange rate from exchange rate APIs.
+ * Detects whether the user is in Nigeria or elsewhere.
+ * Rule:
+ * - If from Nigeria: display Naira (NGN, ₦) with real-time conversion & use Paystack.
+ * - If from any other country: display US Dollars (USD, $) & use Stripe.
  */
 export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
   if (cachedCurrencyInfo && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
@@ -51,128 +40,126 @@ export async function detectUserCurrency(): Promise<UserCurrencyInfo> {
   }
 
   try {
-    let detectedCurrency = "USD";
     let detectedCountry = "US";
+    let isNigeria = false;
 
+    // 1. First attempt: IP-based geo detection via ipapi.co
     try {
       const ipRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
       if (ipRes.ok) {
         const geoData = await ipRes.json();
-        if (geoData.currency) {
-          detectedCurrency = geoData.currency.toUpperCase();
-        }
         if (geoData.country_code) {
-          detectedCountry = geoData.country_code.toUpperCase();
+          detectedCountry = String(geoData.country_code).toUpperCase();
+        }
+        if (detectedCountry === "NG" || geoData.currency === "NGN") {
+          isNigeria = true;
         }
       }
     } catch {
-      // Fallback: detect via browser timezone
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-      if (tz.includes("Lagos") || tz.includes("Abidjan")) {
-        detectedCurrency = "NGN";
-        detectedCountry = "NG";
-      } else if (tz.includes("London")) {
-        detectedCurrency = "GBP";
-        detectedCountry = "GB";
-      } else if (tz.includes("Paris") || tz.includes("Berlin") || tz.includes("Rome") || tz.includes("Madrid") || tz.includes("Amsterdam")) {
-        detectedCurrency = "EUR";
-        detectedCountry = "EU";
-      } else if (tz.includes("Accra")) {
-        detectedCurrency = "GHS";
-        detectedCountry = "GH";
-      } else if (tz.includes("Nairobi")) {
-        detectedCurrency = "KES";
-        detectedCountry = "KE";
-      } else if (tz.includes("Johannesburg")) {
-        detectedCurrency = "ZAR";
-        detectedCountry = "ZA";
+      // 2. Fallback attempt: Browser Timezone check
+      if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        if (tz.includes("Lagos")) {
+          isNigeria = true;
+          detectedCountry = "NG";
+        }
       }
     }
 
-    if (detectedCurrency === "USD") {
+    // If Nigeria, fetch live USD -> NGN exchange rate
+    if (isNigeria) {
+      let ngnRate = DEFAULT_NGN_FALLBACK_RATE;
+      try {
+        const fxRes = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(3000) });
+        if (fxRes.ok) {
+          const fxData = await fxRes.json();
+          if (fxData.rates && typeof fxData.rates.NGN === "number" && fxData.rates.NGN > 0) {
+            ngnRate = Math.round(fxData.rates.NGN);
+          }
+        }
+      } catch {
+        ngnRate = DEFAULT_NGN_FALLBACK_RATE;
+      }
+
       const result: UserCurrencyInfo = {
-        currency: "USD",
-        symbol: "$",
-        rateAgainstUSD: 1.0,
-        countryCode: detectedCountry,
+        currency: "NGN",
+        symbol: "₦",
+        rateAgainstUSD: ngnRate,
+        countryCode: "NG",
       };
       cachedCurrencyInfo = result;
       cacheTimestamp = Date.now();
       return result;
     }
 
-    // Fetch live exchange rate against USD
-    let rate = 1.0;
-    try {
-      const fxRes = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(3000) });
-      if (fxRes.ok) {
-        const fxData = await fxRes.json();
-        if (fxData.rates && fxData.rates[detectedCurrency]) {
-          rate = fxData.rates[detectedCurrency];
-        }
-      }
-    } catch {
-      // Static fallback rates if FX API times out
-      const FALLBACK_RATES: Record<string, number> = {
-        NGN: 1480,
-        EUR: 0.92,
-        GBP: 0.79,
-        GHS: 15.5,
-        KES: 130,
-        ZAR: 18.2,
-        CAD: 1.36,
-        AUD: 1.52,
-      };
-      rate = FALLBACK_RATES[detectedCurrency] || 1.0;
-    }
-
-    const symbol = CURRENCY_SYMBOLS[detectedCurrency] || `${detectedCurrency} `;
+    // For all other countries: USD
     const result: UserCurrencyInfo = {
-      currency: detectedCurrency,
-      symbol,
-      rateAgainstUSD: rate,
+      currency: "USD",
+      symbol: "$",
+      rateAgainstUSD: 1.0,
       countryCode: detectedCountry,
     };
-
     cachedCurrencyInfo = result;
     cacheTimestamp = Date.now();
     return result;
   } catch (err) {
-    console.warn("Currency detection error:", err);
-    return DEFAULT_CURRENCY;
+    console.warn("Currency detection fallback to USD:", err);
+    return DEFAULT_USD_CURRENCY;
   }
 }
 
 /**
- * Converts a base USD amount to the user's detected local currency.
+ * Returns whether a given currency info or country corresponds to Nigeria.
+ */
+export function isNigerianUser(currencyInfo?: UserCurrencyInfo | null): boolean {
+  if (!currencyInfo) return false;
+  return currencyInfo.countryCode === "NG" || currencyInfo.currency === "NGN";
+}
+
+/**
+ * Returns the recommended payment gateway based on user location:
+ * - Nigeria -> "paystack"
+ * - All others -> "stripe"
+ */
+export function getPaymentGateway(currencyInfo?: UserCurrencyInfo | null): "paystack" | "stripe" {
+  return isNigerianUser(currencyInfo) ? "paystack" : "stripe";
+}
+
+/**
+ * Converts a base USD amount to the user's localized currency:
+ * - If Nigeria: returns rounded Naira with formatted reference `₦5,200 ($3.50 USD)`.
+ * - If Others: returns clean `$3.50 USD`.
  */
 export function convertUsdPrice(usdAmount: number, currencyInfo?: UserCurrencyInfo | null): ConvertedPrice {
-  const info = currencyInfo || DEFAULT_CURRENCY;
-  const rawLocal = usdAmount * info.rateAgainstUSD;
+  const info = currencyInfo || DEFAULT_USD_CURRENCY;
+  const isNigeria = isNigerianUser(info);
+  const paymentGateway = isNigeria ? "paystack" : "stripe";
 
-  let roundedLocal = rawLocal;
-  if (info.currency === "NGN" || info.currency === "KES") {
-    roundedLocal = Math.round(rawLocal / 100) * 100;
-  } else if (rawLocal > 10) {
-    roundedLocal = Math.round(rawLocal);
-  } else {
-    roundedLocal = Math.round(rawLocal * 100) / 100;
+  if (isNigeria) {
+    const rawLocal = usdAmount * (info.rateAgainstUSD || DEFAULT_NGN_FALLBACK_RATE);
+    // Round to nearest 100 for clean Naira amounts (e.g. ₦5,200)
+    const roundedNaira = Math.round(rawLocal / 100) * 100;
+    const formattedNaira = roundedNaira.toLocaleString();
+
+    return {
+      usdAmount,
+      localAmount: roundedNaira,
+      formattedLocal: `₦${formattedNaira} ($${usdAmount.toFixed(2)} USD)`,
+      symbol: "₦",
+      currency: "NGN",
+      isNigeria: true,
+      paymentGateway: "paystack",
+    };
   }
 
-  const formattedAmount = roundedLocal.toLocaleString(undefined, {
-    minimumFractionDigits: roundedLocal % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-
-  const formattedLocal = info.currency === "USD"
-    ? `$${usdAmount.toFixed(2)} USD`
-    : `${info.symbol}${formattedAmount} ${info.currency} ($${usdAmount.toFixed(2)} USD)`;
-
+  // All other countries: strictly USD
   return {
     usdAmount,
-    localAmount: roundedLocal,
-    formattedLocal,
-    symbol: info.symbol,
-    currency: info.currency,
+    localAmount: usdAmount,
+    formattedLocal: `$${usdAmount.toFixed(2)} USD`,
+    symbol: "$",
+    currency: "USD",
+    isNigeria: false,
+    paymentGateway: "stripe",
   };
 }
