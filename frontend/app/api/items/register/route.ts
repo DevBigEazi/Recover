@@ -7,6 +7,9 @@ import { privateKeyToAccount } from "thirdweb/wallets";
 import { keccak256, encodePacked } from "thirdweb/utils";
 import crypto from "node:crypto";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

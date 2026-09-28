@@ -3,18 +3,13 @@ import type { Abi } from "abitype";
 import { client } from "./client";
 import { electroneum } from "./chain";
 import recoverAbiJson from "./Recover.json";
-import recoverShipmentAbiJson from "./RecoverShipment.json";
+
+const defaultContractAddress = "0x67648938d99bd1809987F18a09f427D8da6C88fd";
+const contractAddress = (process.env.NEXT_PUBLIC_RECOVER_CONTRACT_ADDRESS?.trim() || defaultContractAddress);
 
 export const recoverContract = getContract({
   client,
   chain: electroneum,
-  address: process.env.NEXT_PUBLIC_RECOVER_CONTRACT_ADDRESS as string,
+  address: contractAddress,
   abi: recoverAbiJson.abi as unknown as Abi,
-});
-
-export const recoverShipmentContract = getContract({
-  client,
-  chain: electroneum,
-  address: process.env.NEXT_PUBLIC_RECOVER_SHIPMENT_CONTRACT_ADDRESS as string,
-  abi: recoverShipmentAbiJson.abi as unknown as Abi,
 });

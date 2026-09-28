@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_recover_key";
 
 export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion,
@@ -13,12 +13,6 @@ export const stripe = new Stripe(stripeSecretKey, {
 export const STRIPE_PRICES = {
   REPORT_UNLOCK_PHONE_USD_CENTS: 350, // $3.50 USD for Phone category
   REPORT_UNLOCK_OTHER_USD_CENTS: 150, // $1.50 USD for Other categories
-  PRO_STARTER_MONTHLY_CENTS: 1500, // $15.00 USD / mo
-  PRO_STARTER_YEARLY_CENTS: 16200, // $162.00 USD / yr (10% discount)
-  PRO_GROWTH_MONTHLY_CENTS: 4500, // $45.00 USD / mo
-  PRO_GROWTH_YEARLY_CENTS: 48600, // $486.00 USD / yr (10% discount)
-  PRO_SCALE_MONTHLY_CENTS: 10000, // $100.00 USD / mo
-  PRO_SCALE_YEARLY_CENTS: 108000, // $1,080.00 USD / yr (10% discount)
 };
 
 /**

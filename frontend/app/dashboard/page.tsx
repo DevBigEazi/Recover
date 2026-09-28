@@ -40,14 +40,8 @@ interface LocalItem {
 export default function DashboardPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { username, role, isProfileLoaded } = useProfile();
+  const { username, isProfileLoaded } = useProfile();
   const router = useRouter();
-
-  useEffect(() => {
-    if (account && role && role === "merchant") {
-      router.replace("/shipments");
-    }
-  }, [account, role, router]);
 
   const [activeTab, setActiveTab] = useState<"All" | "Active" | "Lost" | "Recovered">("All");
 
@@ -83,8 +77,7 @@ export default function DashboardPage() {
       const dbItems: LocalItem[] = await response.json();
       return dbItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
-    // Never fetch items for merchant accounts — they use /shipments
-    enabled: !!account && role !== "merchant",
+    enabled: !!account,
     staleTime: 30_000,
   });
 
@@ -97,18 +90,6 @@ export default function DashboardPage() {
         <Header />
         <div className="flex justify-center items-center py-32">
           <Loader2 className="animate-spin h-8 w-8 text-primary" />
-        </div>
-      </main>
-    );
-  }
-
-  if (account && role === "merchant") {
-    return (
-      <main className="min-h-screen bg-neutral-mist pb-12">
-        <Header />
-        <div className="flex flex-col justify-center items-center py-32 gap-3">
-          <Loader2 className="animate-spin h-8 w-8 text-primary" />
-          <p className="text-xs font-medium text-neutral-slate">Redirecting to your logistics workspace...</p>
         </div>
       </main>
     );

@@ -43,27 +43,16 @@ export async function GET(request: Request) {
 
     if (isOwner) {
       const userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
-      userObj.billingCycle = userObj.billingCycle || "monthly";
-      userObj.plan = userObj.plan || "free";
-      userObj.subscriptionActive = userObj.subscriptionActive !== undefined ? userObj.subscriptionActive : (userObj.plan !== "free");
-      userObj.rolloverQuota = userObj.rolloverQuota || 0;
-      userObj.shipmentsThisMonth = userObj.shipmentsThisMonth || 0;
-      userObj.overageCharges = userObj.overageCharges || 0;
-      userObj.apiKey = user.apiKey || userObj.apiKey || null;
       return NextResponse.json(userObj, { status: 200 });
     }
-
 
     // Return sanitized public profile for non-owners (excluding phone, email, whatsapp)
     const publicProfile = {
       _id: user._id,
       walletAddress: user._id,
       fullName: user.fullName,
-      companyName: user.companyName || null,
       username: user.username,
-      subscriptionActive: user.subscriptionActive !== undefined ? Boolean(user.subscriptionActive) : (user.plan !== "free"),
-      role: user.role,
-      plan: user.plan || "free",
+      role: "user",
     };
 
     return NextResponse.json(publicProfile, { status: 200 });
@@ -77,7 +66,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { walletAddress, fullName, companyName, username, phone, whatsapp, email, role, plan, billingCycle } = body;
+    const { walletAddress, fullName, username, phone, whatsapp, email } = body;
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -100,32 +89,12 @@ export async function POST(request: Request) {
     const targetFullName =
       fullName !== undefined && fullName.trim().length > 0
         ? fullName.trim()
-        : (companyName !== undefined && companyName.trim().length > 0)
-        ? companyName.trim()
         : (existingUser?.fullName || "");
     const targetUsername = username !== undefined ? username.trim().toLowerCase() : (existingUser?.username || "");
 
     const targetPhone = phone !== undefined ? phone.trim() : (existingUser?.phone || "");
     const targetWhatsapp = whatsapp !== undefined ? whatsapp.trim() : (existingUser?.whatsapp || "");
     const targetEmail = email !== undefined ? email.trim() : (existingUser?.email || "");
-    
-    // Immutability: standard users/merchants cannot change their role or plan via profile saves after registration
-    const targetRole = (existingUser && existingUser.role) ? existingUser.role : (role || "user");
-    // Validate role value on first-time write
-    if (!existingUser && !("user" === targetRole || "merchant" === targetRole)) {
-      return NextResponse.json(
-        { error: "Invalid account type. Must be 'user' or 'merchant'." },
-        { status: 400 }
-      );
-    }
-    const targetPlan = plan || existingUser?.plan || "free";
-    const targetBillingCycle = billingCycle || existingUser?.billingCycle || "monthly";
-
-    // companyName: only meaningful for merchants; always null for individuals
-    const targetCompanyName =
-      targetRole === "merchant"
-        ? (companyName !== undefined ? companyName.trim() : (existingUser?.companyName || ""))
-        : null;
 
     if (fullName !== undefined || username !== undefined || !existingUser) {
       if (targetFullName.length === 0 || targetFullName.length > 50) {
@@ -145,28 +114,12 @@ export async function POST(request: Request) {
         );
       }
 
-      if (targetRole === "merchant") {
-        // Merchants must have a company name, phone, and email — no exceptions
-        if (!targetCompanyName || targetCompanyName.length === 0) {
-          return NextResponse.json(
-            { error: "Company name is required for logistics/merchant accounts." },
-            { status: 400 }
-          );
-        }
-        if (!targetPhone || !targetEmail) {
-          return NextResponse.json(
-            { error: "Customer support phone and business email are required for merchant accounts." },
-            { status: 400 }
-          );
-        }
-      } else {
-        // Individual users: at least one contact method
-        if (!targetPhone && !targetWhatsapp && !targetEmail) {
-          return NextResponse.json(
-            { error: "At least one contact method (Phone, WhatsApp, or Email) is required on your profile." },
-            { status: 400 }
-          );
-        }
+      // Individual users: at least one contact method required
+      if (!targetPhone && !targetWhatsapp && !targetEmail) {
+        return NextResponse.json(
+          { error: "At least one contact method (Phone, WhatsApp, or Email) is required on your profile." },
+          { status: 400 }
+        );
       }
     }
 
@@ -177,14 +130,11 @@ export async function POST(request: Request) {
         {
           $set: {
             fullName: targetFullName,
-            companyName: targetCompanyName,
             username: targetUsername,
             phone: targetPhone || null,
-            whatsapp: targetRole === "merchant" ? null : (targetWhatsapp || null),
+            whatsapp: targetWhatsapp || null,
             email: targetEmail || null,
-            role: targetRole,
-            plan: targetPlan,
-            billingCycle: targetBillingCycle,
+            role: "user",
           },
         },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }

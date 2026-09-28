@@ -15,14 +15,8 @@ import { toast } from "react-hot-toast";
 export default function RegisterPage() {
   const { account, isAuthLoading } = useAuthReady();
   const { openLogin } = useAuth();
-  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail, role, isProfileLoaded } = useProfile();
+  const { phone: profilePhone, whatsapp: profileWhatsapp, email: profileEmail, isProfileLoaded } = useProfile();
   const router = useRouter();
-
-  useEffect(() => {
-    if (account && role && role === "merchant") {
-      router.replace("/shipments");
-    }
-  }, [account, role, router]);
 
   // Form states
   const [name, setName] = useState("");
@@ -86,9 +80,6 @@ export default function RegisterPage() {
     );
   }
 
-  if (account && role === "merchant") {
-    return null;
-  }
 
   const handleGenerateAiInstructions = async () => {
     if (!name.trim()) return;

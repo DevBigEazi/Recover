@@ -6,20 +6,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileContextType {
   fullName: string | null;
-  /** Company display name — non-null only for role === "merchant" accounts. */
-  companyName: string | null;
   username: string | null;
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
-  subscriptionActive: boolean;
-  role: "user" | "merchant";
-  plan: "free" | "pro_starter" | "pro_growth" | "pro_scale" | "pro" | "enterprise";
-  billingCycle: "monthly" | "yearly";
-  shipmentsThisMonth: number;
-  rolloverQuota: number;
-  overageCharges: number;
-  apiKey: string | null;
   isProfileLoaded: boolean;
   isNewUser: boolean;
   isOpenSetup: boolean;
@@ -42,7 +32,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     data: profileData,
     isLoading,
     isError,
-    error,
   } = useQuery({
     queryKey: ["profile", walletAddress],
     queryFn: async () => {
@@ -66,16 +55,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const isProfileLoaded = !isLoading;
   const isNewUser = !!walletAddress && isProfileLoaded && profileData && "isNotFound" in profileData && profileData.isNotFound;
 
-  console.log("ProfileProvider state:", {
-    walletAddress,
-    isLoading,
-    isError,
-    error: error?.message,
-    profileData,
-    isNewUser,
-    isOpenSetup,
-  });
-
   // Auto-open modal if the user is logged in but doesn't have a profile yet
   useEffect(() => {
     if (isNewUser) {
@@ -95,37 +74,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const fullName = profileData && !("isNotFound" in profileData) ? profileData.fullName : null;
-  const companyName = profileData && !("isNotFound" in profileData) ? profileData.companyName || null : null;
   const username = profileData && !("isNotFound" in profileData) ? profileData.username : null;
   const phone = profileData && !("isNotFound" in profileData) ? profileData.phone || null : null;
   const whatsapp = profileData && !("isNotFound" in profileData) ? profileData.whatsapp || null : null;
   const email = profileData && !("isNotFound" in profileData) ? profileData.email || null : null;
-  const subscriptionActive = profileData && !("isNotFound" in profileData) ? Boolean(profileData.subscriptionActive) : false;
-  const role = profileData && !("isNotFound" in profileData) ? profileData.role || "user" : "user";
-  const plan = profileData && !("isNotFound" in profileData) ? profileData.plan || "free" : "free";
-  const billingCycle = profileData && !("isNotFound" in profileData) ? profileData.billingCycle || "monthly" : "monthly";
-  const shipmentsThisMonth = profileData && !("isNotFound" in profileData) ? Number(profileData.shipmentsThisMonth || 0) : 0;
-  const rolloverQuota = profileData && !("isNotFound" in profileData) ? Number(profileData.rolloverQuota || 0) : 0;
-  const overageCharges = profileData && !("isNotFound" in profileData) ? Number(profileData.overageCharges || 0) : 0;
-  const apiKey = profileData && !("isNotFound" in profileData) ? profileData.apiKey || null : null;
 
   return (
     <ProfileContext.Provider
       value={{
         fullName,
-        companyName,
         username,
         phone,
         whatsapp,
         email,
-        subscriptionActive,
-        role,
-        plan,
-        billingCycle,
-        shipmentsThisMonth,
-        rolloverQuota,
-        overageCharges,
-        apiKey,
         isProfileLoaded,
         isNewUser,
         isOpenSetup,
